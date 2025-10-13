@@ -98,12 +98,12 @@ export default function Home() {
               </p>
               <div className="flex gap-4 justify-center lg:justify-start">
                 <Button size="lg" asChild>
-                  <Link href="/signup">
+                  <Link href="/candidate/signup">
                     Get Started <ArrowRight className="ml-2" />
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
-                  <Link href="/login">Hire Talent</Link>
+                  <Link href="/employer/login">Hire Talent</Link>
                 </Button>
               </div>
             </div>

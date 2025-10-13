@@ -12,18 +12,22 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export default function LoginPage() {
+export default function CandidateSignupPage() {
   return (
     <div className="flex items-center justify-center py-12 px-4">
       <Card className="w-full max-w-md mx-auto">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold font-headline">Welcome Back!</CardTitle>
+          <CardTitle className="text-2xl font-bold font-headline">Create a Candidate Account</CardTitle>
           <CardDescription>
-            Log in to your Weinds account to continue.
+            Start your AI-powered career journey today.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="full-name">Full Name</Label>
+              <Input id="full-name" placeholder="John Doe" required />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -38,13 +42,13 @@ export default function LoginPage() {
               <Input id="password" type="password" required />
             </div>
             <Button type="submit" className="w-full mt-2">
-              Log In
+              Create Account
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" className="underline text-primary">
-              Sign up
+            Already have an account?{' '}
+            <Link href="/candidate/login" className="underline text-primary">
+              Log in
             </Link>
           </div>
         </CardContent>

@@ -1,12 +1,24 @@
 'use client';
 
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Users, Briefcase, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Logo } from './logo';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from './ui/sheet';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 const navLinks = [
   { href: '#features', label: 'Features' },
@@ -16,10 +28,21 @@ const navLinks = [
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
 
-  const NavLink = ({ href, label, className }: { href: string; label: string, className?: string; }) => (
+  const NavLink = ({
+    href,
+    label,
+    className,
+  }: {
+    href: string;
+    label: string;
+    className?: string;
+  }) => (
     <Link
       href={href}
-      className={cn("text-sm font-medium text-muted-foreground transition-colors hover:text-primary", className)}
+      className={cn(
+        'text-sm font-medium text-muted-foreground transition-colors hover:text-primary',
+        className
+      )}
       onClick={() => setMenuOpen(false)}
     >
       {label}
@@ -31,19 +54,58 @@ export function Header() {
       <div className="container flex h-14 items-center">
         <Logo />
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium ml-10">
-          {navLinks.map((link) => (
+          {navLinks.map(link => (
             <NavLink key={link.href} {...link} />
           ))}
         </nav>
 
         <div className="flex flex-1 items-center justify-end space-x-4">
           <div className="hidden sm:flex items-center space-x-2">
-            <Button variant="ghost" asChild>
-              <Link href="/login">Log In</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/signup">Sign Up</Link>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost">Log In</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href="/candidate/login" className="flex items-center gap-2">
+                    <Users /> For Candidates
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/employer/login" className="flex items-center gap-2">
+                    <Briefcase /> For Employers
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/tpo/login" className="flex items-center gap-2">
+                    <GraduationCap /> For Institutions
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>Sign Up</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                 <DropdownMenuItem asChild>
+                  <Link href="/candidate/signup" className="flex items-center gap-2">
+                    <Users /> For Candidates
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/employer/signup" className="flex items-center gap-2">
+                    <Briefcase /> For Employers
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/tpo/signup" className="flex items-center gap-2">
+                    <GraduationCap /> For Institutions
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
@@ -57,21 +119,40 @@ export function Header() {
               <SheetHeader className="flex-row justify-between items-center p-4 -ml-4 -mt-4 mr-4">
                 <Logo />
                 <SheetTitle className="sr-only">Menu</SheetTitle>
-                 <Button variant="ghost" size="icon" onClick={() => setMenuOpen(false)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMenuOpen(false)}
+                >
                   <X className="h-5 w-5" />
                   <span className="sr-only">Close Menu</span>
                 </Button>
               </SheetHeader>
               <div className="flex flex-col space-y-4 mt-8">
-                {navLinks.map((link) => (
-                   <NavLink key={link.href} {...link} className="text-lg" />
+                {navLinks.map(link => (
+                  <NavLink key={link.href} {...link} className="text-lg" />
                 ))}
                 <div className="flex flex-col space-y-2 pt-4 border-t">
-                   <Button variant="outline" asChild>
-                      <Link href="/login" onClick={() => setMenuOpen(false)}>Log In</Link>
+                  <h3 className="px-4 text-sm font-semibold text-muted-foreground">Login</h3>
+                   <Button variant="ghost" asChild className="justify-start">
+                      <Link href="/candidate/login" onClick={() => setMenuOpen(false)}>For Candidates</Link>
                     </Button>
-                    <Button asChild>
-                      <Link href="/signup" onClick={() => setMenuOpen(false)}>Sign Up</Link>
+                     <Button variant="ghost" asChild className="justify-start">
+                      <Link href="/employer/login" onClick={() => setMenuOpen(false)}>For Employers</Link>
+                    </Button>
+                     <Button variant="ghost" asChild className="justify-start">
+                      <Link href="/tpo/login" onClick={() => setMenuOpen(false)}>For Institutions</Link>
+                    </Button>
+
+                   <h3 className="px-4 text-sm font-semibold text-muted-foreground pt-4">Sign Up</h3>
+                     <Button variant="ghost" asChild className="justify-start">
+                      <Link href="/candidate/signup" onClick={() => setMenuOpen(false)}>For Candidates</Link>
+                    </Button>
+                     <Button variant="ghost" asChild className="justify-start">
+                      <Link href="/employer/signup" onClick={() => setMenuOpen(false)}>For Employers</Link>
+                    </Button>
+                     <Button variant="ghost" asChild className="justify-start">
+                      <Link href="/tpo/signup" onClick={() => setMenuOpen(false)}>For Institutions</Link>
                     </Button>
                 </div>
               </div>
