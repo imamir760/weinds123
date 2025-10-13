@@ -170,9 +170,9 @@ export default function EmployerDashboardPage() {
                     </CardHeader>
                     <CardContent>
                       <Tabs defaultValue={pipelineStages[0].name.toLowerCase()} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
+                        <TabsList className="w-full justify-start overflow-x-auto">
                           {pipelineStages.map((stage) => (
-                            <TabsTrigger key={stage.name} value={stage.name.toLowerCase()} className="flex-col h-auto py-2">
+                            <TabsTrigger key={stage.name} value={stage.name.toLowerCase()} className="flex-col h-auto py-2 px-4 whitespace-nowrap">
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-sm">{stage.name}</span>
                                 <Badge variant={stage.count > 0 ? "default" : "secondary"}>{stage.count}</Badge>
