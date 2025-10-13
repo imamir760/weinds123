@@ -47,13 +47,21 @@ export function LoginForm({ role }: { role: 'candidate' | 'employer' | 'tpo' }) 
           });
           router.push(`/${role}/dashboard`);
       } else {
+        await auth.signOut();
         throw new Error(`You are not registered as a ${role}.`);
       }
     } catch (error: any) {
       console.error("Login error:", error);
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        errorMessage = "Invalid email or password. Please check your credentials and try again.";
+      } else if (error.message.includes("not registered as a")) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Login Failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
