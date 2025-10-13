@@ -108,11 +108,13 @@ function SidebarNav() {
 export default function EmployerDashboardPage() {
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
   const [isCreatePipelineOpen, setIsCreatePipelineOpen] = useState(false);
-  const [jobDetailsForPipeline, setJobDetailsForPipeline] = useState(null);
+  const [jobDetailsForPipeline, setJobDetailsForPipeline] = useState<any>(null);
+  const [postTypeForPipeline, setPostTypeForPipeline] = useState<'job' | 'internship'>('job');
 
 
-  const handlePipelineOpen = (details: any) => {
+  const handlePipelineOpen = (details: any, postType: 'job' | 'internship') => {
     setJobDetailsForPipeline(details);
+    setPostTypeForPipeline(postType);
     setIsPostJobOpen(false);
     setIsCreatePipelineOpen(true);
   }
@@ -239,7 +241,7 @@ export default function EmployerDashboardPage() {
         </div>
     </div>
     <PostJobDialog open={isPostJobOpen} onOpenChange={setIsPostJobOpen} onPipelineOpen={handlePipelineOpen} />
-    <CreatePipelineDialog open={isCreatePipelineOpen} onOpenChange={setIsCreatePipelineOpen} jobDetails={jobDetailsForPipeline} />
+    <CreatePipelineDialog open={isCreatePipelineOpen} onOpenChange={setIsCreatePipelineOpen} jobDetails={jobDetailsForPipeline} postType={postTypeForPipeline} />
     </>
   );
 }

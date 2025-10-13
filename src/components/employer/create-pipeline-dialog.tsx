@@ -13,11 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
-import { Briefcase, TestTube2, Bot, UserCheck, IndianRupee, Star, Check } from 'lucide-react';
+import { Briefcase, TestTube2, Bot, UserCheck, IndianRupee, Star, Check, Loader2 } from 'lucide-react';
+import { useAuth } from '../auth/auth-provider';
+import { createJobWithPipeline } from '@/lib/job-actions';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const STAGE_COSTS = {
   application: 49,
@@ -45,14 +48,29 @@ const pipelineStages: PipelineStage[] = [
 ];
 
 
-export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open: boolean, onOpenChange: (open: boolean) => void, jobDetails: any }) {
+export function CreatePipelineDialog({ open, onOpenChange, jobDetails, postType }: { open: boolean, onOpenChange: (open: boolean) => void, jobDetails: any, postType: 'job' | 'internship' }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const [saving, setSaving] = useState(false);
+  
   const [applicationType, setApplicationType] = useState({ application: false, invite: false });
   const [skillTestType, setSkillTestType] = useState<'ai' | 'traditional' | null>(null);
   const [includeAiInterview, setIncludeAiInterview] = useState(false);
   const [finalInterviewType, setFinalInterviewType] = useState<'in-person' | 'online' | null>(null);
-  const [includeSelection, setIncludeSelection] = useState(false);
 
+  const selectedPipeline = useMemo(() => {
+    const pipeline: { stage: string, type?: string }[] = [];
+    if(applicationType.application) pipeline.push({ stage: 'application' });
+    if(applicationType.invite) pipeline.push({ stage: 'invite' });
+    pipeline.push({ stage: 'shortlisting' });
+    if(skillTestType) pipeline.push({ stage: 'skill_test', type: skillTestType });
+    if(includeAiInterview) pipeline.push({ stage: 'interview', type: 'ai' });
+    if(finalInterviewType) pipeline.push({ stage: 'final_interview', type: finalInterviewType });
+    pipeline.push({ stage: 'selection' });
+    return pipeline;
+  }, [applicationType, skillTestType, includeAiInterview, finalInterviewType]);
 
   const totalCost = useMemo(() => {
     let cost = 0;
@@ -75,14 +93,11 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
     if (finalInterviewType) {
         cost += STAGE_COSTS.final_interview;
     }
-
-    if (includeSelection) {
-        cost += STAGE_COSTS.selection;
-    }
-
+    
+    cost += STAGE_COSTS.selection; // Selection is compulsory
 
     return cost;
-  }, [applicationType, skillTestType, includeAiInterview, finalInterviewType, includeSelection]);
+  }, [applicationType, skillTestType, includeAiInterview, finalInterviewType]);
 
   const handleApplicationCheck = (type: 'application' | 'invite', checked: boolean) => {
       setApplicationType(prev => {
@@ -95,6 +110,29 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
           return { ...prev, [type]: checked };
       });
   };
+
+  const handlePostJob = async () => {
+      if (!user) {
+          toast({ title: "Authentication Error", description: "You must be logged in to post a job.", variant: "destructive" });
+          return;
+      }
+      setSaving(true);
+      try {
+        await createJobWithPipeline(postType, jobDetails, selectedPipeline, user.uid);
+        toast({
+            title: "Success!",
+            description: `Your ${postType} has been posted.`,
+        });
+        resetAndClose();
+        router.push(postType === 'job' ? '/employer/jobs' : '/employer/internships');
+      } catch (error) {
+          console.error("Failed to post job:", error);
+          toast({ title: "Error", description: `Failed to post ${postType}.`, variant: "destructive" });
+      } finally {
+          setSaving(false);
+      }
+  }
+
 
   const renderStageContent = () => {
     switch (currentStep) {
@@ -170,7 +208,7 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
                 </div>
                 <div className="flex items-center gap-4">
                     <Badge variant="outline" className="text-sm">₹{STAGE_COSTS.ai_interview}</Badge>
-                    <Switch id="ai-interview" checked={includeAiInterview} onCheckedChange={setIncludeAiInterview} />
+                    <Checkbox id="ai-interview" checked={includeAiInterview} onCheckedChange={(checked) => setIncludeAiInterview(!!checked)} />
                 </div>
             </div>
           </div>
@@ -201,15 +239,13 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
        case 5: // Stage 6: Selection
         return (
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Stage 6: Selection (Optional)</h3>
-            <div className="flex items-center justify-between p-4 border rounded-lg has-[:checked]:border-primary has-[:checked]:bg-primary/5 transition-all">
+            <h3 className="font-semibold text-lg">Stage 6: Final Selection (Compulsory)</h3>
+             <div className="flex items-center justify-between p-4 border rounded-lg bg-secondary/50">
                 <div>
-                    <Label htmlFor="selection" className="font-medium">Final Selection</Label>
-                    <p className="text-xs text-muted-foreground mt-1">Mark candidates as hired and send offer letters.</p>
+                    <p className="font-medium">Mark candidates as hired and send offer letters.</p>
                 </div>
                 <div className="flex items-center gap-4">
                     <Badge variant="outline" className="text-sm">₹{STAGE_COSTS.selection}</Badge>
-                    <Switch id="selection" checked={includeSelection} onCheckedChange={setIncludeSelection} />
                 </div>
             </div>
           </div>
@@ -232,7 +268,6 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
     setSkillTestType(null);
     setIncludeAiInterview(false);
     setFinalInterviewType(null);
-    setIncludeSelection(false);
     onOpenChange(false);
   }
 
@@ -284,7 +319,10 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
             {currentStep < pipelineStages.length - 1 ? (
                 <Button onClick={() => setCurrentStep(currentStep + 1)} disabled={isNextDisabled()}>Next</Button>
             ) : (
-                <Button>Post Job &amp; Activate Pipeline</Button>
+                <Button onClick={handlePostJob} disabled={saving}>
+                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                   Post Job &amp; Activate Pipeline
+                </Button>
             )}
           </div>
         </DialogFooter>

@@ -40,7 +40,7 @@ type InternshipDetails = JobDetails & {
     duration?: string;
 }
 
-export function PostJobDialog({ open, onOpenChange, onPipelineOpen }: { open: boolean, onOpenChange: (open: boolean) => void, onPipelineOpen: (details: any) => void }) {
+export function PostJobDialog({ open, onOpenChange, onPipelineOpen }: { open: boolean, onOpenChange: (open: boolean) => void, onPipelineOpen: (details: any, postType: PostType) => void }) {
   const [step, setStep] = useState(1);
   const [postType, setPostType] = useState<PostType>('job');
   const [unstructuredText, setUnstructuredText] = useState('');
@@ -74,7 +74,7 @@ export function PostJobDialog({ open, onOpenChange, onPipelineOpen }: { open: bo
         setDetails(result);
       }
       setStep(3); // Move to the details review step
-    } catch (error) {
+    } catch (error) => {
       console.error('Failed to generate job description:', error);
     } finally {
       setLoading(false);
@@ -83,7 +83,7 @@ export function PostJobDialog({ open, onOpenChange, onPipelineOpen }: { open: bo
 
   const handleCreatePipeline = () => {
     if (details) {
-        onPipelineOpen(details);
+        onPipelineOpen(details, postType);
     }
   }
 
