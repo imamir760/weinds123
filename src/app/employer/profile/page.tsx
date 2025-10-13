@@ -50,7 +50,7 @@ export default function CompanyProfilePage() {
           if (docSnap.exists()) {
             setProfile(docSnap.data() as ProfileData);
           } else {
-            // Pre-fill email from auth if profile doesn't exist
+            // Pre-fill from auth if profile doesn't exist
             setProfile(prev => ({
               ...prev,
               email: user.email || '',
@@ -93,9 +93,6 @@ export default function CompanyProfilePage() {
       description: "Your company's information is being updated.",
     });
 
-    // We don't know for sure if it succeeded due to the detached nature
-    // of the save, but we can give optimistic feedback.
-    // The error will appear in the dev overlay if it fails.
     setTimeout(() => {
       setSaving(false);
       toast({
@@ -125,7 +122,7 @@ export default function CompanyProfilePage() {
               </div>
                <div className="space-y-2">
                  <Label htmlFor="email">Email</Label>
-                 <Input id="email" type="email" value={profile.email} onChange={handleInputChange} />
+                 <Input id="email" type="email" value={profile.email} disabled />
                </div>
             </div>
              <div className="space-y-2">

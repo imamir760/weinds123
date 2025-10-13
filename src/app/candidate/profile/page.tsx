@@ -17,6 +17,7 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 type ProfileData = {
   fullName: string;
+  email: string;
   headline: string;
   skills: string;
   experience: string;
@@ -28,6 +29,7 @@ export default function CandidateProfilePage() {
   const { toast } = useToast();
   const [profile, setProfile] = useState<ProfileData>({
     fullName: '',
+    email: '',
     headline: '',
     skills: '',
     experience: '',
@@ -45,8 +47,12 @@ export default function CandidateProfilePage() {
             if (docSnap.exists()) {
               setProfile(docSnap.data() as ProfileData);
             } else {
-              // If profile doesn't exist, use display name from auth
-              setProfile(prev => ({...prev, fullName: user.displayName || ''}));
+              // Pre-fill from auth if profile doesn't exist yet
+              setProfile(prev => ({
+                ...prev, 
+                fullName: user.displayName || '',
+                email: user.email || ''
+              }));
             }
         } catch(serverError) {
              const permissionError = new FirestorePermissionError({
@@ -84,14 +90,12 @@ export default function CandidateProfilePage() {
       description: "Your information is being updated.",
     });
 
-    // We don't know for sure if it succeeded due to the detached nature
-    // of the save, but we can give optimistic feedback.
-    // The error will appear in the dev overlay if it fails.
+    // Optimistic UI update
     setTimeout(() => {
       setSaving(false);
       toast({
-        title: "Request Sent",
-        description: "Your profile update has been sent to the server.",
+        title: "Update Sent",
+        description: "Your profile changes have been sent to the server.",
       });
     }, 1500);
   };
@@ -116,7 +120,7 @@ export default function CandidateProfilePage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={user?.email || ''} disabled />
+                <Input id="email" type="email" value={profile.email} disabled />
               </div>
             </div>
 

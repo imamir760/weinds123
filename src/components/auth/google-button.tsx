@@ -2,8 +2,8 @@
 
 import { Button } from '@/components/ui/button';
 import { auth, db } from '@/lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './auth-provider';
@@ -20,26 +20,29 @@ export function GoogleButton() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      const userProfileRef = doc(db, `${role}s`, user.uid);
+      const profileCollection = `${role}s` as 'candidates' | 'employers' | 'institutes';
+      const userProfileRef = doc(db, profileCollection, user.uid);
       const userProfileDoc = await getDoc(userProfileRef);
 
       if (action === 'signup') {
         if (userProfileDoc.exists()) {
-           throw new Error("An account already exists with this Google account for this role.");
+           await auth.signOut(); // Sign out the user to prevent login
+           throw new Error(`An account already exists with this Google account for the '${role}' role. Please log in.`);
         }
         
         // Create the corresponding profile document
+        let profileData: any = {};
         if (role === 'candidate') {
-            saveUserProfile('candidates', user.uid, {
+            profileData = {
               fullName: user.displayName || '',
               email: user.email,
               headline: '',
               skills: '',
               experience: '',
               education: ''
-            });
+            };
         } else if (role === 'employer') {
-            saveUserProfile('employers', user.uid, {
+            profileData = {
               companyName: user.displayName || '',
               email: user.email,
               website: '',
@@ -47,20 +50,22 @@ export function GoogleButton() {
               description: '',
               industry: '',
               companySize: ''
-            });
+            };
         } else if (role === 'tpo') {
-            saveUserProfile('institutes', user.uid, {
+            profileData = {
               institutionName: user.displayName || '',
               tpoEmail: user.email,
               website: '',
               description: '',
               tpoName: '',
-            });
+            };
         }
+        saveUserProfile(profileCollection, user.uid, profileData);
 
       } else { // login
         if (!userProfileDoc.exists()) {
-           throw new Error(`No account found for this role. Please sign up as a ${role}.`);
+           await auth.signOut(); // Sign out the user as they don't have the correct role profile
+           throw new Error(`No '${role}' account found for this user. Please sign up first.`);
         }
       }
 
@@ -76,6 +81,10 @@ export function GoogleButton() {
       router.push(redirectPath);
 
     } catch (error: any) {
+      // Ensure user is signed out on any error during the process
+      if (auth.currentUser) {
+        await auth.signOut();
+      }
       console.error("Google sign-in error:", error);
       toast({
         title: `Google ${action} failed`,

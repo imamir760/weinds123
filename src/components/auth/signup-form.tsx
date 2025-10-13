@@ -39,21 +39,22 @@ export function SignupForm({
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // Update Firebase Auth profile
       await updateProfile(user, { displayName: name });
 
-      // Create the role-specific profile document
+      const profileCollection = `${role}s` as 'candidates' | 'employers' | 'institutes';
+      
+      let profileData: any = {};
       if (role === 'candidate') {
-          saveUserProfile('candidates', user.uid, {
+          profileData = {
             fullName: name,
             email: user.email,
             headline: '',
             skills: '',
             experience: '',
             education: ''
-          });
+          };
       } else if (role === 'employer') {
-          saveUserProfile('employers', user.uid, {
+          profileData = {
             companyName: name,
             email: user.email,
             website: '',
@@ -61,24 +62,25 @@ export function SignupForm({
             description: '',
             industry: '',
             companySize: ''
-          });
+          };
       } else if (role === 'tpo') {
-          saveUserProfile('institutes', user.uid, {
+          profileData = {
             institutionName: name,
             tpoEmail: user.email,
             website: '',
             description: '',
             tpoName: '',
-          });
+          };
       }
+      
+      saveUserProfile(profileCollection, user.uid, profileData);
 
-      setOpen(false); // Close modal on success
+      setOpen(false);
       toast({
         title: "Account Created!",
         description: "You have been successfully signed up.",
       });
 
-      // Redirect to the appropriate dashboard or profile setup
       const redirectPath = role === 'tpo' ? '/tpo/profile-setup' : `/${role}/dashboard`;
       router.push(redirectPath);
 

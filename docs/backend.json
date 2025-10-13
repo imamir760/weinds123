@@ -2,7 +2,7 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "Represents a user in the system.",
+      "description": "Represents a user for authentication purposes.",
       "type": "object",
       "properties": {
         "uid": {
@@ -16,7 +16,7 @@
         },
         "displayName": {
           "type": "string",
-          "description": "The user's display name."
+          "description": "The user's display name, which could be a person's name, company name, or institution name."
         },
         "role": {
           "type": "string",
@@ -31,6 +31,45 @@
       },
       "required": ["uid", "email", "role", "createdAt"]
     },
+    "CandidateProfile": {
+      "title": "Candidate Profile",
+      "description": "Stores detailed profile information for a candidate.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "headline": { "type": "string" },
+        "skills": { "type": "string", "description": "Comma-separated skills" },
+        "experience": { "type": "string" },
+        "education": { "type": "string" }
+      }
+    },
+    "EmployerProfile": {
+      "title": "Employer Profile",
+      "description": "Stores detailed profile information for an employer.",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "website": { "type": "string", "format": "uri" },
+        "tagline": { "type": "string" },
+        "description": { "type": "string" },
+        "industry": { "type": "string" },
+        "companySize": { "type": "string" }
+      }
+    },
+    "InstituteProfile": {
+      "title": "Institute Profile",
+      "description": "Stores detailed profile information for a TPO's institution.",
+      "type": "object",
+      "properties": {
+        "institutionName": { "type": "string" },
+        "tpoEmail": { "type": "string", "format": "email" },
+        "website": { "type": "string", "format": "uri" },
+        "description": { "type": "string" },
+        "tpoName": { "type": "string" }
+      }
+    },
     "Job": {
       "title": "Job",
       "description": "Represents a job posting.",
@@ -40,10 +79,6 @@
           "type": "string",
           "description": "The title of the job."
         },
-        "description": {
-          "type": "string",
-          "description": "A detailed description of the job."
-        },
         "responsibilities": {
             "type": "string",
             "description": "The responsibilities of the job."
@@ -52,9 +87,25 @@
           "type": "string",
           "description": "A comma-separated list of required skills."
         },
-        "metadata": {
+        "experience": {
             "type": "string",
-            "description": "Other metadata like salary, location, etc."
+            "description": "Required years of experience."
+        },
+        "salary": {
+          "type": "string",
+          "description": "The salary for the job."
+        },
+        "location": {
+            "type": "string",
+            "description": "The location of the job."
+        },
+        "workMode": {
+            "type": "string",
+            "enum": ["Remote", "Hybrid", "On-site"]
+        },
+        "education": {
+            "type": "string",
+            "description": "The education requirements for the job."
         },
         "employerId": {
           "type": "string",
@@ -66,7 +117,7 @@
           "description": "The timestamp when the job was created."
         }
       },
-      "required": ["title", "description", "employerId", "createdAt"]
+      "required": ["title", "responsibilities", "skills", "employerId", "createdAt"]
     },
     "Internship": {
       "title": "Internship",
@@ -77,10 +128,6 @@
           "type": "string",
           "description": "The title of the internship."
         },
-        "description": {
-          "type": "string",
-          "description": "A detailed description of the internship."
-        },
         "responsibilities": {
             "type": "string",
             "description": "The responsibilities of the internship."
@@ -89,13 +136,29 @@
           "type": "string",
           "description": "A comma-separated list of required skills."
         },
+        "experience": {
+            "type": "string",
+            "description": "Required years of experience."
+        },
         "stipend": {
-            "type": "number",
+            "type": "string",
             "description": "The monthly stipend for the internship."
         },
         "duration": {
             "type": "string",
             "description": "The duration of the internship (e.g., '3 months')."
+        },
+        "location": {
+            "type": "string",
+            "description": "The location of the internship."
+        },
+        "workMode": {
+            "type": "string",
+            "enum": ["Remote", "Hybrid", "On-site"]
+        },
+        "education": {
+            "type": "string",
+            "description": "The education requirements for the internship."
         },
         "employerId": {
           "type": "string",
@@ -107,18 +170,30 @@
           "description": "The timestamp when the internship was created."
         }
       },
-      "required": ["title", "description", "employerId", "createdAt"]
+      "required": ["title", "responsibilities", "skills", "employerId", "createdAt"]
     }
   },
   "auth": {
     "providers": ["password", "google.com"]
   },
   "firestore": {
-    "/users/{userId}": {
+    "/candidates/{userId}": {
       "schema": {
-        "$ref": "#/entities/User"
+        "$ref": "#/entities/CandidateProfile"
       },
-      "description": "Stores public profiles for all users."
+      "description": "Stores detailed profiles for candidate users."
+    },
+    "/employers/{userId}": {
+      "schema": {
+        "$ref": "#/entities/EmployerProfile"
+      },
+      "description": "Stores detailed profiles for employer users."
+    },
+    "/institutes/{userId}": {
+      "schema": {
+        "$ref": "#/entities/InstituteProfile"
+      },
+      "description": "Stores detailed profiles for TPO/institute users."
     },
     "/jobs/{jobId}": {
       "schema": {
