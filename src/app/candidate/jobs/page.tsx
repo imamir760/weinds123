@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Briefcase, Filter, Loader2 } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 
@@ -21,8 +21,11 @@ interface Job extends DocumentData {
   title: string;
   company: string;
   location: string;
-  type: string;
+  workMode: string;
   match: number;
+  salary: string;
+  experience: string;
+  skills: string;
 }
 
 export default function JobsPage() {
@@ -90,17 +93,28 @@ export default function JobsPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-                                <div className="flex gap-4 text-sm text-muted-foreground mb-4 md:mb-0">
-                                    <div className="flex items-center gap-1.5">
-                                        <MapPin className="h-4 w-4"/>
-                                        <span>{job.location}</span>
-                                    </div>
-                                     <div className="flex items-center gap-1.5">
-                                        <Briefcase className="h-4 w-4"/>
-                                        <span>{job.workMode || 'N/A'}</span>
+                             <div className="flex gap-x-6 gap-y-2 text-sm text-muted-foreground flex-wrap mb-4">
+                                <div className="flex items-center gap-1.5"><MapPin className="h-4 w-4"/> {job.location || 'N/A'}</div>
+                                <div className="flex items-center gap-1.5"><Briefcase className="h-4 w-4"/> {job.workMode || 'N/A'}</div>
+                                <div className="flex items-center gap-1.5"><DollarSign className="h-4 w-4"/> {job.salary || 'Not Disclosed'}</div>
+                                <div className="flex items-center gap-1.5"><Star className="h-4 w-4"/> {job.experience || 'N/A'}</div>
+                            </div>
+
+                            {job.skills && (
+                                <div className="mb-4">
+                                    <h4 className="font-semibold text-sm mb-2">Skills</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {job.skills.split(',').slice(0, 5).map(skill => (
+                                            <div key={skill} className="bg-secondary text-secondary-foreground text-xs font-medium px-2 py-1 rounded-full">
+                                                {skill.trim()}
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
+                            )}
+
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mt-4">
+                                <div/>
                                 <div className="flex gap-2">
                                     <Button asChild>
                                         <Link href={`/candidate/jobs/${job.id}`}>Apply Now</Link>
