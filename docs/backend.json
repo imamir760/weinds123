@@ -115,6 +115,17 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the job was created."
+        },
+        "pipeline": {
+            "type": "array",
+            "description": "The configured hiring pipeline stages.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "stage": { "type": "string" },
+                    "type": { "type": "string" }
+                }
+            }
         }
       },
       "required": ["title", "responsibilities", "skills", "employerId", "createdAt"]
@@ -168,6 +179,17 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the internship was created."
+        },
+        "pipeline": {
+            "type": "array",
+            "description": "The configured hiring pipeline stages.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "stage": { "type": "string" },
+                    "type": { "type": "string" }
+                }
+            }
         }
       },
       "required": ["title", "responsibilities", "skills", "employerId", "createdAt"]

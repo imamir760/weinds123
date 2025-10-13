@@ -1,6 +1,6 @@
 'use client';
 
-import { collection, doc, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { db } from '@/lib/firebase';
@@ -23,29 +23,12 @@ export async function createJobWithPipeline(
     ...jobDetails,
     employerId: userId,
     createdAt: serverTimestamp(),
+    pipeline: pipeline, // Embed the pipeline configuration directly
   };
 
   try {
-    const batch = writeBatch(db);
-
-    // 1. Create the main job/internship document
-    const postDocRef = doc(collection(db, collectionName));
-    batch.set(postDocRef, postData);
-    
-    // 2. Create the pipeline subcollection documents
-    const pipelineColRef = collection(db, collectionName, postDocRef.id, 'pipeline');
-    
-    pipeline.forEach((stageConfig, index) => {
-        const stageDocRef = doc(pipelineColRef, stageConfig.stage);
-        batch.set(stageDocRef, { 
-            type: stageConfig.type || null, 
-            order: index 
-        });
-    });
-
-    // 3. Commit the batch
-    await batch.commit();
-    return postDocRef.id;
+    const docRef = await addDoc(collection(db, collectionName), postData);
+    return docRef.id;
 
   } catch (serverError) {
     const permissionError = new FirestorePermissionError({
