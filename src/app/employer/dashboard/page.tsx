@@ -8,13 +8,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, Bell, Menu, User } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, Bell, Menu, User, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
@@ -56,13 +55,14 @@ const insights = [
 ];
 
 const pipelineStages = [
-  { name: "Applied", count: 4 },
-  { name: "Invite", count: 2 },
-  { name: "Shortlisted", count: 6 },
-  { name: "Skill Test", count: 2 },
-  { name: "Interview", count: 1 },
-  { name: "Final Interview", count: 0 },
-  { name: "Selection", count: 0 }
+  { name: "Applied", count: 4, color: "bg-orange-100 dark:bg-orange-900/30", textColor: "text-orange-600 dark:text-orange-400" },
+  { name: "Invite", count: 2, color: "bg-orange-200 dark:bg-orange-800/40", textColor: "text-orange-700 dark:text-orange-300" },
+  { name: "Shortlisted", count: 6, color: "bg-yellow-100 dark:bg-yellow-900/30", textColor: "text-yellow-600 dark:text-yellow-400" },
+  { name: "Skill Test", count: 2, color: "bg-green-100 dark:bg-green-900/30", textColor: "text-green-600 dark:text-green-400" },
+  { name: "Interview", count: 1, color: "bg-green-200 dark:bg-green-800/40", textColor: "text-green-700 dark:text-green-300" },
+  { name: "Final Interview", count: 0, color: "bg-teal-100 dark:bg-teal-900/30", textColor: "text-teal-600 dark:text-teal-400" },
+  { name: "Selection", count: 0, color: "bg-blue-100 dark:bg-blue-900/30", textColor: "text-blue-600 dark:text-blue-400" },
+  { name: "Rejected", count: 0, color: "bg-slate-100 dark:bg-slate-800", textColor: "text-slate-600 dark:text-slate-400" }
 ];
 
 
@@ -111,7 +111,7 @@ export default function EmployerDashboardPage() {
             <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-background px-4 md:px-6 sticky top-0 z-30">
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button variant="outline" size="icon" className="lg:hidden h-10 w-10">
+                        <Button variant="outline" size="icon" className="lg:hidden h-10 w-10 shrink-0">
                             <Menu className="h-6 w-6" />
                             <span className="sr-only">Toggle navigation menu</span>
                         </Button>
@@ -132,7 +132,7 @@ export default function EmployerDashboardPage() {
             </header>
 
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
                   <h1 className="font-semibold text-2xl md:text-3xl">Welcome, Test LLC!</h1>
                   <p className="text-muted-foreground">Your command center for smart hiring. Let's find your next great hire.</p>
@@ -166,17 +166,32 @@ export default function EmployerDashboardPage() {
               <div className="grid gap-6 md:grid-cols-1">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Hiring Pipeline Overview</CardTitle>
-                      <CardDescription>A summary of your candidate progression stages.</CardDescription>
+                      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                        <div>
+                            <CardTitle>Hiring Pipeline Overview</CardTitle>
+                            <CardDescription>A summary of your candidate progression stages.</CardDescription>
+                        </div>
+                        <div className="w-full md:w-64">
+                             <Select>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Filter by job..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Active Jobs</SelectItem>
+                                    <SelectItem value="job1">Senior Frontend Developer</SelectItem>
+                                    <SelectItem value="job2">UX/UI Designer</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                      </div>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                    <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
                       {pipelineStages.map((stage) => (
-                        <Card key={stage.name} className="flex flex-col justify-between p-4 hover:shadow-md transition-shadow">
-                           <div>
-                             <h3 className="font-semibold">{stage.name}</h3>
-                             <p className="text-3xl font-bold my-2">{stage.count}</p>
+                        <Card key={stage.name} className={`flex flex-col justify-between p-4 hover:shadow-lg transition-all duration-300 border-0 ${stage.color}`}>
+                           <div className="text-center">
+                             <p className={`text-5xl font-extrabold ${stage.textColor}`}>{stage.count}</p>
+                             <h3 className={`font-semibold mt-2 text-sm ${stage.textColor}`}>{stage.name}</h3>
                            </div>
-                           <Button variant="outline" size="sm" className="w-full mt-2">View</Button>
                         </Card>
                       ))}
                     </CardContent>
