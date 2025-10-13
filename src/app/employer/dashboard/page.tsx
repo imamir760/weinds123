@@ -8,9 +8,9 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell, ArrowRight } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell } from 'lucide-react';
 import Link from 'next/link';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Logo } from '@/components/logo';
 
 const navigation = [
@@ -102,7 +102,7 @@ export default function EmployerDashboardPage() {
           </div>
         </div>
       </div>
-      <div className="flex flex-col bg-gray-50/50 dark:bg-gray-900/50 ml-0 lg:ml-[280px]">
+      <div className="flex flex-col ml-0 lg:ml-[280px]">
         <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-white dark:bg-gray-800/40 px-6 sticky top-0 z-30">
             <div className="flex-1">
                 {/* Potentially a mobile sidebar toggle can be added here */}
@@ -117,7 +117,7 @@ export default function EmployerDashboardPage() {
                 </Avatar>
             </div>
         </header>
-        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
+        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 bg-gray-50/50 dark:bg-gray-900/50">
           <div className="flex items-center">
             <div>
               <h1 className="font-semibold text-2xl md:text-3xl">Welcome, Test LLC!</h1>
