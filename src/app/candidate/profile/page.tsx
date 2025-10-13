@@ -11,7 +11,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Edit, User, MapPin, Briefcase, Target, Star, Award, Building, Share2, FolderKanban, Save, GraduationCap, BookOpen, UserCircle, Settings } from 'lucide-react';
+import { Loader2, UserCircle, Settings, Star, FolderKanban, Save, GraduationCap, Briefcase, PlusCircle, Trash2 } from 'lucide-react';
 import { saveUserProfile } from '@/lib/user-actions';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -22,18 +22,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { SkillsInput } from './skills-input';
 import { allSkills } from './skills-list';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ExperienceCard } from './experience-card';
+
+export type Experience = {
+  jobTitle: string;
+  company: string;
+  duration: string;
+}
 
 type ProfileData = {
   fullName: string;
   email: string;
   headline: string;
   skills: string[];
-  experience: string;
+  experience: Experience[];
   education: string;
   location: string;
   employmentStatus: 'Fresher' | 'Working' | 'Studying';
@@ -46,13 +49,12 @@ type ProfileData = {
 function CandidateProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [isEditMode, setIsEditMode] = useState(true); // Default to edit mode as per new design
   const [profile, setProfile] = useState<ProfileData>({
     fullName: '',
     email: '',
     headline: '',
     skills: [],
-    experience: '',
+    experience: [],
     education: '',
     location: '',
     employmentStatus: 'Fresher',
@@ -78,6 +80,9 @@ function CandidateProfilePage() {
               }
               if (!Array.isArray(data.skills)) {
                 data.skills = [];
+              }
+               if (!Array.isArray(data.experience)) {
+                data.experience = [];
               }
               setProfile(data);
             } else {
@@ -109,15 +114,14 @@ function CandidateProfilePage() {
               profile.fullName,
               profile.headline,
               profile.location,
-              profile.experience,
               profile.education,
               profile.achievements,
               profile.projects,
               profile.phone
           ];
           const filledFields = fields.filter(Boolean).length;
-          const totalFields = fields.length + (profile.skills.length > 0 ? 1 : 0);
-          const completeness = Math.round((filledFields / (fields.length + 1)) * 100);
+          const totalFields = fields.length + (profile.skills.length > 0 ? 1 : 0) + (profile.experience.length > 0 ? 1 : 0);
+          const completeness = Math.round((filledFields / (fields.length + 2)) * 100);
           setProfileCompleteness(completeness);
       };
       calculateCompleteness();
@@ -129,9 +133,24 @@ function CandidateProfilePage() {
     setProfile(prev => ({ ...prev, [id]: value }));
   };
   
-  const handleSelectChange = (id: keyof ProfileData, value: string | string[]) => {
+  const handleSelectChange = (id: keyof ProfileData, value: string | string[] | Experience[]) => {
     setProfile(prev => ({...prev, [id]: value}));
   }
+
+  const updateExperience = (index: number, field: keyof Experience, value: string) => {
+    const newExperience = [...profile.experience];
+    newExperience[index][field] = value;
+    handleSelectChange('experience', newExperience);
+  };
+
+  const addExperience = () => {
+    handleSelectChange('experience', [...profile.experience, { jobTitle: '', company: '', duration: '' }]);
+  };
+
+  const removeExperience = (index: number) => {
+    const newExperience = profile.experience.filter((_, i) => i !== index);
+    handleSelectChange('experience', newExperience);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,7 +169,6 @@ function CandidateProfilePage() {
 
     setTimeout(() => {
       setSaving(false);
-      // setIsEditMode(false); // Stay in edit mode after saving
       toast({
         title: "Update Sent",
         description: "Your profile changes have been sent to the server.",
@@ -260,16 +278,33 @@ function CandidateProfilePage() {
       </Card>
 
       <Card>
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Work Experience</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            {profile.experience.map((exp, index) => (
+                <ExperienceCard 
+                    key={index}
+                    index={index}
+                    experience={exp}
+                    updateExperience={updateExperience}
+                    removeExperience={removeExperience}
+                />
+            ))}
+            <Button variant="outline" onClick={addExperience} type="button" className="w-full">
+                <PlusCircle className="mr-2"/>
+                Add Experience
+            </Button>
+        </CardContent>
+      </Card>
+
+
+      <Card>
           <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Professional Summary</CardTitle>
+              <CardTitle className="flex items-center gap-2"><GraduationCap className="w-5 h-5 text-primary" /> Education</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="experience">Experience</Label>
-                <Textarea id="experience" placeholder="Describe your work experience." rows={5} value={profile.experience} onChange={handleInputChange} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="education">Education</Label>
                 <Textarea id="education" placeholder="Tell us about your educational background." value={profile.education} onChange={handleInputChange} />
               </div>
           </CardContent>

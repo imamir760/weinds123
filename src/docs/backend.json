@@ -44,7 +44,18 @@
           "description": "An array of the candidate's skills.",
           "items": { "type": "string" }
         },
-        "experience": { "type": "string" },
+        "experience": { 
+          "type": "array",
+          "description": "A list of the candidate's work experiences.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "jobTitle": { "type": "string" },
+              "company": { "type": "string" },
+              "duration": { "type": "string" }
+            }
+          }
+        },
         "education": { "type": "string" },
         "location": { "type": "string" },
         "employmentStatus": { "type": "string", "enum": ["Fresher", "Working", "Studying"] },
