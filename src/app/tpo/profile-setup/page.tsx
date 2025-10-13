@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { saveUserProfile } from '@/lib/user-actions';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 
 type ProfileData = {
@@ -41,17 +43,26 @@ export default function TpoProfileSetupPage() {
     if (user) {
       const fetchProfile = async () => {
         const docRef = doc(db, 'institutes', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setProfile(docSnap.data() as ProfileData);
-        } else {
-             setProfile(prev => ({
-                ...prev, 
-                institutionName: user.displayName || '',
-                tpoEmail: user.email || ''
-            }));
+        try {
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              setProfile(docSnap.data() as ProfileData);
+            } else {
+                 setProfile(prev => ({
+                    ...prev, 
+                    institutionName: user.displayName || '',
+                    tpoEmail: user.email || ''
+                }));
+            }
+        } catch(serverError) {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
       };
       fetchProfile();
     } else if (!authLoading) {
