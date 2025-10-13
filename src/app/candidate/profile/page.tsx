@@ -15,14 +15,23 @@ import { saveUserProfile } from '@/lib/user-actions';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import CandidateDashboardLayout from '../dashboard/page';
+import { Combobox } from '@/components/ui/combobox';
+import { cities } from '@/lib/cities';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { SkillsInput } from './skills-input';
+import { allSkills } from './skills-list';
 
 type ProfileData = {
   fullName: string;
   email: string;
   headline: string;
-  skills: string;
+  skills: string[];
   experience: string;
   education: string;
+  location: string;
+  employmentStatus: 'Fresher' | 'Working' | 'Studying';
+  preference: 'Job' | 'Internship' | 'Both';
 };
 
 function CandidateProfileContent() {
@@ -32,9 +41,12 @@ function CandidateProfileContent() {
     fullName: '',
     email: '',
     headline: '',
-    skills: '',
+    skills: [],
     experience: '',
     education: '',
+    location: '',
+    employmentStatus: 'Fresher',
+    preference: 'Both',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,7 +58,12 @@ function CandidateProfileContent() {
         try {
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-              setProfile(docSnap.data() as ProfileData);
+              const data = docSnap.data() as ProfileData;
+              // Ensure skills is an array, converting from string if needed for backward compatibility
+              if (typeof data.skills === 'string') {
+                data.skills = (data.skills as string).split(',').map(s => s.trim()).filter(Boolean);
+              }
+              setProfile(data);
             } else {
               // Pre-fill from auth if profile doesn't exist yet
               setProfile(prev => ({
@@ -75,6 +92,10 @@ function CandidateProfileContent() {
     const { id, value } = e.target;
     setProfile(prev => ({ ...prev, [id]: value }));
   };
+  
+  const handleSelectChange = (id: keyof ProfileData, value: string) => {
+    setProfile(prev => ({...prev, [id]: value}));
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,6 +145,33 @@ function CandidateProfileContent() {
                 <Input id="email" type="email" value={profile.email} disabled />
               </div>
             </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="space-y-2">
+                    <Label htmlFor="location">Location</Label>
+                    <Combobox
+                        items={cities}
+                        value={profile.location}
+                        onChange={(value) => handleSelectChange('location', value)}
+                        placeholder="Select location..."
+                        searchPlaceholder="Search cities..."
+                        notFoundText="No city found."
+                    />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="employmentStatus">Employment Status</Label>
+                     <Select value={profile.employmentStatus} onValueChange={(value) => handleSelectChange('employmentStatus', value)}>
+                        <SelectTrigger id="employmentStatus">
+                            <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Fresher">Fresher</SelectItem>
+                            <SelectItem value="Working">Working</SelectItem>
+                            <SelectItem value="Studying">Studying</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="headline">Headline</Label>
@@ -132,8 +180,30 @@ function CandidateProfileContent() {
 
             <div className="space-y-2">
               <Label htmlFor="skills">Skills</Label>
-              <Textarea id="skills" placeholder="Enter your skills, separated by commas (e.g., JavaScript, React, Figma, SQL)" value={profile.skills} onChange={handleInputChange} />
-              <p className="text-xs text-muted-foreground">This is crucial for our AI matching engine.</p>
+              <SkillsInput
+                  allSkills={allSkills}
+                  selectedSkills={profile.skills}
+                  onSkillsChange={(skills) => handleSelectChange('skills', skills as any)}
+              />
+              <p className="text-xs text-muted-foreground">This is crucial for our AI matching engine. Type a skill and press Enter to add it.</p>
+            </div>
+
+            <div className="space-y-2">
+                <Label>Preference</Label>
+                 <RadioGroup value={profile.preference} onValueChange={(value) => handleSelectChange('preference', value)} className="flex gap-4">
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Job" id="pref-job" />
+                        <Label htmlFor="pref-job">Job</Label>
+                    </div>
+                     <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Internship" id="pref-internship" />
+                        <Label htmlFor="pref-internship">Internship</Label>
+                    </div>
+                     <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Both" id="pref-both" />
+                        <Label htmlFor="pref-both">Both</Label>
+                    </div>
+                </RadioGroup>
             </div>
             
             <div className="space-y-2">
