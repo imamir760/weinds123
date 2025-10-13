@@ -43,21 +43,22 @@ const prompt = ai.definePrompt({
   name: 'generateJobDescriptionPrompt',
   input: {schema: GenerateJobDescriptionInputSchema},
   output: {schema: GenerateJobDescriptionOutputSchema},
-  prompt: `You are an AI assistant designed to extract structured information from unstructured text to generate a job description.
+  prompt: `You are an AI assistant that creates structured job descriptions from raw text.
+  
+Analyze the provided text and extract the following information. You must provide a value for every field. If a value is not explicitly mentioned, make a reasonable assumption based on the context (e.g., assume a location is "Remote" if not specified, estimate a salary range based on the title).
 
-  Analyze the following text and extract the following details:
-  - Job Title
-  - Key Responsibilities
-  - Required Skills (as a comma-separated string)
-  - Salary or Salary Range
-  - Location
-  - Work Mode (classify as "Remote", "Hybrid", or "On-site")
-  - Education requirements
+- Job Title
+- Key Responsibilities
+- Required Skills (as a comma-separated string)
+- Salary or Salary Range
+- Location (e.g., "San Francisco, CA", "Remote")
+- Work Mode (classify as "Remote", "Hybrid", or "On-site")
+- Education requirements
 
-  Text: {{{text}}}
+Text: {{{text}}}
 
-  Your output must conform to the JSON schema for GenerateJobDescriptionOutputSchema.
-  `,
+Your output must conform to the JSON schema and include all fields.
+`,
 });
 
 const generateJobDescriptionFlow = ai.defineFlow(

@@ -146,7 +146,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                 Review and edit the information before posting.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
                 <div className="space-y-2">
                     <Label htmlFor="post-title">Title</Label>
                     <Input id="post-title" value={details.title || ''} onChange={(e) => setDetails({...details, title: e.target.value})} />
@@ -173,14 +173,14 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {postType === 'job' && (
+                    {postType === 'job' && 'salary' in details && (
                         <div className="space-y-2">
                             <Label htmlFor="job-salary">Salary</Label>
                             <Input id="job-salary" value={details.salary || ''} onChange={(e) => setDetails({...details, salary: e.target.value})} />
                         </div>
                     )}
 
-                    {postType === 'internship' && (
+                    {postType === 'internship' && 'stipend' in details && (
                         <>
                             <div className="space-y-2">
                                 <Label htmlFor="internship-stipend">Stipend</Label>
