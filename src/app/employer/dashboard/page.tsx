@@ -56,16 +56,16 @@ const insights = [
 export default function EmployerDashboardPage() {
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold font-headline">Employer Dashboard</h1>
           <p className="text-muted-foreground">
             Manage your hiring pipelines and talent acquisition efforts.
           </p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-2 sm:gap-4 flex-wrap">
           <Button asChild>
-            <Link href="/employer/job/new">
+            <Link href="/employer/jobs/new">
               <PlusCircle className="mr-2" />
               Post New Job
             </Link>
@@ -111,8 +111,8 @@ export default function EmployerDashboardPage() {
                   <span
                     className={
                       job.status === 'Active'
-                        ? 'text-green-600'
-                        : 'text-amber-600'
+                        ? 'text-green-500'
+                        : 'text-yellow-500'
                     }
                   >
                     {job.status}
