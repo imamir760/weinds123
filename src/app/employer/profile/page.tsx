@@ -17,6 +17,7 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 type ProfileData = {
   companyName: string;
+  email: string;
   website: string;
   tagline: string;
   description: string;
@@ -29,6 +30,7 @@ export default function CompanyProfilePage() {
   const { toast } = useToast();
   const [profile, setProfile] = useState<ProfileData>({
     companyName: '',
+    email: '',
     website: '',
     tagline: '',
     description: '',
@@ -41,23 +43,42 @@ export default function CompanyProfilePage() {
   useEffect(() => {
     if (user) {
       const fetchProfile = async () => {
-        const docRef = doc(db, 'employers', user.uid);
+        setLoading(true);
         try {
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-              setProfile(docSnap.data() as ProfileData);
-            } else {
-              // If profile doesn't exist, use display name from auth
-              setProfile(prev => ({...prev, companyName: user.displayName || ''}));
-            }
-        } catch(serverError) {
-             const permissionError = new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
+          // Fetch from /users collection
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          
+          let baseData = { companyName: '', email: '' };
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            baseData.companyName = userData.displayName || '';
+            baseData.email = userData.email || '';
+          }
+
+          // Fetch from /employers collection
+          const employerDocRef = doc(db, 'employers', user.uid);
+          const employerDocSnap = await getDoc(employerDocRef);
+
+          let employerData = {};
+          if (employerDocSnap.exists()) {
+            employerData = employerDocSnap.data();
+          }
+
+          setProfile(prev => ({
+            ...prev,
+            ...baseData,
+            ...employerData
+          }));
+
+        } catch (serverError) {
+          const permissionError = new FirestorePermissionError({
+            path: `users/${user.uid} or employers/${user.uid}`,
+            operation: 'get',
+          });
+          errorEmitter.emit('permission-error', permissionError);
         } finally {
-            setLoading(false);
+          setLoading(false);
         }
       };
       fetchProfile();
@@ -79,7 +100,17 @@ export default function CompanyProfilePage() {
     }
     setSaving(true);
     
-    saveUserProfile('employers', user.uid, profile);
+    // Data to save in the 'employers' collection
+    const employerProfileData = {
+        companyName: profile.companyName, // Keep name consistent if changed
+        website: profile.website,
+        tagline: profile.tagline,
+        description: profile.description,
+        industry: profile.industry,
+        companySize: profile.companySize
+    };
+
+    saveUserProfile('employers', user.uid, employerProfileData);
 
     toast({
       title: "Profile Saving...",
@@ -116,11 +147,15 @@ export default function CompanyProfilePage() {
                 <Label htmlFor="companyName">Company Name</Label>
                 <Input id="companyName" value={profile.companyName} onChange={handleInputChange} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="website">Website</Label>
-                <Input id="website" type="url" value={profile.website} onChange={handleInputChange} />
-              </div>
+               <div className="space-y-2">
+                 <Label htmlFor="email">Email</Label>
+                 <Input id="email" type="email" value={profile.email} disabled />
+               </div>
             </div>
+             <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input id="website" type="url" placeholder="https://yourcompany.com" value={profile.website} onChange={handleInputChange} />
+              </div>
 
             <div className="space-y-2">
               <Label htmlFor="tagline">Tagline</Label>
