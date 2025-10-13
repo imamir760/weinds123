@@ -22,6 +22,7 @@ export function ConditionalHeader() {
       '/candidate/applications',
       '/candidate/jobs',
       '/candidate/internships',
+      '/candidate/companies',
       '/candidate/ai-interviews',
       '/candidate/resume-builder',
       '/candidate/disha',
