@@ -35,24 +35,20 @@ export function LoginForm({ role }: { role: 'candidate' | 'employer' | 'tpo' }) 
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Check user role from Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (userData.role === role) {
+      // Check if a profile exists for this role
+      const profileDocRef = doc(db, `${role}s`, user.uid);
+      const profileDoc = await getDoc(profileDocRef);
+      
+      if (profileDoc.exists()) {
           setOpen(false); // Close modal
           toast({
             title: "Login Successful",
             description: "Welcome back!",
           });
           router.push(`/${role}/dashboard`);
-        } else {
-          throw new Error(`You are not registered as a ${role}.`);
-        }
       } else {
-        throw new Error("User data not found.");
+        throw new Error(`You are not registered as a ${role}.`);
       }
-
     } catch (error: any) {
       console.error("Login error:", error);
       toast({

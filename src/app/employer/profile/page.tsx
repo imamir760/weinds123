@@ -44,36 +44,22 @@ export default function CompanyProfilePage() {
     if (user) {
       const fetchProfile = async () => {
         setLoading(true);
+        const docRef = doc(db, 'employers', user.uid);
         try {
-          // Fetch from /users collection
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          
-          let baseData = { companyName: '', email: '' };
-          if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            baseData.companyName = userData.displayName || '';
-            baseData.email = userData.email || '';
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setProfile(docSnap.data() as ProfileData);
+          } else {
+            // Pre-fill email from auth if profile doesn't exist
+            setProfile(prev => ({
+              ...prev,
+              email: user.email || '',
+              companyName: user.displayName || ''
+            }));
           }
-
-          // Fetch from /employers collection
-          const employerDocRef = doc(db, 'employers', user.uid);
-          const employerDocSnap = await getDoc(employerDocRef);
-
-          let employerData = {};
-          if (employerDocSnap.exists()) {
-            employerData = employerDocSnap.data();
-          }
-
-          setProfile(prev => ({
-            ...prev,
-            ...baseData,
-            ...employerData
-          }));
-
         } catch (serverError) {
           const permissionError = new FirestorePermissionError({
-            path: `users/${user.uid} or employers/${user.uid}`,
+            path: docRef.path,
             operation: 'get',
           });
           errorEmitter.emit('permission-error', permissionError);
@@ -100,17 +86,7 @@ export default function CompanyProfilePage() {
     }
     setSaving(true);
     
-    // Data to save in the 'employers' collection
-    const employerProfileData = {
-        companyName: profile.companyName, // Keep name consistent if changed
-        website: profile.website,
-        tagline: profile.tagline,
-        description: profile.description,
-        industry: profile.industry,
-        companySize: profile.companySize
-    };
-
-    saveUserProfile('employers', user.uid, employerProfileData);
+    saveUserProfile('employers', user.uid, profile);
 
     toast({
       title: "Profile Saving...",
@@ -149,7 +125,7 @@ export default function CompanyProfilePage() {
               </div>
                <div className="space-y-2">
                  <Label htmlFor="email">Email</Label>
-                 <Input id="email" type="email" value={profile.email} disabled />
+                 <Input id="email" type="email" value={profile.email} onChange={handleInputChange} />
                </div>
             </div>
              <div className="space-y-2">

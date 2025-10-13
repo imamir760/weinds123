@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { auth, db } from '@/lib/firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -20,26 +20,19 @@ export function GoogleButton() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
+      const userProfileRef = doc(db, `${role}s`, user.uid);
+      const userProfileDoc = await getDoc(userProfileRef);
 
       if (action === 'signup') {
-        if (userDoc.exists()) {
-           throw new Error("An account already exists with this Google account.");
+        if (userProfileDoc.exists()) {
+           throw new Error("An account already exists with this Google account for this role.");
         }
-        // Create user doc on signup
-        await setDoc(userDocRef, {
-          uid: user.uid,
-          email: user.email,
-          role: role,
-          displayName: user.displayName,
-          createdAt: new Date(),
-        });
         
         // Create the corresponding profile document
         if (role === 'candidate') {
             saveUserProfile('candidates', user.uid, {
               fullName: user.displayName || '',
+              email: user.email,
               headline: '',
               skills: '',
               experience: '',
@@ -48,6 +41,7 @@ export function GoogleButton() {
         } else if (role === 'employer') {
             saveUserProfile('employers', user.uid, {
               companyName: user.displayName || '',
+              email: user.email,
               website: '',
               tagline: '',
               description: '',
@@ -57,15 +51,15 @@ export function GoogleButton() {
         } else if (role === 'tpo') {
             saveUserProfile('institutes', user.uid, {
               institutionName: user.displayName || '',
+              tpoEmail: user.email,
               website: '',
               description: '',
               tpoName: '',
-              tpoEmail: user.email || ''
             });
         }
 
       } else { // login
-        if (!userDoc.exists() || userDoc.data().role !== role) {
+        if (!userProfileDoc.exists()) {
            throw new Error(`No account found for this role. Please sign up as a ${role}.`);
         }
       }

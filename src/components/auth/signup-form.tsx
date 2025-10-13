@@ -6,9 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from './auth-provider';
 import { GoogleButton } from './google-button';
-import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { setDoc, doc } from 'firebase/firestore';
+import { auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -39,20 +38,15 @@ export function SignupForm({
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
-      // Create the main user document in /users
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        email: user.email,
-        role: role,
-        displayName: name,
-        createdAt: new Date(),
-      });
       
-      // Create the corresponding profile document in the role-specific collection
+      // Update Firebase Auth profile
+      await updateProfile(user, { displayName: name });
+
+      // Create the role-specific profile document
       if (role === 'candidate') {
           saveUserProfile('candidates', user.uid, {
             fullName: name,
+            email: user.email,
             headline: '',
             skills: '',
             experience: '',
@@ -61,6 +55,7 @@ export function SignupForm({
       } else if (role === 'employer') {
           saveUserProfile('employers', user.uid, {
             companyName: name,
+            email: user.email,
             website: '',
             tagline: '',
             description: '',
@@ -70,10 +65,10 @@ export function SignupForm({
       } else if (role === 'tpo') {
           saveUserProfile('institutes', user.uid, {
             institutionName: name,
+            tpoEmail: user.email,
             website: '',
             description: '',
             tpoName: '',
-            tpoEmail: user.email || ''
           });
       }
 
