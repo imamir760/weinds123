@@ -39,9 +39,18 @@
         "fullName": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "headline": { "type": "string" },
-        "skills": { "type": "string", "description": "Comma-separated skills" },
+        "skills": { 
+          "type": "array", 
+          "description": "An array of the candidate's skills.",
+          "items": { "type": "string" }
+        },
         "experience": { "type": "string" },
-        "education": { "type": "string" }
+        "education": { "type": "string" },
+        "location": { "type": "string" },
+        "employmentStatus": { "type": "string", "enum": ["Fresher", "Working", "Studying"] },
+        "preference": { "type": "string", "enum": ["Job", "Internship", "Both"] },
+        "achievements": { "type": "string", "description": "A summary of the candidate's achievements." },
+        "interestedCompanies": { "type": "string", "description": "A list of companies the candidate is interested in." }
       }
     },
     "EmployerProfile": {
