@@ -24,6 +24,7 @@ const GenerateJobDescriptionOutputSchema = z.object({
   title: z.string().describe('The title of the job.'),
   responsibilities: z.string().describe('The responsibilities of the job.'),
   skills: z.string().describe('The skills required for the job, comma-separated.'),
+  experience: z.string().optional().describe('The required years of experience (e.g., "0-2 years", "5+ years", "Senior Level").'),
   salary: z.string().optional().describe('The estimated salary or salary range for the role.'),
   location: z.string().optional().describe('The physical location for the job (e.g., "San Francisco, CA", "Remote").'),
   workMode: z.enum(['Remote', 'Hybrid', 'On-site']).optional().describe('The work mode (Remote, Hybrid, or On-site).'),
@@ -45,11 +46,12 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateJobDescriptionOutputSchema},
   prompt: `You are an AI assistant that creates structured job descriptions from raw text.
   
-Analyze the provided text and extract the following information. You must provide a value for every field. If a value is not explicitly mentioned, make a reasonable assumption based on the context (e.g., assume a location is "Remote" if not specified, estimate a salary range based on the title).
+Analyze the provided text and extract the following information. You must provide a value for every field. If a value is not explicitly mentioned, make a reasonable assumption based on the context (e.g., assume a location is "Remote" if not specified, estimate a salary range based on the title, assume "2-3 years" experience if not clear).
 
 - Job Title
 - Key Responsibilities
 - Required Skills (as a comma-separated string)
+- Experience Level (e.g., "Entry Level", "2-4 years", "Senior")
 - Salary or Salary Range
 - Location (e.g., "San Francisco, CA", "Remote")
 - Work Mode (classify as "Remote", "Hybrid", or "On-site")

@@ -48,6 +48,10 @@
           "type": "string",
           "description": "A comma-separated list of required skills."
         },
+        "experience": {
+            "type": "string",
+            "description": "Required years of experience."
+        },
         "salary": {
           "type": "string",
           "description": "The salary for the job."
@@ -92,6 +96,10 @@
         "skills": {
           "type": "string",
           "description": "A comma-separated list of required skills."
+        },
+        "experience": {
+            "type": "string",
+            "description": "Required years of experience."
         },
         "stipend": {
             "type": "string",
