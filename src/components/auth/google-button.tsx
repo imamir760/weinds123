@@ -7,6 +7,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './auth-provider';
+import { saveUserProfile } from '@/lib/user-actions';
 
 export function GoogleButton() {
   const router = useRouter();
@@ -34,6 +35,35 @@ export function GoogleButton() {
           displayName: user.displayName,
           createdAt: new Date(),
         });
+        
+        // Create the corresponding profile document
+        if (role === 'candidate') {
+            saveUserProfile('candidates', user.uid, {
+              fullName: user.displayName || '',
+              headline: '',
+              skills: '',
+              experience: '',
+              education: ''
+            });
+        } else if (role === 'employer') {
+            saveUserProfile('employers', user.uid, {
+              companyName: user.displayName || '',
+              website: '',
+              tagline: '',
+              description: '',
+              industry: '',
+              companySize: ''
+            });
+        } else if (role === 'tpo') {
+            saveUserProfile('institutes', user.uid, {
+              institutionName: user.displayName || '',
+              website: '',
+              description: '',
+              tpoName: '',
+              tpoEmail: user.email || ''
+            });
+        }
+
       } else { // login
         if (!userDoc.exists() || userDoc.data().role !== role) {
            throw new Error(`No account found for this role. Please sign up as a ${role}.`);
@@ -45,7 +75,11 @@ export function GoogleButton() {
         title: `${action === 'signup' ? 'Sign up' : 'Login'} Successful`,
         description: `Welcome, ${user.displayName}!`,
       });
-      router.push(`/${role}/dashboard`);
+
+      const redirectPath = role === 'tpo' && action === 'signup' 
+        ? '/tpo/profile-setup' 
+        : `/${role}/dashboard`;
+      router.push(redirectPath);
 
     } catch (error: any) {
       console.error("Google sign-in error:", error);

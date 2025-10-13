@@ -12,6 +12,7 @@ import { setDoc, doc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { saveUserProfile } from '@/lib/user-actions';
 
 export function SignupForm({
   role,
@@ -39,6 +40,7 @@ export function SignupForm({
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Create the main user document in /users
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
@@ -47,14 +49,43 @@ export function SignupForm({
         createdAt: new Date(),
       });
       
+      // Create the corresponding profile document in the role-specific collection
+      if (role === 'candidate') {
+          saveUserProfile('candidates', user.uid, {
+            fullName: name,
+            headline: '',
+            skills: '',
+            experience: '',
+            education: ''
+          });
+      } else if (role === 'employer') {
+          saveUserProfile('employers', user.uid, {
+            companyName: name,
+            website: '',
+            tagline: '',
+            description: '',
+            industry: '',
+            companySize: ''
+          });
+      } else if (role === 'tpo') {
+          saveUserProfile('institutes', user.uid, {
+            institutionName: name,
+            website: '',
+            description: '',
+            tpoName: '',
+            tpoEmail: user.email || ''
+          });
+      }
+
       setOpen(false); // Close modal on success
       toast({
         title: "Account Created!",
         description: "You have been successfully signed up.",
       });
 
-      // Redirect to the appropriate dashboard
-      router.push(`/${role}/dashboard`);
+      // Redirect to the appropriate dashboard or profile setup
+      const redirectPath = role === 'tpo' ? '/tpo/profile-setup' : `/${role}/dashboard`;
+      router.push(redirectPath);
 
     } catch (error: any) {
       console.error("Signup error:", error);
