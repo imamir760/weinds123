@@ -8,10 +8,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell, Menu } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, Bell, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
@@ -53,8 +56,14 @@ const insights = [
 ];
 
 const pipelineStages = [
-    "Applied", "Shortlisted", "AI Skill Test", "AI Interview", "Hired"
+  { name: "Applied", count: 4 },
+  { name: "Invited", count: 2 },
+  { name: "Skill Test", description: "AI/Manual", count: 2 },
+  { name: "Interview", description: "AI/In-Person", count: 1 },
+  { name: "Final Interview", description: "In-Person", count: 0 },
+  { name: "Selection", count: 0 }
 ];
+
 
 function SidebarNav() {
     return (
@@ -115,18 +124,21 @@ export default function EmployerDashboardPage() {
                     <Logo />
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    <Button asChild>
-                        <Link href="/employer/jobs/new"><PlusCircle className="mr-2 h-4 w-4"/>Post a New Job</Link>
-                    </Button>
+                    <Avatar className="h-9 w-9">
+                        <AvatarFallback>E</AvatarFallback>
+                    </Avatar>
                 </div>
             </header>
 
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
-              <div className="flex items-center">
+              <div className="flex items-center justify-between">
                 <div>
                   <h1 className="font-semibold text-2xl md:text-3xl">Welcome, Test LLC!</h1>
                   <p className="text-muted-foreground">Your command center for smart hiring. Let's find your next great hire.</p>
                 </div>
+                <Button asChild>
+                    <Link href="/employer/jobs/new"><PlusCircle className="mr-2 h-4 w-4"/>Post a New Job</Link>
+                </Button>
               </div>
               
               <section id="quick-insights">
@@ -150,30 +162,42 @@ export default function EmployerDashboardPage() {
                 </div>
               </section>
 
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  <div className="lg:col-span-3 space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Hiring Pipeline Overview</CardTitle>
-                            <CardDescription>A summary of your candidate progression stages.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center space-x-2 md:space-x-4 overflow-x-auto pb-2">
-                                {pipelineStages.map((stage, index) => (
-                                    <div key={stage} className="flex items-center">
-                                        <div className="flex flex-col items-center">
-                                            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold border-2 border-primary">{index + 1}</div>
-                                            <p className="text-xs text-center mt-1 w-20">{stage}</p>
-                                        </div>
-                                        {index < pipelineStages.length - 1 && (
-                                        <div className="flex-1 h-px bg-border w-8 md:w-16 mx-2"></div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-
+              <div className="grid gap-6 md:grid-cols-1">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Hiring Pipeline Overview</CardTitle>
+                      <CardDescription>A summary of your candidate progression stages.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Tabs defaultValue={pipelineStages[0].name.toLowerCase()} className="w-full">
+                        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
+                          {pipelineStages.map((stage) => (
+                            <TabsTrigger key={stage.name} value={stage.name.toLowerCase()} className="flex-col h-auto py-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm">{stage.name}</span>
+                                <Badge variant={stage.count > 0 ? "default" : "secondary"}>{stage.count}</Badge>
+                              </div>
+                              {stage.description && <span className="text-xs text-muted-foreground mt-1">{stage.description}</span>}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                        {pipelineStages.map((stage) => (
+                          <TabsContent key={stage.name} value={stage.name.toLowerCase()} className="mt-4">
+                            <Card>
+                              <CardContent className="p-6 text-center text-muted-foreground">
+                                <p>Candidates in the "{stage.name}" stage will appear here.</p>
+                                {stage.count > 0 && 
+                                  <Button variant="outline" size="sm" className="mt-4">
+                                      View {stage.count} candidate{stage.count > 1 ? 's' : ''}
+                                  </Button>
+                                }
+                              </CardContent>
+                            </Card>
+                          </TabsContent>
+                        ))}
+                      </Tabs>
+                    </CardContent>
+                  </Card>
                     <div className="grid md:grid-cols-2 gap-6">
                         <Card className="flex flex-col items-center justify-center p-8 bg-blue-50 dark:bg-blue-900/20 border-dashed border-blue-200 dark:border-blue-900">
                             <div className="bg-blue-100 dark:bg-blue-900/50 p-4 rounded-full mb-4">
@@ -196,7 +220,6 @@ export default function EmployerDashboardPage() {
                             </Button>
                         </Card>
                     </div>
-                  </div>
               </div>
             </main>
         </div>
