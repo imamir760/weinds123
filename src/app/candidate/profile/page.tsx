@@ -11,7 +11,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Edit, User, MapPin, Briefcase, Target, Star, Award, Building, Share2 } from 'lucide-react';
+import { Loader2, Edit, User, MapPin, Briefcase, Target, Star, Award, Building, Share2, FolderKanban } from 'lucide-react';
 import { saveUserProfile } from '@/lib/user-actions';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type ProfileData = {
   fullName: string;
@@ -38,7 +39,7 @@ type ProfileData = {
   employmentStatus: 'Fresher' | 'Working' | 'Studying';
   preference: 'Job' | 'Internship' | 'Both';
   achievements: string;
-  interestedCompanies: string;
+  projects: string;
 };
 
 function CandidateProfilePage() {
@@ -56,7 +57,7 @@ function CandidateProfilePage() {
     employmentStatus: 'Fresher',
     preference: 'Both',
     achievements: '',
-    interestedCompanies: ''
+    projects: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -109,6 +110,7 @@ function CandidateProfilePage() {
               profile.experience,
               profile.education,
               profile.achievements,
+              profile.projects,
           ];
           const filledFields = fields.filter(Boolean).length;
           const totalFields = fields.length + (profile.skills.length > 0 ? 1 : 0);
@@ -183,38 +185,54 @@ function CandidateProfilePage() {
                   <p className="text-sm text-muted-foreground text-center mt-2">{profileCompleteness}% complete</p>
               </div>
               <Separator />
-              <div className="grid md:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                      <div>
-                          <h3 className="font-semibold text-xl mb-3 flex items-center gap-2"><Star className="w-5 h-5 text-primary"/> Skills</h3>
-                          <div className="flex flex-wrap gap-2">
+               <Accordion type="multiple" defaultValue={['skills']} className="w-full space-y-4">
+                  <AccordionItem value="skills" className="border rounded-lg overflow-hidden">
+                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
+                          <Star className="w-5 h-5 text-primary"/> Skills
+                      </AccordionTrigger>
+                      <AccordionContent className="p-4 bg-background">
+                           <div className="flex flex-wrap gap-2">
                               {profile.skills.length > 0 ? profile.skills.map(skill => (
                                   <div key={skill} className="bg-primary/10 text-primary text-sm font-medium px-3 py-1 rounded-full animate-pop-in">
                                       {skill}
                                   </div>
                               )) : <p className="text-sm text-muted-foreground">No skills added yet.</p>}
                           </div>
-                      </div>
-                       <div>
-                          <h3 className="font-semibold text-xl mb-3 flex items-center gap-2"><Building className="w-5 h-5 text-primary"/> Interested Companies</h3>
-                          <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.interestedCompanies || 'Add companies you are interested in.'}</p>
-                      </div>
-                  </div>
-                   <div className="space-y-6">
-                        <div>
-                          <h3 className="font-semibold text-xl mb-3 flex items-center gap-2"><Award className="w-5 h-5 text-primary"/> Achievements</h3>
-                          <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.achievements || 'No achievements listed.'}</p>
-                      </div>
-                      <div>
-                          <h3 className="font-semibold text-xl mb-3 flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary"/> Experience</h3>
+                      </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="experience" className="border rounded-lg overflow-hidden">
+                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
+                          <Briefcase className="w-5 h-5 text-primary"/> Experience
+                      </AccordionTrigger>
+                      <AccordionContent className="p-4 bg-background">
                           <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.experience || 'No experience listed.'}</p>
-                      </div>
-                       <div>
-                          <h3 className="font-semibold text-xl mb-3 flex items-center gap-2"><User className="w-5 h-5 text-primary"/> Education</h3>
-                          <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.education || 'No education listed.'}</p>
-                      </div>
-                  </div>
-              </div>
+                      </AccordionContent>
+                  </AccordionItem>
+                   <AccordionItem value="education" className="border rounded-lg overflow-hidden">
+                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
+                          <User className="w-5 h-5 text-primary"/> Education
+                      </AccordionTrigger>
+                      <AccordionContent className="p-4 bg-background">
+                           <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.education || 'No education listed.'}</p>
+                      </AccordionContent>
+                  </AccordionItem>
+                   <AccordionItem value="projects" className="border rounded-lg overflow-hidden">
+                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
+                          <FolderKanban className="w-5 h-5 text-primary"/> Projects
+                      </AccordionTrigger>
+                      <AccordionContent className="p-4 bg-background">
+                          <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.projects || 'No projects listed.'}</p>
+                      </AccordionContent>
+                  </AccordionItem>
+                   <AccordionItem value="achievements" className="border rounded-lg overflow-hidden">
+                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
+                          <Award className="w-5 h-5 text-primary"/> Achievements
+                      </AccordionTrigger>
+                      <AccordionContent className="p-4 bg-background">
+                           <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.achievements || 'No achievements listed.'}</p>
+                      </AccordionContent>
+                  </AccordionItem>
+              </Accordion>
           </CardContent>
       </Card>
   );
@@ -308,16 +326,15 @@ function CandidateProfilePage() {
               <Textarea id="education" placeholder="Tell us about your educational background." value={profile.education} onChange={handleInputChange} />
             </div>
 
+             <div className="space-y-2">
+                <Label htmlFor="projects">Projects</Label>
+                <Textarea id="projects" placeholder="List your projects, including any relevant links to GitHub or live demos." value={profile.projects} onChange={handleInputChange} />
+            </div>
+
             <div className="space-y-2">
                 <Label htmlFor="achievements">Achievements</Label>
                 <Textarea id="achievements" placeholder="List any awards, publications, or notable projects." value={profile.achievements} onChange={handleInputChange} />
             </div>
-
-            <div className="space-y-2">
-                <Label htmlFor="interestedCompanies">Interested Companies</Label>
-                <Textarea id="interestedCompanies" placeholder="List companies you'd love to work for, one per line." value={profile.interestedCompanies} onChange={handleInputChange} />
-            </div>
-
 
             <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsEditMode(false)}>Cancel</Button>

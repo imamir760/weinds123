@@ -50,7 +50,7 @@
         "employmentStatus": { "type": "string", "enum": ["Fresher", "Working", "Studying"] },
         "preference": { "type": "string", "enum": ["Job", "Internship", "Both"] },
         "achievements": { "type": "string", "description": "A summary of the candidate's achievements." },
-        "interestedCompanies": { "type": "string", "description": "A list of companies the candidate is interested in." }
+        "projects": { "type": "string", "description": "A summary of the candidate's projects, including URLs." }
       }
     },
     "EmployerProfile": {
