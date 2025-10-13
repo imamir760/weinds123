@@ -58,9 +58,9 @@ const insights = [
 const pipelineStages = [
   { name: "Applied", count: 4 },
   { name: "Invited", count: 2 },
-  { name: "Skill Test", description: "AI/Manual", count: 2 },
-  { name: "Interview", description: "AI/In-Person", count: 1 },
-  { name: "Final Interview", description: "In-Person", count: 0 },
+  { name: "Skill Test", count: 2 },
+  { name: "Interview", count: 1 },
+  { name: "Final Interview", count: 0 },
   { name: "Selection", count: 0 }
 ];
 
@@ -170,24 +170,21 @@ export default function EmployerDashboardPage() {
                     </CardHeader>
                     <CardContent>
                       <Tabs defaultValue={pipelineStages[0].name.toLowerCase()} className="w-full">
-                        <TabsList className="w-full justify-start overflow-x-auto">
+                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 h-auto">
                           {pipelineStages.map((stage) => (
-                            <TabsTrigger key={stage.name} value={stage.name.toLowerCase()} className="flex-col h-auto py-2 px-4 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm">{stage.name}</span>
-                                <Badge variant={stage.count > 0 ? "default" : "secondary"}>{stage.count}</Badge>
-                              </div>
-                              {stage.description && <span className="text-xs text-muted-foreground mt-1">{stage.description}</span>}
+                            <TabsTrigger key={stage.name} value={stage.name.toLowerCase()} className="flex-col h-auto py-2 px-4 whitespace-nowrap text-sm">
+                              <div className="font-semibold">{stage.name}</div>
+                              <Badge variant={stage.count > 0 ? "default" : "secondary"} className="mt-1">{stage.count}</Badge>
                             </TabsTrigger>
                           ))}
                         </TabsList>
                         {pipelineStages.map((stage) => (
                           <TabsContent key={stage.name} value={stage.name.toLowerCase()} className="mt-4">
-                            <Card>
+                            <Card className="bg-muted/40">
                               <CardContent className="p-6 text-center text-muted-foreground">
                                 <p>Candidates in the "{stage.name}" stage will appear here.</p>
                                 {stage.count > 0 && 
-                                  <Button variant="outline" size="sm" className="mt-4">
+                                  <Button variant="outline" size="sm" className="mt-4 bg-background">
                                       View {stage.count} candidate{stage.count > 1 ? 's' : ''}
                                   </Button>
                                 }
