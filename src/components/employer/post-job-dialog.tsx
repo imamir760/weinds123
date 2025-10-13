@@ -40,7 +40,7 @@ type InternshipDetails = JobDetails & {
     duration?: string;
 }
 
-export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+export function PostJobDialog({ open, onOpenChange, onPipelineOpen }: { open: boolean, onOpenChange: (open: boolean) => void, onPipelineOpen: (details: any) => void }) {
   const [step, setStep] = useState(1);
   const [postType, setPostType] = useState<PostType>('job');
   const [unstructuredText, setUnstructuredText] = useState('');
@@ -80,6 +80,12 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
       setLoading(false);
     }
   };
+
+  const handleCreatePipeline = () => {
+    if (details) {
+        onPipelineOpen(details);
+    }
+  }
 
   const resetAndClose = () => {
     setStep(1);
@@ -142,7 +148,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-4xl w-full max-h-[90vh] flex flex-col">
         {step === 1 && (
           <>
             <DialogHeader>
@@ -295,7 +301,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
             </div>
             <DialogFooter className="pt-4 flex-col-reverse sm:flex-row">
               <Button variant="outline" onClick={handleBack}>Back</Button>
-              <Button>Post {postType}</Button>
+              <Button onClick={handleCreatePipeline}>Create Pipeline</Button>
             </DialogFooter>
           </>
         )}

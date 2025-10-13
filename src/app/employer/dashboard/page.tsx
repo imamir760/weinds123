@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState } from 'react';
 import { PostJobDialog } from '@/components/employer/post-job-dialog';
+import { CreatePipelineDialog } from '@/components/employer/create-pipeline-dialog';
 
 
 const navigation = [
@@ -106,6 +107,15 @@ function SidebarNav() {
 
 export default function EmployerDashboardPage() {
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
+  const [isCreatePipelineOpen, setIsCreatePipelineOpen] = useState(false);
+  const [jobDetailsForPipeline, setJobDetailsForPipeline] = useState(null);
+
+
+  const handlePipelineOpen = (details: any) => {
+    setJobDetailsForPipeline(details);
+    setIsPostJobOpen(false);
+    setIsCreatePipelineOpen(true);
+  }
 
   return (
     <>
@@ -228,7 +238,8 @@ export default function EmployerDashboardPage() {
             </main>
         </div>
     </div>
-    <PostJobDialog open={isPostJobOpen} onOpenChange={setIsPostJobOpen} />
+    <PostJobDialog open={isPostJobOpen} onOpenChange={setIsPostJobOpen} onPipelineOpen={handlePipelineOpen} />
+    <CreatePipelineDialog open={isCreatePipelineOpen} onOpenChange={setIsCreatePipelineOpen} jobDetails={jobDetailsForPipeline} />
     </>
   );
 }
