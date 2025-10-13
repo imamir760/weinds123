@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, CheckCircle, Star, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
+import CandidateDashboardLayout from '../../../dashboard/page';
 
 const report = {
   jobTitle: 'Product Manager',
@@ -28,7 +29,7 @@ const report = {
 };
 
 export default function InterviewReportPage({ params }: { params: { jobId: string } }) {
-  return (
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-3xl mx-auto">
         <div className="mb-6">
@@ -85,4 +86,6 @@ export default function InterviewReportPage({ params }: { params: { jobId: strin
       </div>
     </div>
   );
+
+  return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }

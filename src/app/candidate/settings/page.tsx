@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import CandidateDashboardLayout from '../dashboard/page';
 
 export default function CandidateSettingsPage() {
-  return (
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
@@ -77,4 +78,6 @@ export default function CandidateSettingsPage() {
       </Card>
     </div>
   );
+
+  return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }

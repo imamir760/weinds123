@@ -17,6 +17,14 @@ export function ConditionalHeader() {
       '/employer/interviews',
       '/employer/profile',
       '/employer/settings',
+      '/candidate/dashboard',
+      '/candidate/profile',
+      '/candidate/applications',
+      '/candidate/jobs',
+      '/candidate/ai-interviews',
+      '/candidate/resume-builder',
+      '/candidate/disha',
+      '/candidate/settings',
       '/tpo/dashboard',
       '/tpo/placements',
       '/tpo/companies',
@@ -30,7 +38,7 @@ export function ConditionalHeader() {
   // Hide header if the current path starts with any of the paths in noHeaderPaths
   const shouldShowHeader = !noHeaderPaths.some(path => pathname.startsWith(path));
 
-  if (pathname === '/employer' || pathname === '/tpo') {
+  if (pathname === '/employer' || pathname === '/tpo' || pathname === '/candidate') {
       return null;
   }
 

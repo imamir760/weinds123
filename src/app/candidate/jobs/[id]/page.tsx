@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Briefcase, MapPin, CheckCircle, DollarSign, Building } from "lucide-react";
 import Link from "next/link";
+import CandidateDashboardLayout from '../../dashboard/page';
 
 const job = {
   id: 'job1',
@@ -23,7 +24,7 @@ const job = {
 };
 
 export default function JobDetailsPage({ params }: { params: { id: string } }) {
-  return (
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
@@ -81,4 +82,6 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
       </div>
     </div>
   );
+
+  return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }

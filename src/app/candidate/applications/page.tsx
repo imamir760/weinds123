@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import CandidateDashboardLayout from '../dashboard/page';
 
 const applications = [
   { id: 'app1', jobTitle: 'Frontend Developer', company: 'TechCorp', status: 'AI Skill Test', appliedOn: '2023-10-26' },
@@ -28,7 +29,7 @@ const applications = [
 ];
 
 export default function ApplicationsPage() {
-  return (
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
@@ -68,4 +69,6 @@ export default function ApplicationsPage() {
       </Card>
     </div>
   );
+
+  return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }

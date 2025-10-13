@@ -14,6 +14,7 @@ import { Loader2 } from 'lucide-react';
 import { saveUserProfile } from '@/lib/user-actions';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
+import CandidateDashboardLayout from '../dashboard/page';
 
 type ProfileData = {
   fullName: string;
@@ -24,7 +25,7 @@ type ProfileData = {
   education: string;
 };
 
-export default function CandidateProfilePage() {
+function CandidateProfileContent() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<ProfileData>({
@@ -156,4 +157,13 @@ export default function CandidateProfilePage() {
       </Card>
     </div>
   );
+}
+
+
+export default function CandidateProfilePage() {
+    return (
+        <CandidateDashboardLayout>
+            <CandidateProfileContent />
+        </CandidateDashboardLayout>
+    )
 }

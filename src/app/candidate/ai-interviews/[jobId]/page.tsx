@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Bot, User, Send, Mic, Loader2 } from 'lucide-react';
 import { conductAiInterview } from '@/ai/flows/conduct-ai-interview';
+import CandidateDashboardLayout from '../../dashboard/page';
 
 const jobDetails = {
     jobDescription: "As a Senior Frontend Developer, you will be responsible for building our next-generation user interfaces using React and TypeScript. You should have a strong understanding of component-based architecture, state management, and modern frontend tooling.",
@@ -75,7 +76,7 @@ export default function AiInterviewPage({ params }: { params: { jobId: string }}
     };
 
 
-  return (
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
         <Card className="max-w-3xl mx-auto">
             <CardHeader className="text-center">
@@ -120,4 +121,6 @@ export default function AiInterviewPage({ params }: { params: { jobId: string }}
         </Card>
     </div>
   );
+
+  return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }

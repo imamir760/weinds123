@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { reformatResume } from '@/ai/flows';
 import { Loader2, FileText, Download } from 'lucide-react';
+import CandidateDashboardLayout from '../dashboard/page';
 
 export default function ResumeBuilderPage() {
   const [rawText, setRawText] = useState('');
@@ -27,7 +28,7 @@ export default function ResumeBuilderPage() {
     }
   };
 
-  return (
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <div className="text-center mb-12">
         <FileText className="w-16 h-16 mx-auto text-primary mb-4" />
@@ -86,4 +87,6 @@ export default function ResumeBuilderPage() {
       </div>
     </div>
   );
+
+  return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }

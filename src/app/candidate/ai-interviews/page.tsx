@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Video, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
+import CandidateDashboardLayout from '../dashboard/page';
 
 const interviews = [
   { jobId: 'job1', jobTitle: 'Frontend Developer', company: 'TechCorp', status: 'Pending', type: 'Conversational AI' },
@@ -17,7 +18,7 @@ const interviews = [
 ];
 
 export default function AiInterviewsPage() {
-  return (
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
@@ -52,4 +53,6 @@ export default function AiInterviewsPage() {
       </Card>
     </div>
   );
+
+  return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }

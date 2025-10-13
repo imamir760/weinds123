@@ -8,13 +8,24 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, FileText, Bot, Settings, LogOut, User } from 'lucide-react';
+import { Briefcase, FileText, Bot, Settings, LogOut, User, Search, BarChart2, Star, Menu } from 'lucide-react';
 import Link from 'next/link';
+import { Logo } from '@/components/logo';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useAuth } from '@/components/auth/auth-provider';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const navigation = [
-  { name: 'Dashboard', href: '/candidate/dashboard', icon: Briefcase },
+  { name: 'Dashboard', href: '/candidate/dashboard', icon: Briefcase, current: true },
   { name: 'My Profile', href: '/candidate/profile', icon: User },
   { name: 'My Applications', href: '/candidate/applications', icon: FileText },
+  { name: 'Find Jobs', href: '/candidate/jobs', icon: Search },
+  { name: 'AI Interviews', href: '/candidate/ai-interviews', icon: Bot },
+  { name: 'Resume Builder', href: '/candidate/resume-builder', icon: FileText },
   { name: 'Disha AI', href: '/candidate/disha', icon: Bot },
   { name: 'Settings', href: '/candidate/settings', icon: Settings },
 ];
@@ -46,19 +57,23 @@ const ongoingApplications = [
 ];
 
 
-export default function CandidateDashboardPage() {
-  return (
-    <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
-      <div className="hidden border-r bg-gray-100/40 lg:block dark:bg-gray-800/40">
+function SidebarNav() {
+    const { toast } = useToast();
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        await signOut(auth);
+        toast({
+          title: "Logged Out",
+          description: "You have been successfully logged out."
+        });
+        router.push('/');
+    }
+
+    return (
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-[60px] items-center border-b px-6">
-            <Link
-              href="/candidate/dashboard"
-              className="flex items-center gap-2 font-semibold"
-            >
-              <Briefcase className="h-6 w-6" />
-              <span>Candidate Space</span>
-            </Link>
+            <Logo />
           </div>
           <div className="flex-1 overflow-auto py-2">
             <nav className="grid items-start px-4 text-sm font-medium">
@@ -66,7 +81,7 @@ export default function CandidateDashboardPage() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-gray-600 hover:bg-gray-200/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-50`}
                 >
                   <item.icon className="h-4 w-4" />
                   {item.name}
@@ -75,14 +90,17 @@ export default function CandidateDashboardPage() {
             </nav>
           </div>
           <div className="mt-auto p-4">
-            <Button size="sm" variant="outline" className="w-full">
+            <Button size="sm" variant="outline" className="w-full" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </Button>
           </div>
         </div>
-      </div>
-      <div className="flex flex-col">
+    )
+}
+
+function DashboardContent() {
+    return (
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
           <div className="flex items-center">
             <h1 className="font-semibold text-lg md:text-2xl">Welcome Back, Candidate!</h1>
@@ -153,7 +171,41 @@ export default function CandidateDashboardPage() {
               </CardContent>
             </Card>
         </main>
-      </div>
+    )
+}
+
+export default function CandidateDashboardLayout({ children }: { children?: React.ReactNode }) {
+  const { user } = useAuth();
+  return (
+    <div className="min-h-screen w-full bg-gray-100/40 dark:bg-gray-800/40">
+        <aside className="hidden lg:block fixed inset-y-0 left-0 z-10 w-[280px] border-r bg-background dark:bg-gray-950">
+             <SidebarNav />
+        </aside>
+        <div className="lg:pl-[280px]">
+            <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-background px-4 md:px-6 sticky top-0 z-30">
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button variant="outline" size="icon" className="lg:hidden h-10 w-10 shrink-0">
+                            <Menu className="h-6 w-6" />
+                            <span className="sr-only">Toggle navigation menu</span>
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="w-[280px] p-0">
+                        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                        <SidebarNav />
+                    </SheetContent>
+                </Sheet>
+                 <div className="w-full flex-1 lg:hidden">
+                    <Logo />
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                    <Avatar className="h-9 w-9">
+                        <AvatarFallback>{user?.displayName?.charAt(0) || 'C'}</AvatarFallback>
+                    </Avatar>
+                </div>
+            </header>
+            {children ? children : <DashboardContent />}
+        </div>
     </div>
   );
 }

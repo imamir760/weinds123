@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, MapPin, Briefcase, Filter } from 'lucide-react';
 import Link from 'next/link';
+import CandidateDashboardLayout from '../dashboard/page';
 
 const jobs = [
     { id: 'job1', title: 'Frontend Developer', company: 'Innovate Inc.', location: 'Remote', type: 'Full-time', match: 92 },
@@ -21,7 +22,7 @@ const jobs = [
 ];
 
 export default function JobsPage() {
-  return (
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
         <Card className="mb-8">
             <CardContent className="pt-6">
@@ -84,4 +85,6 @@ export default function JobsPage() {
         </div>
     </div>
   );
+
+  return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }

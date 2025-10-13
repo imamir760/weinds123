@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Bot, Lightbulb, CheckCircle, List } from 'lucide-react';
 import { generateLearningRoadmap, generateSpecializations } from '@/ai/flows';
+import CandidateDashboardLayout from '../dashboard/page';
 
 export default function DishaAiPage() {
   const [goal, setGoal] = useState('');
@@ -42,7 +43,7 @@ export default function DishaAiPage() {
     }
   };
 
-  return (
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <div className="text-center mb-12">
         <Bot className="w-16 h-16 mx-auto text-primary mb-4" />
@@ -115,4 +116,6 @@ export default function DishaAiPage() {
       )}
     </div>
   );
+
+  return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
