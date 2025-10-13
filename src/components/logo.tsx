@@ -21,14 +21,14 @@ export function Logo({ className }: { className?: string }) {
               stroke-width: 0.5;
               stroke-dasharray: 250;
               stroke-dashoffset: 250;
-              animation: writeAndVanish 2.5s ease-in-out infinite;
+              animation: writeAndVanish 3.5s ease-in-out infinite;
             }
             @keyframes writeAndVanish {
               0% {
                 stroke-dashoffset: 250;
                 fill-opacity: 0;
               }
-              50% {
+              40% {
                 stroke-dashoffset: 0;
                 fill-opacity: 1;
               }

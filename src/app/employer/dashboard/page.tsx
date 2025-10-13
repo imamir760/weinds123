@@ -68,7 +68,7 @@ export default function EmployerDashboardPage() {
                   href={item.href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
                     item.current
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                      ? 'bg-primary/10 text-primary dark:bg-primary/20'
                       : 'text-gray-600 hover:bg-gray-200/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-50'
                   }`}
                 >
@@ -88,8 +88,10 @@ export default function EmployerDashboardPage() {
                     <CardDescription className="text-xs">Get your job listing in front of thousands of candidates.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
-                    <Button size="sm" className="w-full bg-orange-500 hover:bg-orange-600 text-white">
-                        <PlusCircle className="mr-2 h-4 w-4" /> Post Job
+                    <Button size="sm" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" asChild>
+                        <Link href="/employer/jobs/new">
+                           <PlusCircle className="mr-2 h-4 w-4" /> Post Job
+                        </Link>
                     </Button>
                 </CardContent>
             </Card>
@@ -143,13 +145,13 @@ export default function EmployerDashboardPage() {
 
           <section id="actions">
              <div className="grid md:grid-cols-2 gap-6">
-                <Card className="flex flex-col items-center justify-center p-8 bg-orange-50 dark:bg-orange-900/20 border-dashed border-orange-200 dark:border-orange-900">
-                    <div className="bg-orange-100 dark:bg-orange-900/50 p-4 rounded-full mb-4">
-                        <PlusCircle className="w-8 h-8 text-orange-600 dark:text-orange-400"/>
+                <Card className="flex flex-col items-center justify-center p-8 bg-primary/5 dark:bg-primary/10 border-dashed border-primary/20 dark:border-primary/30">
+                    <div className="bg-primary/10 dark:bg-primary/20 p-4 rounded-full mb-4">
+                        <PlusCircle className="w-8 h-8 text-primary"/>
                     </div>
                     <h3 className="text-xl font-bold mb-2">Post a New Job</h3>
                     <p className="text-muted-foreground text-center mb-4 text-sm">Get your job listing in front of thousands of experienced professionals.</p>
-                    <Button className="bg-orange-500 hover:bg-orange-600 text-white" asChild>
+                    <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" asChild>
                         <Link href="/employer/jobs/new">Create Job Post</Link>
                     </Button>
                 </Card>
