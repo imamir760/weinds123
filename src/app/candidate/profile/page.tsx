@@ -11,7 +11,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Edit, User, MapPin, Briefcase, Target, Star, Award, Building, Share2, FolderKanban } from 'lucide-react';
+import { Loader2, Edit, User, MapPin, Briefcase, Target, Star, Award, Building, Share2, FolderKanban, Save, GraduationCap, BookOpen, UserCircle, Settings } from 'lucide-react';
 import { saveUserProfile } from '@/lib/user-actions';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -40,12 +40,13 @@ type ProfileData = {
   preference: 'Job' | 'Internship' | 'Both';
   achievements: string;
   projects: string;
+  phone?: string;
 };
 
 function CandidateProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true); // Default to edit mode as per new design
   const [profile, setProfile] = useState<ProfileData>({
     fullName: '',
     email: '',
@@ -57,7 +58,8 @@ function CandidateProfilePage() {
     employmentStatus: 'Fresher',
     preference: 'Both',
     achievements: '',
-    projects: ''
+    projects: '',
+    phone: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -111,10 +113,11 @@ function CandidateProfilePage() {
               profile.education,
               profile.achievements,
               profile.projects,
+              profile.phone
           ];
           const filledFields = fields.filter(Boolean).length;
           const totalFields = fields.length + (profile.skills.length > 0 ? 1 : 0);
-          const completeness = Math.round((filledFields / totalFields) * 100);
+          const completeness = Math.round((filledFields / (fields.length + 1)) * 100);
           setProfileCompleteness(completeness);
       };
       calculateCompleteness();
@@ -147,7 +150,7 @@ function CandidateProfilePage() {
 
     setTimeout(() => {
       setSaving(false);
-      setIsEditMode(false);
+      // setIsEditMode(false); // Stay in edit mode after saving
       toast({
         title: "Update Sent",
         description: "Your profile changes have been sent to the server.",
@@ -155,152 +158,75 @@ function CandidateProfilePage() {
     }, 1500);
   };
   
-  const ProfileView = () => (
-      <Card className="w-full max-w-4xl mx-auto overflow-hidden shadow-2xl shadow-primary/10 animate-fade-in">
-          <div className="bg-gradient-to-br from-secondary to-background p-8">
-              <div className="flex flex-col md:flex-row items-center gap-6">
-                  <Avatar className="w-28 h-28 border-4 border-background shadow-lg">
-                      <AvatarImage src={PlaceHolderImages[1].imageUrl} alt={profile.fullName} />
-                      <AvatarFallback>{profile.fullName?.charAt(0) || 'C'}</AvatarFallback>
-                  </Avatar>
-                  <div className="text-center md:text-left">
-                      <CardTitle className="text-3xl font-bold">{profile.fullName || 'Your Name'}</CardTitle>
-                      <p className="text-primary font-medium text-lg mt-1">{profile.headline || 'Your Professional Headline'}</p>
-                      <div className="flex items-center justify-center md:justify-start gap-4 text-muted-foreground text-sm mt-2">
-                          <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4"/> {profile.location ? cities.find(c => c.value === profile.location)?.label : 'Location'}</span>
-                          <span className="flex items-center gap-1.5"><Briefcase className="w-4 h-4"/> {profile.employmentStatus}</span>
-                          <span className="flex items-center gap-1.5"><Target className="w-4 h-4"/> Seeking: {profile.preference}</span>
-                      </div>
-                  </div>
-                  <div className="md:ml-auto flex flex-col items-center gap-2">
-                       <Button onClick={() => setIsEditMode(true)}><Edit className="mr-2"/> Edit Profile</Button>
-                       <Button variant="outline" size="sm"><Share2 className="mr-2"/> Share</Button>
-                  </div>
-              </div>
-          </div>
-          <CardContent className="p-8 space-y-8">
-              <div>
-                  <h3 className="text-lg font-semibold mb-2">Profile Completeness</h3>
-                  <Progress value={profileCompleteness} className="w-full h-3" />
-                  <p className="text-sm text-muted-foreground text-center mt-2">{profileCompleteness}% complete</p>
-              </div>
-              <Separator />
-               <Accordion type="multiple" defaultValue={['skills']} className="w-full space-y-4">
-                  <AccordionItem value="skills" className="border rounded-lg overflow-hidden">
-                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
-                          <Star className="w-5 h-5 text-primary"/> Skills
-                      </AccordionTrigger>
-                      <AccordionContent className="p-4 bg-background">
-                           <div className="flex flex-wrap gap-2">
-                              {profile.skills.length > 0 ? profile.skills.map(skill => (
-                                  <div key={skill} className="bg-primary/10 text-primary text-sm font-medium px-3 py-1 rounded-full animate-pop-in">
-                                      {skill}
-                                  </div>
-                              )) : <p className="text-sm text-muted-foreground">No skills added yet.</p>}
-                          </div>
-                      </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="experience" className="border rounded-lg overflow-hidden">
-                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
-                          <Briefcase className="w-5 h-5 text-primary"/> Experience
-                      </AccordionTrigger>
-                      <AccordionContent className="p-4 bg-background">
-                          <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.experience || 'No experience listed.'}</p>
-                      </AccordionContent>
-                  </AccordionItem>
-                   <AccordionItem value="education" className="border rounded-lg overflow-hidden">
-                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
-                          <User className="w-5 h-5 text-primary"/> Education
-                      </AccordionTrigger>
-                      <AccordionContent className="p-4 bg-background">
-                           <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.education || 'No education listed.'}</p>
-                      </AccordionContent>
-                  </AccordionItem>
-                   <AccordionItem value="projects" className="border rounded-lg overflow-hidden">
-                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
-                          <FolderKanban className="w-5 h-5 text-primary"/> Projects
-                      </AccordionTrigger>
-                      <AccordionContent className="p-4 bg-background">
-                          <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.projects || 'No projects listed.'}</p>
-                      </AccordionContent>
-                  </AccordionItem>
-                   <AccordionItem value="achievements" className="border rounded-lg overflow-hidden">
-                      <AccordionTrigger className="bg-background hover:bg-secondary/50 px-4 py-3 text-lg font-semibold flex items-center gap-2">
-                          <Award className="w-5 h-5 text-primary"/> Achievements
-                      </AccordionTrigger>
-                      <AccordionContent className="p-4 bg-background">
-                           <p className="text-muted-foreground text-sm whitespace-pre-wrap">{profile.achievements || 'No achievements listed.'}</p>
-                      </AccordionContent>
-                  </AccordionItem>
-              </Accordion>
-          </CardContent>
-      </Card>
-  );
 
   const ProfileForm = () => (
-      <Card className="max-w-4xl mx-auto">
+    <form className="space-y-6" onSubmit={handleSave}>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">My Profile</h1>
+        <Button type="submit" disabled={saving}>
+          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2" />}
+          Save Profile
+        </Button>
+      </div>
+
+      <Card>
         <CardHeader>
-          <CardTitle>Update Your Profile</CardTitle>
-          <CardDescription>Keep your profile updated to get the best job recommendations.</CardDescription>
+          <CardTitle className="flex items-center gap-2"><UserCircle className="w-5 h-5 text-primary" /> Contact Information</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form className="space-y-6" onSubmit={handleSave}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input id="fullName" value={profile.fullName} onChange={handleInputChange} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={profile.email} disabled />
-              </div>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input id="fullName" value={profile.fullName} onChange={handleInputChange} />
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Combobox
-                        items={cities}
-                        value={profile.location}
-                        onChange={(value) => handleSelectChange('location', value)}
-                        placeholder="Select location..."
-                        searchPlaceholder="Search cities..."
-                        notFoundText="No city found."
-                    />
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="employmentStatus">Employment Status</Label>
-                     <Select value={profile.employmentStatus} onValueChange={(value) => handleSelectChange('employmentStatus', value)}>
-                        <SelectTrigger id="employmentStatus">
-                            <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Fresher">Fresher</SelectItem>
-                            <SelectItem value="Working">Working</SelectItem>
-                            <SelectItem value="Studying">Studying</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-
-            <div className="space-y-2">
+            <div className="space-y-1">
               <Label htmlFor="headline">Headline</Label>
-              <Input id="headline" placeholder="e.g., Aspiring Software Engineer | React & Node.js" value={profile.headline} onChange={handleInputChange} />
+              <Input id="headline" placeholder="e.g., Aspiring Software Engineer" value={profile.headline} onChange={handleInputChange} />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="skills">Skills</Label>
-              <SkillsInput
-                  allSkills={allSkills}
-                  selectedSkills={profile.skills}
-                  onSkillsChange={(skills) => handleSelectChange('skills', skills as any)}
+            <div className="space-y-1">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={profile.email} disabled />
+            </div>
+             <div className="space-y-1">
+              <Label htmlFor="phone">Phone</Label>
+              <Input id="phone" type="tel" value={profile.phone} onChange={handleInputChange} />
+            </div>
+          </div>
+           <div className="space-y-1">
+              <Label htmlFor="location">Location</Label>
+              <Combobox
+                  items={cities}
+                  value={profile.location}
+                  onChange={(value) => handleSelectChange('location', value)}
+                  placeholder="Select location..."
+                  searchPlaceholder="Search cities..."
+                  notFoundText="No city found."
               />
-              <p className="text-xs text-muted-foreground">Type a skill and press Enter to add it.</p>
+          </div>
+        </CardContent>
+      </Card>
+      
+       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Settings className="w-5 h-5 text-primary" /> Preference</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+           <div className="space-y-2">
+                <Label>I am a</Label>
+                 <Select value={profile.employmentStatus} onValueChange={(value) => handleSelectChange('employmentStatus', value)}>
+                    <SelectTrigger id="employmentStatus">
+                        <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Fresher">Fresher</SelectItem>
+                        <SelectItem value="Working">Working Professional</SelectItem>
+                        <SelectItem value="Studying">Currently Studying</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
-
             <div className="space-y-2">
-                <Label>Preference</Label>
-                 <RadioGroup value={profile.preference} onValueChange={(value) => handleSelectChange('preference', value)} className="flex gap-4">
+                <Label>I'm looking for</Label>
+                 <RadioGroup value={profile.preference} onValueChange={(value) => handleSelectChange('preference', value)} className="flex gap-4 pt-2">
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="Job" id="pref-job" />
                         <Label htmlFor="pref-job">Job</Label>
@@ -315,37 +241,56 @@ function CandidateProfilePage() {
                     </div>
                 </RadioGroup>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="experience">Experience</Label>
-              <Textarea id="experience" placeholder="Describe your work experience." rows={5} value={profile.experience} onChange={handleInputChange} />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="education">Education</Label>
-              <Textarea id="education" placeholder="Tell us about your educational background." value={profile.education} onChange={handleInputChange} />
-            </div>
+        </CardContent>
+      </Card>
+      
 
-             <div className="space-y-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Star className="w-5 h-5 text-primary" /> Skills</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SkillsInput
+            allSkills={allSkills}
+            selectedSkills={profile.skills}
+            onSkillsChange={(skills) => handleSelectChange('skills', skills as any)}
+          />
+          <p className="text-xs text-muted-foreground mt-2">Type a skill and press Enter to add it. Previously added custom skills will appear in suggestions.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+          <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Professional Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="experience">Experience</Label>
+                <Textarea id="experience" placeholder="Describe your work experience." rows={5} value={profile.experience} onChange={handleInputChange} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="education">Education</Label>
+                <Textarea id="education" placeholder="Tell us about your educational background." value={profile.education} onChange={handleInputChange} />
+              </div>
+          </CardContent>
+      </Card>
+
+      <Card>
+           <CardHeader>
+              <CardTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Projects & Achievements</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
                 <Label htmlFor="projects">Projects</Label>
                 <Textarea id="projects" placeholder="List your projects, including any relevant links to GitHub or live demos." value={profile.projects} onChange={handleInputChange} />
             </div>
-
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <Label htmlFor="achievements">Achievements</Label>
-                <Textarea id="achievements" placeholder="List any awards, publications, or notable projects." value={profile.achievements} onChange={handleInputChange} />
+                <Textarea id="achievements" placeholder="List any awards, publications, or notable accomplishments." value={profile.achievements} onChange={handleInputChange} />
             </div>
-
-            <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditMode(false)}>Cancel</Button>
-                <Button type="submit" disabled={saving}>
-                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Changes
-                </Button>
-            </div>
-          </form>
-        </CardContent>
+          </CardContent>
       </Card>
+    </form>
   );
 
   const PageContent = (
@@ -353,7 +298,7 @@ function CandidateProfilePage() {
         {authLoading || loading ? (
              <div className="container flex justify-center items-center py-8"><Loader2 className="w-8 h-8 animate-spin" /></div>
         ) : (
-            isEditMode ? <ProfileForm /> : <ProfileView />
+            <ProfileForm />
         )}
     </div>
   );
