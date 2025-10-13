@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell, PanelLeft } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -93,7 +93,7 @@ function SidebarNav() {
 
 export default function EmployerDashboardPage() {
   return (
-    <div className="min-h-screen w-full bg-gray-100/40 dark:bg-gray-800/40">
+    <div className="min-h-screen w-full bg-gray-100/40 dark:bg-gray-800/40 overflow-x-hidden">
         <aside className="hidden lg:block fixed inset-y-0 left-0 z-10 w-[280px] border-r bg-background dark:bg-gray-950">
              <SidebarNav />
         </aside>
@@ -102,7 +102,7 @@ export default function EmployerDashboardPage() {
                 <Sheet>
                     <SheetTrigger asChild>
                         <Button variant="outline" size="icon" className="lg:hidden h-10 w-10">
-                            <PanelLeft className="h-6 w-6" />
+                            <Menu className="h-6 w-6" />
                             <span className="sr-only">Toggle navigation menu</span>
                         </Button>
                     </SheetTrigger>
