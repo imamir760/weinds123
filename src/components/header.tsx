@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Logo } from './logo';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -54,13 +54,14 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="pr-0">
-              <div className="flex justify-between items-center p-4 -ml-4 -mt-4 mr-4">
+              <SheetHeader className="flex-row justify-between items-center p-4 -ml-4 -mt-4 mr-4">
                 <Logo />
+                <SheetTitle className="sr-only">Menu</SheetTitle>
                  <Button variant="ghost" size="icon" onClick={() => setMenuOpen(false)}>
                   <X className="h-5 w-5" />
                   <span className="sr-only">Close Menu</span>
                 </Button>
-              </div>
+              </SheetHeader>
               <div className="flex flex-col space-y-4 mt-8">
                 {navLinks.map((link) => (
                    <NavLink key={link.href} {...link} className="text-lg" />
