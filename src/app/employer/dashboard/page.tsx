@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/logo';
@@ -52,10 +52,14 @@ const insights = [
   },
 ];
 
+const pipelineStages = [
+    "Applied", "Shortlisted", "AI Skill Test", "AI Interview", "Hired"
+];
+
 export default function EmployerDashboardPage() {
   return (
     <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
-      <div className="hidden border-r bg-gray-100/40 lg:block dark:bg-gray-800/40">
+      <div className="hidden border-r bg-gray-100/40 lg:block dark:bg-gray-800/40 fixed h-full w-[280px]">
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-[60px] items-center border-b px-6">
             <Logo />
@@ -98,8 +102,8 @@ export default function EmployerDashboardPage() {
           </div>
         </div>
       </div>
-      <div className="flex flex-col bg-gray-50/50 dark:bg-gray-900/50">
-        <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-white dark:bg-gray-800/40 px-6">
+      <div className="flex flex-col bg-gray-50/50 dark:bg-gray-900/50 ml-0 lg:ml-[280px]">
+        <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-white dark:bg-gray-800/40 px-6 sticky top-0 z-30">
             {/* Mobile sidebar toggle can be added here */}
             <div className="flex-1">
                 {/* Potentially a search bar */}
@@ -141,6 +145,30 @@ export default function EmployerDashboardPage() {
                 </Card>
               ))}
             </div>
+          </section>
+
+          <section id="pipeline">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Hiring Pipeline Overview</CardTitle>
+                    <CardDescription>A summary of your candidate progression stages.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center space-x-2 md:space-x-4 overflow-x-auto pb-2">
+                        {pipelineStages.map((stage, index) => (
+                            <div key={stage} className="flex items-center">
+                                <div className="flex flex-col items-center">
+                                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold border-2 border-primary">{index + 1}</div>
+                                    <p className="text-xs text-center mt-1 w-20">{stage}</p>
+                                </div>
+                                {index < pipelineStages.length - 1 && (
+                                   <div className="flex-1 h-px bg-border w-8 md:w-16 mx-2"></div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
           </section>
 
           <section id="actions">

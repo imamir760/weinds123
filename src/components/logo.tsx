@@ -21,7 +21,7 @@ export function Logo({ className }: { className?: string }) {
               stroke-width: 0.5;
               stroke-dasharray: 250;
               stroke-dashoffset: 250;
-              animation: writeAndVanish 3.5s ease-in-out infinite;
+              animation: writeAndVanish 5s ease-in-out infinite;
             }
             @keyframes writeAndVanish {
               0% {
