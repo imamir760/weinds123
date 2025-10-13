@@ -12,6 +12,7 @@ import {
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { FirebaseErrorListener } from '../firebase-error-listener';
 
 type Role = 'candidate' | 'employer' | 'tpo';
 type Action = 'login' | 'signup';
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{ open, setOpen, role, setRole, action, setAction, user, loading }}
     >
+      <FirebaseErrorListener />
       {children}
     </AuthContext.Provider>
   );

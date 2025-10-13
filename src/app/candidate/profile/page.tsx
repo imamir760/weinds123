@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { saveUserProfile } from '@/lib/user-actions';
 
 type ProfileData = {
   fullName: string;
@@ -31,6 +32,7 @@ export default function CandidateProfilePage() {
     education: '',
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -62,23 +64,25 @@ export default function CandidateProfilePage() {
       toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
       return;
     }
-    setLoading(true);
-    try {
-      const docRef = doc(db, 'candidates', user.uid);
-      await setDoc(docRef, profile, { merge: true });
+    setSaving(true);
+    
+    saveUserProfile('candidates', user.uid, profile);
+
+    toast({
+      title: "Profile Saving...",
+      description: "Your information is being updated.",
+    });
+
+    // We don't know for sure if it succeeded due to the detached nature
+    // of the save, but we can give optimistic feedback.
+    // The error will appear in the dev overlay if it fails.
+    setTimeout(() => {
+      setSaving(false);
       toast({
-        title: "Profile Saved",
-        description: "Your information has been updated successfully.",
+        title: "Request Sent",
+        description: "Your profile update has been sent to the server.",
       });
-    } catch (error: any) {
-      toast({
-        title: "Save Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    }, 1500);
   };
 
   if (authLoading || loading) {
@@ -127,8 +131,8 @@ export default function CandidateProfilePage() {
             </div>
 
             <div className="flex justify-end">
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save Changes
                 </Button>
             </div>

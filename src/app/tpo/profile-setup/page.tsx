@@ -8,10 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { saveUserProfile } from '@/lib/user-actions';
+
 
 type ProfileData = {
   institutionName: string;
@@ -33,6 +35,7 @@ export default function TpoProfileSetupPage() {
     tpoEmail: '',
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -67,24 +70,22 @@ export default function TpoProfileSetupPage() {
       toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
       return;
     }
-    setLoading(true);
-    try {
-      const docRef = doc(db, 'institutes', user.uid);
-      await setDoc(docRef, profile, { merge: true });
+    setSaving(true);
+    saveUserProfile('institutes', user.uid, profile);
+
+    toast({
+      title: "Profile Saving...",
+      description: "Your institution's information is being updated.",
+    });
+
+    setTimeout(() => {
+      setSaving(false);
       toast({
-        title: "Profile Saved",
-        description: "Your institution's information has been updated.",
+        title: "Request Sent",
+        description: "Your profile update has been sent to the server. Redirecting to dashboard...",
       });
       router.push('/tpo/dashboard');
-    } catch (error: any) {
-      toast({
-        title: "Save Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    }, 1500);
   };
 
   if (authLoading || loading) {
@@ -126,8 +127,8 @@ export default function TpoProfileSetupPage() {
             </div>
 
             <div className="flex justify-end">
-                <Button type="submit" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" disabled={saving}>
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Complete Setup
                 </Button>
             </div>
