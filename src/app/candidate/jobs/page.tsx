@@ -1,5 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, DocumentData } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -9,19 +12,40 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Briefcase, Filter } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 
-const jobs = [
-    { id: 'job1', title: 'Frontend Developer', company: 'Innovate Inc.', location: 'Remote', type: 'Full-time', match: 92 },
-    { id: 'job2', title: 'Product Designer', company: 'Creative Solutions', location: 'New York, NY', type: 'Full-time', match: 88 },
-    { id: 'job3', title: 'Data Scientist', company: 'Analytics Co.', location: 'San Francisco, CA', type: 'Contract', match: 85 },
-    { id: 'job4', title: 'Backend Engineer', company: 'Data Solutions', location: 'Remote', type: 'Full-time', match: 76 },
-    { id: 'job5', title: 'Marketing Manager', company: 'Growth Co.', location: 'Austin, TX', type: 'Full-time', match: 65 },
-];
+interface Job extends DocumentData {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  type: string;
+  match: number;
+}
 
 export default function JobsPage() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const jobsCollectionRef = collection(db, 'jobs');
+    const unsubscribe = onSnapshot(jobsCollectionRef, (snapshot) => {
+      const jobsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Job));
+      setJobs(jobsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching jobs: ", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
         <Card className="mb-8">
@@ -43,46 +67,61 @@ export default function JobsPage() {
             </CardContent>
         </Card>
 
-        <div className="space-y-6">
-            {jobs.map(job => (
-                <Card key={job.id}>
-                    <CardHeader>
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <CardTitle>{job.title}</CardTitle>
-                                <CardDescription>{job.company}</CardDescription>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-lg font-bold text-primary">{job.match}% Match</p>
-                                <p className="text-xs text-muted-foreground">Compatibility Score</p>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-                            <div className="flex gap-4 text-sm text-muted-foreground mb-4 md:mb-0">
-                                <div className="flex items-center gap-1.5">
-                                    <MapPin className="h-4 w-4"/>
-                                    <span>{job.location}</span>
+        {loading ? (
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        ) : (
+            <div className="space-y-6">
+                {jobs.map(job => (
+                    <Card key={job.id}>
+                        <CardHeader>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <CardTitle>{job.title}</CardTitle>
+                                    <CardDescription>{job.company || 'N/A'}</CardDescription>
                                 </div>
-                                 <div className="flex items-center gap-1.5">
-                                    <Briefcase className="h-4 w-4"/>
-                                    <span>{job.type}</span>
+                                {job.match && (
+                                    <div className="text-right">
+                                        <p className="text-lg font-bold text-primary">{job.match}% Match</p>
+                                        <p className="text-xs text-muted-foreground">Compatibility Score</p>
+                                    </div>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+                                <div className="flex gap-4 text-sm text-muted-foreground mb-4 md:mb-0">
+                                    <div className="flex items-center gap-1.5">
+                                        <MapPin className="h-4 w-4"/>
+                                        <span>{job.location}</span>
+                                    </div>
+                                     <div className="flex items-center gap-1.5">
+                                        <Briefcase className="h-4 w-4"/>
+                                        <span>{job.workMode || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button asChild>
+                                        <Link href={`/candidate/jobs/${job.id}`}>Apply Now</Link>
+                                    </Button>
+                                     <Button asChild variant="outline">
+                                        <Link href={`/candidate/jobs/${job.id}`}>View Details</Link>
+                                    </Button>
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Button asChild>
-                                    <Link href={`/candidate/jobs/${job.id}`}>Apply Now</Link>
-                                </Button>
-                                 <Button asChild variant="outline">
-                                    <Link href={`/candidate/jobs/${job.id}`}>View Details</Link>
-                                </Button>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        )}
+         {!loading && jobs.length === 0 && (
+            <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                    <p>No jobs posted yet. Check back soon!</p>
+                </CardContent>
+            </Card>
+        )}
     </div>
   );
 
