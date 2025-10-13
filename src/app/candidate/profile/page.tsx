@@ -25,6 +25,7 @@ import { allSkills } from './skills-list';
 import { ExperienceCard } from './experience-card';
 import { EducationCard } from './education-card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 
 export type Experience = {
   jobTitle: string;
@@ -494,3 +495,5 @@ function CandidateProfilePage() {
 }
 
 export default CandidateProfilePage;
+
+    
