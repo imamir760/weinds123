@@ -37,6 +37,7 @@
       "type": "object",
       "properties": {
         "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
         "headline": { "type": "string" },
         "skills": { "type": "string", "description": "Comma-separated skills" },
         "experience": { "type": "string" },
@@ -49,6 +50,7 @@
       "type": "object",
       "properties": {
         "companyName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
         "website": { "type": "string", "format": "uri" },
         "tagline": { "type": "string" },
         "description": { "type": "string" },
@@ -62,10 +64,10 @@
       "type": "object",
       "properties": {
         "institutionName": { "type": "string" },
+        "tpoEmail": { "type": "string", "format": "email" },
         "website": { "type": "string", "format": "uri" },
         "description": { "type": "string" },
-        "tpoName": { "type": "string" },
-        "tpoEmail": { "type": "string", "format": "email" }
+        "tpoName": { "type": "string" }
       }
     },
     "Job": {
@@ -113,6 +115,17 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the job was created."
+        },
+        "pipeline": {
+            "type": "array",
+            "description": "The configured hiring pipeline stages.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "stage": { "type": "string" },
+                    "type": { "type": "string" }
+                }
+            }
         }
       },
       "required": ["title", "responsibilities", "skills", "employerId", "createdAt"]
@@ -166,6 +179,17 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the internship was created."
+        },
+        "pipeline": {
+            "type": "array",
+            "description": "The configured hiring pipeline stages.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "stage": { "type": "string" },
+                    "type": { "type": "string" }
+                }
+            }
         }
       },
       "required": ["title", "responsibilities", "skills", "employerId", "createdAt"]
@@ -175,12 +199,6 @@
     "providers": ["password", "google.com"]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/User"
-      },
-      "description": "Stores user authentication records."
-    },
     "/candidates/{userId}": {
       "schema": {
         "$ref": "#/entities/CandidateProfile"
