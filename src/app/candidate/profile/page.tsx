@@ -11,7 +11,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserCircle, Settings, Star, FolderKanban, Save, GraduationCap, Briefcase, PlusCircle } from 'lucide-react';
+import { Loader2, UserCircle, Settings, Star, FolderKanban, Save, GraduationCap, Briefcase, PlusCircle, BookOpen } from 'lucide-react';
 import { saveUserProfile } from '@/lib/user-actions';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -24,6 +24,7 @@ import { SkillsInput } from './skills-input';
 import { allSkills } from './skills-list';
 import { ExperienceCard } from './experience-card';
 import { EducationCard } from './education-card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export type Experience = {
   jobTitle: string;
@@ -71,6 +72,7 @@ function CandidateProfilePage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [profileCompleteness, setProfileCompleteness] = useState(0);
 
   useEffect(() => {
@@ -84,15 +86,9 @@ function CandidateProfilePage() {
               if (typeof data.skills === 'string') {
                 data.skills = (data.skills as string).split(',').map(s => s.trim()).filter(Boolean);
               }
-              if (!Array.isArray(data.skills)) {
-                data.skills = [];
-              }
-               if (!Array.isArray(data.experience)) {
-                data.experience = [];
-              }
-               if (!Array.isArray(data.education)) {
-                data.education = [];
-              }
+              if (!Array.isArray(data.skills)) data.skills = [];
+              if (!Array.isArray(data.experience)) data.experience = [];
+              if (!Array.isArray(data.education)) data.education = [];
               setProfile(data);
             } else {
               setProfile(prev => ({
@@ -141,38 +137,52 @@ function CandidateProfilePage() {
     setProfile(prev => ({ ...prev, [id]: value }));
   };
   
-  const handleSelectChange = (id: keyof ProfileData, value: string | string[] | Experience[] | Education[]) => {
+  const handleSelectChange = (id: keyof ProfileData, value: string | string[]) => {
     setProfile(prev => ({...prev, [id]: value}));
   }
 
   const updateExperience = (index: number, field: keyof Experience, value: string) => {
-    const newExperience = [...profile.experience];
-    newExperience[index][field] = value;
-    handleSelectChange('experience', newExperience);
+    setProfile(prev => {
+        const newExperience = [...prev.experience];
+        newExperience[index] = { ...newExperience[index], [field]: value };
+        return { ...prev, experience: newExperience };
+    });
   };
 
   const addExperience = () => {
-    handleSelectChange('experience', [...profile.experience, { jobTitle: '', company: '', duration: '' }]);
+    setProfile(prev => ({
+        ...prev,
+        experience: [...prev.experience, { jobTitle: '', company: '', duration: '' }]
+    }));
   };
 
   const removeExperience = (index: number) => {
-    const newExperience = profile.experience.filter((_, i) => i !== index);
-    handleSelectChange('experience', newExperience);
+    setProfile(prev => ({
+        ...prev,
+        experience: prev.experience.filter((_, i) => i !== index)
+    }));
   };
 
   const updateEducation = (index: number, field: keyof Education, value: string) => {
-    const newEducation = [...profile.education];
-    newEducation[index][field] = value;
-    handleSelectChange('education', newEducation);
+     setProfile(prev => {
+        const newEducation = [...prev.education];
+        newEducation[index] = { ...newEducation[index], [field]: value };
+        return { ...prev, education: newEducation };
+    });
   };
 
   const addEducation = () => {
-    handleSelectChange('education', [...profile.education, { institution: '', degree: '', year: '' }]);
+    setProfile(prev => ({
+        ...prev,
+        education: [...prev.education, { institution: '', degree: '', year: '' }]
+    }));
   };
 
   const removeEducation = (index: number) => {
-    const newEducation = profile.education.filter((_, i) => i !== index);
-    handleSelectChange('education', newEducation);
+    setProfile(prev => ({
+        ...prev,
+        education: prev.education.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -192,6 +202,7 @@ function CandidateProfilePage() {
 
     setTimeout(() => {
       setSaving(false);
+      setIsEditing(false);
       toast({
         title: "Update Sent",
         description: "Your profile changes have been sent to the server.",
@@ -202,14 +213,6 @@ function CandidateProfilePage() {
 
   const ProfileForm = () => (
     <form className="space-y-6" onSubmit={handleSave}>
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">My Profile</h1>
-        <Button type="submit" disabled={saving}>
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2" />}
-          Save Profile
-        </Button>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><UserCircle className="w-5 h-5 text-primary" /> Contact Information</CardTitle>
@@ -267,7 +270,7 @@ function CandidateProfilePage() {
             </div>
             <div className="space-y-2">
                 <Label>I'm looking for</Label>
-                 <RadioGroup value={profile.preference} onValueChange={(value) => handleSelectChange('preference', value)} className="flex gap-4 pt-2">
+                 <RadioGroup value={profile.preference} onValueChange={(value) => handleSelectChange('preference', value as any)} className="flex gap-4 pt-2">
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="Job" id="pref-job" />
                         <Label htmlFor="pref-job">Job</Label>
@@ -345,7 +348,7 @@ function CandidateProfilePage() {
 
       <Card>
            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Projects & Achievements</CardTitle>
+              <CardTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Accomplishments</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1">
@@ -358,15 +361,127 @@ function CandidateProfilePage() {
             </div>
           </CardContent>
       </Card>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" type="button" onClick={() => setIsEditing(false)}>Cancel</Button>
+        <Button type="submit" disabled={saving}>
+          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2" />}
+          Save Profile
+        </Button>
+      </div>
     </form>
+  );
+
+  const ProfileView = () => (
+    <div className="space-y-8">
+        <Card className="shadow-lg">
+            <CardHeader className="bg-secondary rounded-t-lg p-6">
+                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <UserCircle className="w-16 h-16 text-primary" />
+                        <div>
+                            <CardTitle className="text-3xl">{profile.fullName || "Your Name"}</CardTitle>
+                            <CardDescription className="text-lg">{profile.headline || "Your Professional Headline"}</CardDescription>
+                        </div>
+                    </div>
+                    <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+                </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <Label>Profile Completeness</Label>
+                        <div className="w-64 mt-1 bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                           <div className="bg-primary h-2.5 rounded-full" style={{width: `${profileCompleteness}%`}}></div>
+                        </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{profileCompleteness}% Complete</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm pt-4">
+                    <div><Label>Location:</Label> <p>{profile.location || 'N/A'}</p></div>
+                    <div><Label>Status:</Label> <p>{profile.employmentStatus || 'N/A'}</p></div>
+                    <div><Label>Preference:</Label> <p>{profile.preference || 'N/A'}</p></div>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Accordion type="multiple" defaultValue={['skills', 'experience', 'education']} className="w-full space-y-4">
+            <Card>
+                <AccordionItem value="skills">
+                    <AccordionTrigger className="p-6 font-semibold text-lg flex items-center gap-2"><Star className="w-5 h-5 text-primary"/> Skills</AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6">
+                         {profile.skills.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {profile.skills.map(skill => <Badge key={skill} variant="secondary">{skill}</Badge>)}
+                            </div>
+                         ) : <p className="text-muted-foreground">No skills added yet.</p>}
+                    </AccordionContent>
+                </AccordionItem>
+            </Card>
+
+            <Card>
+                 <AccordionItem value="experience">
+                    <AccordionTrigger className="p-6 font-semibold text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary"/> Work Experience</AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 space-y-4">
+                         {profile.experience.length > 0 ? profile.experience.map((exp, i) => (
+                             <div key={i} className="p-3 border-b">
+                                 <p className="font-semibold">{exp.jobTitle}</p>
+                                 <p className="text-sm">{exp.company}</p>
+                                 <p className="text-xs text-muted-foreground">{exp.duration}</p>
+                             </div>
+                         )) : <p className="text-muted-foreground">No experience added yet.</p>}
+                    </AccordionContent>
+                </AccordionItem>
+            </Card>
+            
+            <Card>
+                 <AccordionItem value="education">
+                    <AccordionTrigger className="p-6 font-semibold text-lg flex items-center gap-2"><GraduationCap className="w-5 h-5 text-primary"/> Education</AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6 space-y-4">
+                         {profile.education.length > 0 ? profile.education.map((edu, i) => (
+                            <div key={i} className="p-3 border-b">
+                                 <p className="font-semibold">{edu.institution}</p>
+                                 <p className="text-sm">{edu.degree}</p>
+                                 <p className="text-xs text-muted-foreground">{edu.year}</p>
+                             </div>
+                         )) : <p className="text-muted-foreground">No education added yet.</p>}
+                    </AccordionContent>
+                </AccordionItem>
+            </Card>
+
+            <Card>
+                 <AccordionItem value="projects">
+                    <AccordionTrigger className="p-6 font-semibold text-lg flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Projects</AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6">
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <p>{profile.projects || 'No projects added yet.'}</p>
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+            </Card>
+
+             <Card>
+                 <AccordionItem value="achievements">
+                    <AccordionTrigger className="p-6 font-semibold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Achievements</AccordionTrigger>
+                    <AccordionContent className="px-6 pb-6">
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <p>{profile.achievements || 'No achievements added yet.'}</p>
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+            </Card>
+        </Accordion>
+    </div>
   );
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
         {authLoading || loading ? (
              <div className="container flex justify-center items-center py-8"><Loader2 className="w-8 h-8 animate-spin" /></div>
-        ) : (
+        ) : isEditing ? (
             <ProfileForm />
+        ) : (
+            <ProfileView />
         )}
     </div>
   );
