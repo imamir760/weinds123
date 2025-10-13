@@ -8,9 +8,10 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell, PanelLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
@@ -55,10 +56,8 @@ const pipelineStages = [
     "Applied", "Shortlisted", "AI Skill Test", "AI Interview", "Hired"
 ];
 
-export default function EmployerDashboardPage() {
-  return (
-    <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
-      <div className="hidden border-r bg-gray-100/40 lg:block dark:bg-gray-800/40 sticky top-0 h-screen">
+function SidebarNav() {
+    return (
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-[60px] items-center border-b px-6">
             <Logo />
@@ -89,18 +88,43 @@ export default function EmployerDashboardPage() {
             </nav>
           </div>
         </div>
+    )
+}
+
+export default function EmployerDashboardPage() {
+  return (
+    <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
+      <div className="hidden border-r bg-gray-100/40 lg:block dark:bg-gray-800/40">
+        <SidebarNav />
       </div>
       <div className="flex flex-col">
-        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
+        <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-gray-100/40 px-6 dark:bg-gray-800/40">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button variant="outline" size="icon" className="lg:hidden">
+                        <PanelLeft className="h-5 w-5" />
+                        <span className="sr-only">Toggle navigation menu</span>
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[280px] p-0">
+                    <SidebarNav />
+                </SheetContent>
+            </Sheet>
+             <div className="w-full flex-1">
+                <h1 className="font-semibold text-lg">Dashboard</h1>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+                <Button asChild>
+                    <Link href="/employer/jobs/new"><PlusCircle className="mr-2 h-4 w-4"/>Post a New Job</Link>
+                </Button>
+            </div>
+        </header>
+
+        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 overflow-auto">
           <div className="flex items-center">
             <div>
               <h1 className="font-semibold text-2xl md:text-3xl">Welcome, Test LLC!</h1>
               <p className="text-muted-foreground">Your command center for smart hiring. Let's find your next great hire.</p>
-            </div>
-             <div className="ml-auto flex items-center gap-2">
-                <Button asChild>
-                    <Link href="/employer/jobs/new"><PlusCircle className="mr-2 h-4 w-4"/>Post a New Job</Link>
-                </Button>
             </div>
           </div>
           
