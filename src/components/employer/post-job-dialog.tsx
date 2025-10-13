@@ -29,11 +29,17 @@ type JobDetails = {
   education?: string;
 };
 
+// Extending for internship specific fields
+type InternshipDetails = JobDetails & {
+    stipend?: string;
+    duration?: string;
+}
+
 export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const [step, setStep] = useState(1);
   const [postType, setPostType] = useState<PostType>('job');
   const [unstructuredText, setUnstructuredText] = useState('');
-  const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
+  const [details, setDetails] = useState<JobDetails | InternshipDetails | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleNext = () => {
@@ -51,7 +57,17 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
     setLoading(true);
     try {
       const result = await generateJobDescription({ text: unstructuredText });
-      setJobDetails(result);
+      if (postType === 'internship') {
+          const internshipResult: InternshipDetails = {
+              ...result,
+              stipend: result.salary, // Map salary to stipend
+              duration: '' // Initialize duration
+          }
+          delete internshipResult.salary;
+          setDetails(internshipResult);
+      } else {
+        setDetails(result);
+      }
       setStep(3); // Move to the details review step
     } catch (error) {
       console.error('Failed to generate job description:', error);
@@ -64,7 +80,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
     setStep(1);
     setPostType('job');
     setUnstructuredText('');
-    setJobDetails(null);
+    setDetails(null);
     onOpenChange(false);
   }
 
@@ -103,14 +119,14 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                 <DialogHeader>
                     <DialogTitle>Describe the {postType}</DialogTitle>
                     <DialogDescription>
-                    Paste the job description below. Our AI will automatically structure it for you.
+                    Paste the description below. Our AI will automatically structure it for you.
                     </DialogDescription>
                 </DialogHeader>
                 <Textarea
                     rows={15}
                     value={unstructuredText}
                     onChange={(e) => setUnstructuredText(e.target.value)}
-                    placeholder="e.g., 'We are looking for a software engineer with 3+ years of experience in React...'"
+                    placeholder={`e.g., 'We are looking for a ${postType === 'job' ? 'software engineer' : 'marketing intern'}...'`}
                 />
                 <DialogFooter>
                     <Button variant="outline" onClick={handleBack}>Back</Button>
@@ -122,7 +138,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
           </>
         )}
 
-        {step === 3 && jobDetails && (
+        {step === 3 && details && (
           <>
             <DialogHeader>
               <DialogTitle>Generated {postType} Details</DialogTitle>
@@ -132,19 +148,19 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
             </DialogHeader>
             <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
                 <div className="space-y-2">
-                    <Label htmlFor="job-title">Title</Label>
-                    <Input id="job-title" value={jobDetails.title || ''} onChange={(e) => setJobDetails({...jobDetails, title: e.target.value})} />
+                    <Label htmlFor="post-title">Title</Label>
+                    <Input id="post-title" value={details.title || ''} onChange={(e) => setDetails({...details, title: e.target.value})} />
                 </div>
-
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div className="space-y-2">
-                        <Label htmlFor="job-location">Location</Label>
-                        <Input id="job-location" value={jobDetails.location || ''} onChange={(e) => setJobDetails({...jobDetails, location: e.target.value})} />
+                        <Label htmlFor="post-location">Location</Label>
+                        <Input id="post-location" value={details.location || ''} onChange={(e) => setDetails({...details, location: e.target.value})} />
                     </div>
                      <div className="space-y-2">
-                        <Label htmlFor="job-work-mode">Work Mode</Label>
-                        <Select value={jobDetails.workMode} onValueChange={(value) => setJobDetails({...jobDetails, workMode: value as any})}>
-                            <SelectTrigger id="job-work-mode">
+                        <Label htmlFor="post-work-mode">Work Mode</Label>
+                        <Select value={details.workMode} onValueChange={(value) => setDetails({...details, workMode: value as any})}>
+                            <SelectTrigger id="post-work-mode">
                                 <SelectValue placeholder="Select work mode" />
                             </SelectTrigger>
                             <SelectContent>
@@ -156,23 +172,41 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                     </div>
                 </div>
 
-                 <div className="space-y-2">
-                    <Label htmlFor="job-salary">Salary / Stipend</Label>
-                    <Input id="job-salary" value={jobDetails.salary || ''} onChange={(e) => setJobDetails({...jobDetails, salary: e.target.value})} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {postType === 'job' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="job-salary">Salary</Label>
+                            <Input id="job-salary" value={details.salary || ''} onChange={(e) => setDetails({...details, salary: e.target.value})} />
+                        </div>
+                    )}
+
+                    {postType === 'internship' && (
+                        <>
+                            <div className="space-y-2">
+                                <Label htmlFor="internship-stipend">Stipend</Label>
+                                <Input id="internship-stipend" value={(details as InternshipDetails).stipend || ''} onChange={(e) => setDetails({...details, stipend: e.target.value})} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="internship-duration">Duration (e.g., 3 months)</Label>
+                                <Input id="internship-duration" value={(details as InternshipDetails).duration || ''} onChange={(e) => setDetails({...details, duration: e.target.value})} />
+                            </div>
+                        </>
+                    )}
                 </div>
 
+
                  <div className="space-y-2">
-                    <Label htmlFor="job-responsibilities">Responsibilities</Label>
-                    <Textarea id="job-responsibilities" rows={6} value={jobDetails.responsibilities || ''} onChange={(e) => setJobDetails({...jobDetails, responsibilities: e.target.value})} />
+                    <Label htmlFor="post-responsibilities">Responsibilities</Label>
+                    <Textarea id="post-responsibilities" rows={6} value={details.responsibilities || ''} onChange={(e) => setDetails({...details, responsibilities: e.target.value})} />
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="job-skills">Skills</Label>
-                    <Input id="job-skills" value={jobDetails.skills || ''} onChange={(e) => setJobDetails({...jobDetails, skills: e.target.value})} />
+                    <Label htmlFor="post-skills">Skills</Label>
+                    <Input id="post-skills" value={details.skills || ''} onChange={(e) => setDetails({...details, skills: e.target.value})} />
                      <p className="text-xs text-muted-foreground">Comma-separated skills</p>
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="job-education">Education</Label>
-                    <Input id="job-education" value={jobDetails.education || ''} onChange={(e) => setJobDetails({...jobDetails, education: e.target.value})} />
+                    <Label htmlFor="post-education">Education</Label>
+                    <Input id="post-education" value={details.education || ''} onChange={(e) => setDetails({...details, education: e.target.value})} />
                 </div>
             </div>
             <DialogFooter>
