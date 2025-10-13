@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, Bell, Menu } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, Bell, Menu, User } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -69,7 +69,9 @@ function SidebarNav() {
     return (
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-[60px] items-center border-b px-6">
-            <Logo />
+            <Link href="/employer/dashboard" className="flex items-center gap-2 font-semibold">
+              <Logo />
+            </Link>
              <Button variant="ghost" size="icon" className="ml-auto h-8 w-8">
                 <Bell className="h-4 w-4" />
                 <span className="sr-only">Toggle notifications</span>
