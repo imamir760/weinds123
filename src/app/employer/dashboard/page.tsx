@@ -59,7 +59,7 @@ const pipelineStages = [
 export default function EmployerDashboardPage() {
   return (
     <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
-      <div className="hidden border-r bg-gray-100/40 lg:block dark:bg-gray-800/40 fixed h-full w-[280px]">
+      <div className="hidden border-r bg-gray-100/40 lg:block dark:bg-gray-800/40">
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-[60px] items-center border-b px-6">
             <Logo />
@@ -102,7 +102,7 @@ export default function EmployerDashboardPage() {
           </div>
         </div>
       </div>
-      <div className="flex flex-col ml-0 lg:ml-[280px]">
+      <div className="flex flex-col">
         <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-white dark:bg-gray-800/40 px-6 sticky top-0 z-30">
             <div className="flex-1">
                 {/* Potentially a mobile sidebar toggle can be added here */}
