@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, BookOpen } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, BookOpen, Building } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 
@@ -82,7 +82,7 @@ export default function JobsPage() {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <CardTitle>{job.title}</CardTitle>
-                                    <CardDescription>{job.company || 'N/A'}</CardDescription>
+                                    <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {job.company || 'N/A'}</CardDescription>
                                 </div>
                                 {job.match && (
                                     <div className="text-right">
