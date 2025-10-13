@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
-import { Briefcase, TestTube2, Bot, UserCheck, IndianRupee, Star } from 'lucide-react';
+import { Briefcase, TestTube2, Bot, UserCheck, IndianRupee, Star, Check } from 'lucide-react';
 
 const STAGE_COSTS = {
   application: 49,
@@ -36,12 +36,12 @@ type PipelineStage = {
 };
 
 const pipelineStages: PipelineStage[] = [
-    { id: 'application', name: 'Application', icon: <Briefcase /> },
-    { id: 'shortlisting', name: 'Shortlisting', icon: <UserCheck /> },
-    { id: 'skill_test', name: 'Skill Test', icon: <TestTube2 /> },
-    { id: 'interview', name: 'Interview', icon: <Bot /> },
-    { id: 'final_interview', name: 'Final Interview', icon: <UserCheck /> },
-    { id: 'selection', name: 'Selection', icon: <Star /> },
+    { id: 'application', name: 'Application', icon: <Briefcase className="w-5 h-5"/> },
+    { id: 'shortlisting', name: 'Shortlisting', icon: <UserCheck className="w-5 h-5"/> },
+    { id: 'skill_test', name: 'Skill Test', icon: <TestTube2 className="w-5 h-5"/> },
+    { id: 'interview', name: 'Interview', icon: <Bot className="w-5 h-5"/> },
+    { id: 'final_interview', name: 'Final Interview', icon: <UserCheck className="w-5 h-5"/> },
+    { id: 'selection', name: 'Selection', icon: <Star className="w-5 h-5"/> },
 ];
 
 
@@ -102,24 +102,24 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
         return (
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">Stage 1: Application</h3>
-            <div className="flex items-center space-x-2 p-4 border rounded-md has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+            <div className="flex items-center space-x-3 p-4 border rounded-lg has-[:checked]:border-primary has-[:checked]:bg-primary/5 transition-all">
               <Checkbox id="application" checked={applicationType.application} onCheckedChange={(checked) => handleApplicationCheck('application', !!checked)} />
-              <Label htmlFor="application" className="w-full">
+              <Label htmlFor="application" className="w-full cursor-pointer">
                 <div className="flex justify-between items-center">
                     <span>Application Page</span>
-                    <Badge variant="outline">₹{STAGE_COSTS.application}</Badge>
+                    <Badge variant="outline" className="text-sm">₹{STAGE_COSTS.application}</Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">Candidates apply through a dedicated page.</p>
+                <p className="text-xs text-muted-foreground mt-1">Candidates apply through a dedicated page.</p>
               </Label>
             </div>
-            <div className="flex items-center space-x-2 p-4 border rounded-md has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+            <div className="flex items-center space-x-3 p-4 border rounded-lg has-[:checked]:border-primary has-[:checked]:bg-primary/5 transition-all">
               <Checkbox id="invite" checked={applicationType.invite} onCheckedChange={(checked) => handleApplicationCheck('invite', !!checked)} />
-              <Label htmlFor="invite" className="w-full">
+              <Label htmlFor="invite" className="w-full cursor-pointer">
                  <div className="flex justify-between items-center">
                     <span>Invite to Apply</span>
-                    <Badge variant="outline">₹{STAGE_COSTS.invite}</Badge>
+                    <Badge variant="outline" className="text-sm">₹{STAGE_COSTS.invite}</Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">Invite candidates from our talent pool (includes Application Page).</p>
+                <p className="text-xs text-muted-foreground mt-1">Invite candidates from our talent pool (includes Application Page).</p>
               </Label>
             </div>
           </div>
@@ -128,7 +128,7 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
         return (
             <div>
                 <h3 className="font-semibold text-lg">Stage 2: Shortlisting</h3>
-                <p className="text-muted-foreground">This stage is included for free. You can shortlist candidates who have applied or have been invited.</p>
+                <p className="text-muted-foreground mt-2 p-4 border-dashed border-2 rounded-lg bg-secondary/50">This stage is included for free. After applications are received, you can review and shortlist the best candidates to move to the next stage.</p>
             </div>
         );
       case 2: // Stage 3: Skill Test
@@ -136,24 +136,24 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">Stage 3: Skill Test (Compulsory)</h3>
              <RadioGroup value={skillTestType || ''} onValueChange={(value: 'ai' | 'traditional') => setSkillTestType(value)}>
-                <Label htmlFor="ai_skill_test" className="flex items-start space-x-2 p-4 border rounded-md has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer">
+                <Label htmlFor="ai_skill_test" className="flex items-start space-x-3 p-4 border rounded-lg has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer transition-all">
                     <RadioGroupItem value="ai" id="ai_skill_test" className="mt-1"/>
                     <div className="w-full">
                         <div className="flex justify-between items-center">
-                            <span>AI Skill Test</span>
-                            <Badge variant="outline">₹{STAGE_COSTS.ai_skill_test}</Badge>
+                            <span className="font-medium">AI Skill Test</span>
+                            <Badge variant="outline" className="text-sm">₹{STAGE_COSTS.ai_skill_test}</Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">Customized, auto-evaluated tests for each candidate.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Customized, auto-evaluated tests for each candidate.</p>
                     </div>
                 </Label>
-                 <Label htmlFor="traditional_skill_test" className="flex items-start space-x-2 p-4 border rounded-md has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer">
+                 <Label htmlFor="traditional_skill_test" className="flex items-start space-x-3 p-4 border rounded-lg has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer transition-all">
                     <RadioGroupItem value="traditional" id="traditional_skill_test" className="mt-1"/>
                     <div className="w-full">
                         <div className="flex justify-between items-center">
-                            <span>Traditional Skill Test</span>
-                            <Badge variant="outline">₹{STAGE_COSTS.traditional_skill_test}</Badge>
+                            <span className="font-medium">Traditional Skill Test</span>
+                            <Badge variant="outline" className="text-sm">₹{STAGE_COSTS.traditional_skill_test}</Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">Upload your own questions for candidates.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Upload your own questions for candidates.</p>
                     </div>
                 </Label>
             </RadioGroup>
@@ -163,13 +163,13 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
         return (
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">Stage 4: Interview (Optional)</h3>
-            <div className="flex items-center justify-between p-4 border rounded-md">
+            <div className="flex items-center justify-between p-4 border rounded-lg has-[:checked]:border-primary has-[:checked]:bg-primary/5 transition-all">
                 <div>
-                    <Label htmlFor="ai-interview">AI Interview</Label>
-                    <p className="text-xs text-muted-foreground">Custom questions with behavioral & technical analysis.</p>
+                    <Label htmlFor="ai-interview" className="font-medium">AI Interview</Label>
+                    <p className="text-xs text-muted-foreground mt-1">Custom questions with behavioral & technical analysis.</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <Badge variant="outline">₹{STAGE_COSTS.ai_interview}</Badge>
+                    <Badge variant="outline" className="text-sm">₹{STAGE_COSTS.ai_interview}</Badge>
                     <Switch id="ai-interview" checked={includeAiInterview} onCheckedChange={setIncludeAiInterview} />
                 </div>
             </div>
@@ -180,19 +180,19 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">Stage 5: Final Interview</h3>
             <p className="text-sm text-muted-foreground">Schedule final interviews. This will cost an additional ₹{STAGE_COSTS.final_interview}.</p>
-             <RadioGroup value={finalInterviewType || ''} onValueChange={(value: 'in-person' | 'online') => setFinalInterviewType(value)}>
-                <Label htmlFor="in_person_interview" className="flex items-start space-x-2 p-4 border rounded-md has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer">
+             <RadioGroup value={finalInterviewType || ''} onValueChange={(value: 'in-person' | 'online') => setFinalInterviewType(value)} className="mt-2">
+                <Label htmlFor="in_person_interview" className="flex items-start space-x-3 p-4 border rounded-lg has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer transition-all">
                     <RadioGroupItem value="in-person" id="in_person_interview" className="mt-1"/>
                     <div className="w-full">
-                        <span>In-Person Interview</span>
-                        <p className="text-xs text-muted-foreground">Schedule interviews at your office.</p>
+                        <span className="font-medium">In-Person Interview</span>
+                        <p className="text-xs text-muted-foreground mt-1">Schedule interviews at your office.</p>
                     </div>
                 </Label>
-                 <Label htmlFor="online_interview" className="flex items-start space-x-2 p-4 border rounded-md has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer">
+                 <Label htmlFor="online_interview" className="flex items-start space-x-3 p-4 border rounded-lg has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer transition-all">
                     <RadioGroupItem value="online" id="online_interview" className="mt-1"/>
                     <div className="w-full">
-                        <span>Online Interview</span>
-                        <p className="text-xs text-muted-foreground">Schedule and conduct interviews online with a chat window.</p>
+                        <span className="font-medium">Online Interview</span>
+                        <p className="text-xs text-muted-foreground mt-1">Schedule and conduct interviews online with a chat window.</p>
                     </div>
                 </Label>
             </RadioGroup>
@@ -201,14 +201,14 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
        case 5: // Stage 6: Selection
         return (
           <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Stage 6: Selection</h3>
-            <div className="flex items-center justify-between p-4 border rounded-md">
+            <h3 className="font-semibold text-lg">Stage 6: Selection (Optional)</h3>
+            <div className="flex items-center justify-between p-4 border rounded-lg has-[:checked]:border-primary has-[:checked]:bg-primary/5 transition-all">
                 <div>
-                    <Label htmlFor="selection">Final Selection</Label>
-                    <p className="text-xs text-muted-foreground">Mark candidates as hired and send offer letters.</p>
+                    <Label htmlFor="selection" className="font-medium">Final Selection</Label>
+                    <p className="text-xs text-muted-foreground mt-1">Mark candidates as hired and send offer letters.</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <Badge variant="outline">₹{STAGE_COSTS.selection}</Badge>
+                    <Badge variant="outline" className="text-sm">₹{STAGE_COSTS.selection}</Badge>
                     <Switch id="selection" checked={includeSelection} onCheckedChange={setIncludeSelection} />
                 </div>
             </div>
@@ -240,51 +240,53 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
     <Dialog open={open} onOpenChange={resetAndClose}>
       <DialogContent className="max-w-4xl w-full">
         <DialogHeader>
-          <DialogTitle>Create Hiring Pipeline</DialogTitle>
-          {jobDetails && <DialogDescription>For job: {jobDetails.title}</DialogDescription>}
+          <DialogTitle>Create Custom Hiring Pipeline</DialogTitle>
+          {jobDetails && <DialogDescription>For job: <span className="font-medium text-foreground">{jobDetails.title}</span></DialogDescription>}
         </DialogHeader>
         
-        <div className="grid md:grid-cols-3 gap-8 items-start">
-            <div className="md:col-span-1 relative">
-                <div className="flex flex-col items-center">
+        <div className="grid md:grid-cols-[200px_1fr] gap-8 items-start mt-4">
+            <div className="relative">
+                <div aria-hidden="true" className="absolute left-4 top-4 h-full w-0.5 bg-border -z-10"></div>
+                <div className="flex flex-col gap-4">
                     {pipelineStages.map((stage, index) => (
-                        <div key={stage.id} className="flex flex-col items-center w-full">
-                            <div className={cn("flex items-center gap-3 p-3 rounded-lg border-2 transition-all",
-                                currentStep === index ? "border-primary bg-primary/10" : "border-transparent",
-                                currentStep > index ? "opacity-50" : "opacity-100"
+                        <div key={stage.id} className="flex items-center gap-3">
+                            <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0 border-2 transition-all",
+                                currentStep === index ? "bg-primary border-primary text-primary-foreground" :
+                                currentStep > index ? "bg-green-500 border-green-500 text-white" :
+                                "bg-background border-border"
                             )}>
-                                <div className={cn("w-8 h-8 rounded-full flex items-center justify-center",
-                                    currentStep === index ? "bg-primary text-primary-foreground" : "bg-muted",
-                                    currentStep > index ? "bg-green-500 text-white" : ""
-                                )}>
-                                    {stage.icon}
-                                </div>
-                                <span className="font-medium">{stage.name}</span>
+                                {currentStep > index ? <Check className="w-5 h-5"/> : stage.icon}
                             </div>
-                            {index < pipelineStages.length - 1 && (
-                                <div className={cn("w-0.5 h-8 my-1 transition-colors", currentStep > index ? 'bg-green-500' : 'bg-muted')}></div>
-                            )}
+                            <span className={cn("font-medium text-sm", currentStep === index ? "text-primary" : "text-muted-foreground")}>{stage.name}</span>
                         </div>
                     ))}
                 </div>
             </div>
-            <div className="md:col-span-2 space-y-6">
+            <div className="space-y-6 min-h-[300px]">
                 {renderStageContent()}
-                <Separator />
-                <div className="flex justify-between items-center">
-                    <p className="font-semibold">Total Cost:</p>
-                    <p className="text-2xl font-bold flex items-center"><IndianRupee className="w-5 h-5" />{totalCost}</p>
-                </div>
             </div>
         </div>
 
-        <DialogFooter>
-          {currentStep > 0 && <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)}>Back</Button>}
-          {currentStep < pipelineStages.length - 1 ? (
-             <Button onClick={() => setCurrentStep(currentStep + 1)} disabled={isNextDisabled()}>Next</Button>
-          ) : (
-            <Button>Post Job</Button>
-          )}
+        <Separator className="my-4"/>
+
+        <div className="flex justify-between items-center bg-secondary/50 p-4 rounded-lg">
+            <p className="font-semibold">Total Pipeline Cost:</p>
+            <p className="text-2xl font-bold flex items-center"><IndianRupee className="w-5 h-5 mr-1" />{totalCost}</p>
+        </div>
+
+
+        <DialogFooter className="mt-4">
+          <div className="w-full flex justify-between">
+            {currentStep > 0 ? (
+                <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)}>Back</Button>
+            ) : ( <div></div> )}
+
+            {currentStep < pipelineStages.length - 1 ? (
+                <Button onClick={() => setCurrentStep(currentStep + 1)} disabled={isNextDisabled()}>Next</Button>
+            ) : (
+                <Button>Post Job &amp; Activate Pipeline</Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
