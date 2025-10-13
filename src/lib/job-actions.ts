@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 
 export type PostType = 'job' | 'internship';
 
-export function createJobWithPipeline(
+export async function createJobWithPipeline(
   postType: PostType,
   jobDetails: any,
   pipeline: { stage: string, type?: string }[],
@@ -28,14 +28,16 @@ export function createJobWithPipeline(
 
   const collectionRef = collection(db, collectionName);
   
-  addDoc(collectionRef, postData)
-    .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-            path: `/${collectionName}`,
-            operation: 'create',
-            requestResourceData: postData,
-        });
-
-        errorEmitter.emit('permission-error', permissionError);
+  try {
+    await addDoc(collectionRef, postData);
+  } catch (serverError) {
+    const permissionError = new FirestorePermissionError({
+        path: `/${collectionName}`,
+        operation: 'create',
+        requestResourceData: postData,
     });
+    errorEmitter.emit('permission-error', permissionError);
+    // Re-throw to allow for local error handling if needed, though the listener will catch it
+    throw permissionError;
+  }
 }

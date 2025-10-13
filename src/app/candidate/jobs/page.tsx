@@ -43,7 +43,7 @@ export default function JobsPage() {
       }));
 
       const employerIds = [...new Set(jobsData.map(job => job.employerId).filter(id => id))];
-      let employersMap: { [key: string]: string } = {};
+      const employersMap: { [key: string]: string } = {};
 
       if (employerIds.length > 0) {
         const employerPromises = employerIds.map(id => {
@@ -54,7 +54,7 @@ export default function JobsPage() {
                     operation: 'get',
                 });
                 errorEmitter.emit('permission-error', permissionError);
-                return null;
+                return null; // Return null on error
             });
         });
         const employerDocs = await Promise.all(employerPromises);

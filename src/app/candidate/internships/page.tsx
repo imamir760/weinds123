@@ -44,7 +44,7 @@ export default function InternshipsPage() {
       }));
 
       const employerIds = [...new Set(internshipsData.map(internship => internship.employerId).filter(id => id))];
-      let employersMap: { [key: string]: string } = {};
+      const employersMap: { [key: string]: string } = {};
 
       if (employerIds.length > 0) {
         const employerPromises = employerIds.map(id => {
