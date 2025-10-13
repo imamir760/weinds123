@@ -14,6 +14,9 @@ import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState } from 'react';
+import { PostJobDialog } from '@/components/employer/post-job-dialog';
+
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
@@ -102,7 +105,10 @@ function SidebarNav() {
 }
 
 export default function EmployerDashboardPage() {
+  const [isPostJobOpen, setIsPostJobOpen] = useState(false);
+
   return (
+    <>
     <div className="min-h-screen w-full bg-gray-100/40 dark:bg-gray-800/40 overflow-x-hidden">
         <aside className="hidden lg:block fixed inset-y-0 left-0 z-10 w-[280px] border-r bg-background dark:bg-gray-950">
              <SidebarNav />
@@ -137,8 +143,8 @@ export default function EmployerDashboardPage() {
                   <h1 className="font-semibold text-2xl md:text-3xl">Welcome, Test LLC!</h1>
                   <p className="text-muted-foreground">Your command center for smart hiring. Let's find your next great hire.</p>
                 </div>
-                <Button asChild>
-                    <Link href="/employer/jobs/new"><PlusCircle className="mr-2 h-4 w-4"/>Post a New Job</Link>
+                <Button onClick={() => setIsPostJobOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4"/>Post
                 </Button>
               </div>
               
@@ -222,5 +228,7 @@ export default function EmployerDashboardPage() {
             </main>
         </div>
     </div>
+    <PostJobDialog open={isPostJobOpen} onOpenChange={setIsPostJobOpen} />
+    </>
   );
 }

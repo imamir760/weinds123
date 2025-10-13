@@ -30,6 +30,84 @@
         }
       },
       "required": ["uid", "email", "role", "createdAt"]
+    },
+    "Job": {
+      "title": "Job",
+      "description": "Represents a job posting.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the job."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the job."
+        },
+        "responsibilities": {
+            "type": "string",
+            "description": "The responsibilities of the job."
+        },
+        "skills": {
+          "type": "string",
+          "description": "A comma-separated list of required skills."
+        },
+        "metadata": {
+            "type": "string",
+            "description": "Other metadata like salary, location, etc."
+        },
+        "employerId": {
+          "type": "string",
+          "description": "The UID of the employer who posted the job."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the job was created."
+        }
+      },
+      "required": ["title", "description", "employerId", "createdAt"]
+    },
+    "Internship": {
+      "title": "Internship",
+      "description": "Represents an internship posting.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the internship."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the internship."
+        },
+        "responsibilities": {
+            "type": "string",
+            "description": "The responsibilities of the internship."
+        },
+        "skills": {
+          "type": "string",
+          "description": "A comma-separated list of required skills."
+        },
+        "stipend": {
+            "type": "number",
+            "description": "The monthly stipend for the internship."
+        },
+        "duration": {
+            "type": "string",
+            "description": "The duration of the internship (e.g., '3 months')."
+        },
+        "employerId": {
+          "type": "string",
+          "description": "The UID of the employer who posted the internship."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the internship was created."
+        }
+      },
+      "required": ["title", "description", "employerId", "createdAt"]
     }
   },
   "auth": {
@@ -41,6 +119,18 @@
         "$ref": "#/entities/User"
       },
       "description": "Stores public profiles for all users."
+    },
+    "/jobs/{jobId}": {
+      "schema": {
+        "$ref": "#/entities/Job"
+      },
+      "description": "Stores all job postings."
+    },
+    "/internships/{internshipId}": {
+        "schema": {
+            "$ref": "#/entities/Internship"
+        },
+        "description": "Stores all internship postings."
     }
   }
 }
