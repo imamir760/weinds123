@@ -1,73 +1,153 @@
 'use client';
 
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, MoreVertical } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, MoreVertical, Loader2, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
+import EmployerDashboardPage from '../dashboard/page';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { useAuth } from '@/components/auth/auth-provider';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where, DocumentData, Timestamp } from 'firebase/firestore';
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
-const jobs = [
-    { id: 'job1', title: 'Senior Frontend Developer', status: 'Active', candidates: 12, shortlisted: 4 },
-    { id: 'job2', title: 'UX/UI Designer', status: 'Active', candidates: 25, shortlisted: 8 },
-    { id: 'job3', title: 'Data Scientist', status: 'Paused', candidates: 40, shortlisted: 5 },
-    { id: 'job4', title: 'Backend Engineer', status: 'Closed', candidates: 78, shortlisted: 10 },
-];
+type Post = DocumentData & { id: string, type: 'Job' | 'Internship' };
 
 export default function EmployerJobsPage() {
-  return (
+  const { user } = useAuth();
+  const [showInternships, setShowInternships] = useState(false);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      };
+      
+      setLoading(true);
+      
+      try {
+        const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
+        const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
+        
+        const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
+          getDocs(jobsQuery),
+          getDocs(internshipsQuery)
+        ]);
+
+        const jobsData: Post[] = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'Job' as const }));
+        const internshipsData: Post[] = internshipsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'Internship' as const }));
+        
+        setPosts([...jobsData, ...internshipsData]);
+
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPosts();
+  }, [user]);
+
+  const filteredPosts = useMemo(() => {
+    return posts.filter(post => showInternships ? post.type === 'Internship' : post.type === 'Job');
+  }, [posts, showInternships]);
+
+  const formatDate = (timestamp: Timestamp | Date) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
+    return format(date, 'MMM d, yyyy');
+  }
+
+  const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-8">
           <div>
               <h1 className="text-3xl font-bold font-headline">Job Postings</h1>
               <p className="text-muted-foreground">Manage your active and inactive job listings.</p>
           </div>
-          <Button asChild>
-              <Link href="/employer/jobs/new">
-                  <PlusCircle className="mr-2" /> Post New Job
-              </Link>
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+              <Briefcase className={!showInternships ? 'text-primary' : ''}/>
+              <span>Jobs</span>
+            </Label>
+            <Switch 
+              id="post-type-toggle"
+              checked={showInternships}
+              onCheckedChange={setShowInternships}
+            />
+             <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+               <GraduationCap className={showInternships ? 'text-primary' : ''}/>
+              <span>Internships</span>
+            </Label>
+          </div>
       </div>
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {jobs.map(job => (
-          <Card key={job.id}>
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <CardTitle>{job.title}</CardTitle>
-                    <Button variant="ghost" size="icon">
-                        <MoreVertical className="w-4 h-4"/>
-                    </Button>
+      <Card>
+        <CardHeader>
+            <CardTitle>{showInternships ? 'Internship' : 'Job'} Postings</CardTitle>
+        </CardHeader>
+        <CardContent>
+            {loading ? (
+                <div className="flex justify-center items-center h-48">
+                    <Loader2 className="w-8 h-8 animate-spin" />
                 </div>
-              <CardDescription>Status: <span className={`font-semibold ${job.status === 'Active' ? 'text-green-500' : 'text-amber-500'}`}>{job.status}</span></CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex justify-between text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        <span>{job.candidates} Applicants</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Briefcase className="w-4 h-4" />
-                        <span>{job.shortlisted} Shortlisted</span>
-                    </div>
+            ) : filteredPosts.length === 0 ? (
+                 <div className="text-center py-12 text-muted-foreground">
+                    <p>You haven't posted any {showInternships ? 'internships' : 'jobs'} yet.</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button asChild className="w-full">
-                        <Link href={`/employer/jobs/${job.id}`}>View Pipeline</Link>
-                    </Button>
-                     <Button asChild variant="outline">
-                        <Link href={`/employer/jobs/edit/${job.id}`}>Edit</Link>
-                    </Button>
-                </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            ) : (
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Created On</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Applicants</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredPosts.map(post => (
+                            <TableRow key={post.id}>
+                                <TableCell className="font-medium">{post.title}</TableCell>
+                                <TableCell>{formatDate(post.createdAt)}</TableCell>
+                                <TableCell>
+                                    <Badge variant="secondary">{post.status || 'Active'}</Badge>
+                                </TableCell>
+                                <TableCell>{post.applicants || 0}</TableCell>
+                                <TableCell className="text-right space-x-2">
+                                     <Button asChild variant="outline" size="sm">
+                                        <Link href={`/employer/jobs/${post.id}`}>View Pipeline</Link>
+                                    </Button>
+                                     <Button asChild variant="outline" size="sm">
+                                        <Link href={`/employer/jobs/edit/${post.id}`}>Edit</Link>
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
+        </CardContent>
+      </Card>
     </div>
+  );
+
+  return (
+    <EmployerDashboardPage>
+        {PageContent}
+    </EmployerDashboardPage>
   );
 }
