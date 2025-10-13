@@ -100,8 +100,8 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
             <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5"><Building className="w-4 h-4"/> Your Company Name</div>
                 <div className="flex items-center gap-1.5"><MapPin className="h-4 w-4"/> {details.location}</div>
-                { isInternship ? <div className="flex items-center gap-1.5"><DollarSign className="h-4 w-4"/> {details.stipend} (Stipend)</div> : <div className="flex items-center gap-1.5"><DollarSign className="h-4 w-4"/> {details.salary}</div> }
-                { isInternship && <div className="flex items-center gap-1.5"><Clock className="h-4 w-4"/> {details.duration}</div>}
+                { isInternship ? <div className="flex items-center gap-1.5"><DollarSign className="h-4 h-4"/> {details.stipend} (Stipend)</div> : <div className="flex items-center gap-1.5"><DollarSign className="h-4 h-4"/> {details.salary}</div> }
+                { isInternship && <div className="flex items-center gap-1.5"><Clock className="h-4 h-4"/> {details.duration}</div>}
                 <div className="flex items-center gap-1.5"><Monitor className="w-4 h-4" /> {details.workMode}</div>
                 <div className="flex items-center gap-1.5"><Users className="w-4 h-4" /> {details.experience}</div>
             </div>
@@ -113,16 +113,15 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
               <p className="text-muted-foreground">{details.education}</p>
             </div>
 
-             <div>
+            <div>
               <h4 className="font-semibold text-md mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4 text-primary" /> Responsibilities</h4>
-              <ul className="space-y-2 text-muted-foreground">
+              <ol className="space-y-2 text-muted-foreground list-decimal pl-5">
                 {responsibilitiesArray.map((resp, index) => (
-                  <li key={index} className="flex items-start">
-                    <ChevronsRight className="w-4 h-4 text-primary mr-2 mt-1 flex-shrink-0" />
+                  <li key={index}>
                     <span>{resp}</span>
                   </li>
                 ))}
-              </ul>
+              </ol>
             </div>
 
              <div>
@@ -211,18 +210,18 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                     <div className="space-y-4 pr-6">
                         <div className="space-y-2">
                             <Label htmlFor="post-title">Title</Label>
-                            <Input id="post-title" value={details.title || ''} onChange={(e) => setDetails({...details, title: e.target.value})} />
+                            <Input id="post-title" value={details.title || ''} onChange={(e) => setDetails({...details, title: e.target.value})} className="bg-secondary/50"/>
                         </div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="post-location">Location</Label>
-                                <Input id="post-location" value={details.location || ''} onChange={(e) => setDetails({...details, location: e.target.value})} />
+                                <Input id="post-location" value={details.location || ''} onChange={(e) => setDetails({...details, location: e.target.value})} className="bg-secondary/50"/>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="post-work-mode">Work Mode</Label>
                                 <Select value={details.workMode} onValueChange={(value) => setDetails({...details, workMode: value as any})}>
-                                    <SelectTrigger id="post-work-mode">
+                                    <SelectTrigger id="post-work-mode" className="bg-secondary/50">
                                         <SelectValue placeholder="Select work mode" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -238,39 +237,41 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                             {postType === 'job' && 'salary' in details && (
                                 <div className="space-y-2">
                                     <Label htmlFor="job-salary">Salary</Label>
-                                    <Input id="job-salary" value={details.salary || ''} onChange={(e) => setDetails({...details, salary: e.target.value})} />
+                                    <Input id="job-salary" value={details.salary || ''} onChange={(e) => setDetails({...details, salary: e.target.value})} className="bg-secondary/50"/>
                                 </div>
                             )}
                             {postType === 'internship' && 'stipend' in details && (
                                 <div className="space-y-2">
                                     <Label htmlFor="internship-stipend">Stipend</Label>
-                                    <Input id="internship-stipend" value={(details as InternshipDetails).stipend || ''} onChange={(e) => setDetails({...details, stipend: e.target.value})} />
+                                    <Input id="internship-stipend" value={(details as InternshipDetails).stipend || ''} onChange={(e) => setDetails({...details, stipend: e.target.value})} className="bg-secondary/50"/>
                                 </div>
                             )}
                              <div className="space-y-2">
                                 <Label htmlFor="experience">Experience</Label>
-                                <Input id="experience" value={details.experience || ''} onChange={(e) => setDetails({...details, experience: e.target.value})} />
+                                <Input id="experience" value={details.experience || ''} onChange={(e) => setDetails({...details, experience: e.target.value})} className="bg-secondary/50"/>
                             </div>
                         </div>
                          {postType === 'internship' && 'duration' in details && (
                             <div className="space-y-2">
                                 <Label htmlFor="internship-duration">Duration (e.g., 3 months)</Label>
-                                <Input id="internship-duration" value={(details as InternshipDetails).duration || ''} onChange={(e) => setDetails({...details, duration: e.target.value})} />
+                                <Input id="internship-duration" value={(details as InternshipDetails).duration || ''} onChange={(e) => setDetails({...details, duration: e.target.value})} className="bg-secondary/50"/>
                             </div>
                         )}
 
                         <div className="space-y-2">
+                            <Label htmlFor="post-education">Education</Label>
+                            <Input id="post-education" value={details.education || ''} onChange={(e) => setDetails({...details, education: e.target.value})} className="bg-secondary/50"/>
+                        </div>
+
+                        <div className="space-y-2">
                             <Label htmlFor="post-responsibilities">Responsibilities</Label>
-                            <Textarea id="post-responsibilities" rows={6} value={details.responsibilities || ''} onChange={(e) => setDetails({...details, responsibilities: e.target.value})} />
+                            <Textarea id="post-responsibilities" rows={6} value={details.responsibilities || ''} onChange={(e) => setDetails({...details, responsibilities: e.target.value})} className="bg-secondary/50"/>
+                             <p className="text-xs text-muted-foreground">One responsibility per line.</p>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="post-skills">Skills</Label>
-                            <Input id="post-skills" value={details.skills || ''} onChange={(e) => setDetails({...details, skills: e.target.value})} />
+                            <Input id="post-skills" value={details.skills || ''} onChange={(e) => setDetails({...details, skills: e.target.value})} className="bg-secondary/50"/>
                             <p className="text-xs text-muted-foreground">Comma-separated skills</p>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="post-education">Education</Label>
-                            <Input id="post-education" value={details.education || ''} onChange={(e) => setDetails({...details, education: e.target.value})} />
                         </div>
                     </div>
                 </ScrollArea>
