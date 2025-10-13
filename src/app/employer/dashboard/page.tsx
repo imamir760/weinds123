@@ -57,7 +57,8 @@ const insights = [
 
 const pipelineStages = [
   { name: "Applied", count: 4 },
-  { name: "Invited", count: 2 },
+  { name: "Invite", count: 2 },
+  { name: "Shortlisted", count: 6 },
   { name: "Skill Test", count: 2 },
   { name: "Interview", count: 1 },
   { name: "Final Interview", count: 0 },
@@ -168,31 +169,16 @@ export default function EmployerDashboardPage() {
                       <CardTitle>Hiring Pipeline Overview</CardTitle>
                       <CardDescription>A summary of your candidate progression stages.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <Tabs defaultValue={pipelineStages[0].name.toLowerCase()} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-6 h-auto">
-                          {pipelineStages.map((stage) => (
-                            <TabsTrigger key={stage.name} value={stage.name.toLowerCase()} className="flex-col h-auto py-2 px-4 whitespace-nowrap text-sm">
-                              <div className="font-semibold">{stage.name}</div>
-                              <Badge variant={stage.count > 0 ? "default" : "secondary"} className="mt-1">{stage.count}</Badge>
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                        {pipelineStages.map((stage) => (
-                          <TabsContent key={stage.name} value={stage.name.toLowerCase()} className="mt-4">
-                            <Card className="bg-muted/40">
-                              <CardContent className="p-6 text-center text-muted-foreground">
-                                <p>Candidates in the "{stage.name}" stage will appear here.</p>
-                                {stage.count > 0 && 
-                                  <Button variant="outline" size="sm" className="mt-4 bg-background">
-                                      View {stage.count} candidate{stage.count > 1 ? 's' : ''}
-                                  </Button>
-                                }
-                              </CardContent>
-                            </Card>
-                          </TabsContent>
-                        ))}
-                      </Tabs>
+                    <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                      {pipelineStages.map((stage) => (
+                        <Card key={stage.name} className="flex flex-col justify-between p-4 hover:shadow-md transition-shadow">
+                           <div>
+                             <h3 className="font-semibold">{stage.name}</h3>
+                             <p className="text-3xl font-bold my-2">{stage.count}</p>
+                           </div>
+                           <Button variant="outline" size="sm" className="w-full mt-2">View</Button>
+                        </Card>
+                      ))}
                     </CardContent>
                   </Card>
                     <div className="grid md:grid-cols-2 gap-6">
