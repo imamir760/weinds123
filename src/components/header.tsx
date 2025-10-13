@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from './ui/button';
@@ -20,6 +20,10 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { useAuth } from './auth/auth-provider';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const navLinks = [
   { href: '#features', label: 'Features' },
@@ -30,7 +34,9 @@ const navLinks = [
 
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
-  const { setOpen, setRole, setAction } = useAuth();
+  const { user, loading, setOpen, setRole, setAction } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
 
   const handleAuthAction = (
     role: 'candidate' | 'employer' | 'tpo',
@@ -41,6 +47,15 @@ export function Header() {
     setOpen(true);
     setMenuOpen(false); // Close mobile menu if open
   };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out."
+    });
+    router.push('/');
+  }
 
   const NavLink = ({
     href,
@@ -74,41 +89,48 @@ export function Header() {
         </nav>
 
         <div className="flex flex-1 items-center justify-end space-x-2">
-          <div className="hidden sm:flex items-center space-x-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost">Login</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleAuthAction('candidate', 'login')}>
-                  Candidate Login
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAuthAction('employer', 'login')}>
-                  Employer Login
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAuthAction('tpo', 'login')}>
-                  Institute Login
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {!loading && user ? (
+             <Button onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" /> Logout
+            </Button>
+          ) : (
+            <div className="hidden sm:flex items-center space-x-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost">Login</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleAuthAction('candidate', 'login')}>
+                    Candidate Login
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAuthAction('employer', 'login')}>
+                    Employer Login
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAuthAction('tpo', 'login')}>
+                    Institute Login
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button>Sign Up</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleAuthAction('candidate', 'signup')}>
-                  For Candidates
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAuthAction('employer', 'signup')}>
-                  For Employers
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAuthAction('tpo', 'signup')}>
-                  For Institutions
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button>Sign Up</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleAuthAction('candidate', 'signup')}>
+                    For Candidates
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAuthAction('employer', 'signup')}>
+                    For Employers
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAuthAction('tpo', 'signup')}>
+                    For Institutions
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+
 
           <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
@@ -134,29 +156,37 @@ export function Header() {
                 {navLinks.map(link => (
                   <NavLink key={link.href} {...link} className="text-lg" />
                 ))}
-                <div className="flex flex-col space-y-2 pt-4 border-t">
-                  <h3 className="px-4 text-sm font-semibold text-muted-foreground">Login</h3>
-                   <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('candidate', 'login')}>
-                      <div>For Candidates</div>
+                {!loading && user ? (
+                  <div className="pt-4 border-t">
+                     <Button variant="ghost" asChild className="justify-start" onClick={handleLogout}>
+                      <div><LogOut className="mr-2"/> Logout</div>
                     </Button>
-                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('employer', 'login')}>
-                      <div>For Employers</div>
-                    </Button>
-                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('tpo', 'login')}>
-                      <div>For Institutions</div>
-                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col space-y-2 pt-4 border-t">
+                    <h3 className="px-4 text-sm font-semibold text-muted-foreground">Login</h3>
+                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('candidate', 'login')}>
+                        <div>For Candidates</div>
+                      </Button>
+                       <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('employer', 'login')}>
+                        <div>For Employers</div>
+                      </Button>
+                       <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('tpo', 'login')}>
+                        <div>For Institutions</div>
+                      </Button>
 
-                   <h3 className="px-4 text-sm font-semibold text-muted-foreground pt-4">Sign Up</h3>
-                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('candidate', 'signup')}>
-                      <div>For Candidates</div>
-                    </Button>
-                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('employer', 'signup')}>
-                      <div>For Employers</div>
-                    </Button>
-                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('tpo', 'signup')}>
-                      <div>For Institutions</div>
-                    </Button>
-                </div>
+                     <h3 className="px-4 text-sm font-semibold text-muted-foreground pt-4">Sign Up</h3>
+                       <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('candidate', 'signup')}>
+                        <div>For Candidates</div>
+                      </Button>
+                       <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('employer', 'signup')}>
+                        <div>For Employers</div>
+                      </Button>
+                       <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('tpo', 'signup')}>
+                        <div>For Institutions</div>
+                      </Button>
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>

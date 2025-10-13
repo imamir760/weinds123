@@ -1,8 +1,62 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { auth, db } from '@/lib/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from './auth-provider';
 
 export function GoogleButton() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { role, action, setOpen } = useAuth();
+
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (action === 'signup') {
+        if (userDoc.exists()) {
+           throw new Error("An account already exists with this Google account.");
+        }
+        // Create user doc on signup
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          email: user.email,
+          role: role,
+          displayName: user.displayName,
+          createdAt: new Date(),
+        });
+      } else { // login
+        if (!userDoc.exists() || userDoc.data().role !== role) {
+           throw new Error(`No account found for this role. Please sign up as a ${role}.`);
+        }
+      }
+
+      setOpen(false);
+      toast({
+        title: `${action === 'signup' ? 'Sign up' : 'Login'} Successful`,
+        description: `Welcome, ${user.displayName}!`,
+      });
+      router.push(`/${role}/dashboard`);
+
+    } catch (error: any) {
+      console.error("Google sign-in error:", error);
+      toast({
+        title: `Google ${action} failed`,
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <>
       <div className="relative my-4">
@@ -15,7 +69,7 @@ export function GoogleButton() {
           </span>
         </div>
       </div>
-      <Button variant="outline" className="w-full">
+      <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} type="button">
         <div className="flex items-center justify-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"

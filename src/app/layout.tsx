@@ -38,11 +38,11 @@ export default function RootLayout({
         )}
       >
         <AuthProvider>
-          <Header />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-          <Toaster />
-          <AuthModal />
+            <Header />
+            <main className="flex-grow">{children}</main>
+            <Footer />
+            <Toaster />
+            <AuthModal />
         </AuthProvider>
       </body>
     </html>
