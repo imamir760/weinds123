@@ -11,7 +11,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserCircle, Settings, Star, FolderKanban, Save, GraduationCap, Briefcase, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, UserCircle, Settings, Star, FolderKanban, Save, GraduationCap, Briefcase, PlusCircle } from 'lucide-react';
 import { saveUserProfile } from '@/lib/user-actions';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -22,13 +22,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { SkillsInput } from './skills-input';
 import { allSkills } from './skills-list';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ExperienceCard } from './experience-card';
+import { EducationCard } from './education-card';
 
 export type Experience = {
   jobTitle: string;
   company: string;
   duration: string;
+}
+
+export type Education = {
+  institution: string;
+  degree: string;
+  year: string;
 }
 
 type ProfileData = {
@@ -37,7 +43,7 @@ type ProfileData = {
   headline: string;
   skills: string[];
   experience: Experience[];
-  education: string;
+  education: Education[];
   location: string;
   employmentStatus: 'Fresher' | 'Working' | 'Studying';
   preference: 'Job' | 'Internship' | 'Both';
@@ -55,7 +61,7 @@ function CandidateProfilePage() {
     headline: '',
     skills: [],
     experience: [],
-    education: '',
+    education: [],
     location: '',
     employmentStatus: 'Fresher',
     preference: 'Both',
@@ -83,6 +89,9 @@ function CandidateProfilePage() {
               }
                if (!Array.isArray(data.experience)) {
                 data.experience = [];
+              }
+               if (!Array.isArray(data.education)) {
+                data.education = [];
               }
               setProfile(data);
             } else {
@@ -114,14 +123,13 @@ function CandidateProfilePage() {
               profile.fullName,
               profile.headline,
               profile.location,
-              profile.education,
               profile.achievements,
               profile.projects,
               profile.phone
           ];
           const filledFields = fields.filter(Boolean).length;
-          const totalFields = fields.length + (profile.skills.length > 0 ? 1 : 0) + (profile.experience.length > 0 ? 1 : 0);
-          const completeness = Math.round((filledFields / (fields.length + 2)) * 100);
+          const totalFields = fields.length + (profile.skills.length > 0 ? 1 : 0) + (profile.experience.length > 0 ? 1 : 0) + (profile.education.length > 0 ? 1 : 0);
+          const completeness = Math.round((filledFields / (fields.length + 3)) * 100);
           setProfileCompleteness(completeness);
       };
       calculateCompleteness();
@@ -133,7 +141,7 @@ function CandidateProfilePage() {
     setProfile(prev => ({ ...prev, [id]: value }));
   };
   
-  const handleSelectChange = (id: keyof ProfileData, value: string | string[] | Experience[]) => {
+  const handleSelectChange = (id: keyof ProfileData, value: string | string[] | Experience[] | Education[]) => {
     setProfile(prev => ({...prev, [id]: value}));
   }
 
@@ -150,6 +158,21 @@ function CandidateProfilePage() {
   const removeExperience = (index: number) => {
     const newExperience = profile.experience.filter((_, i) => i !== index);
     handleSelectChange('experience', newExperience);
+  };
+
+  const updateEducation = (index: number, field: keyof Education, value: string) => {
+    const newEducation = [...profile.education];
+    newEducation[index][field] = value;
+    handleSelectChange('education', newEducation);
+  };
+
+  const addEducation = () => {
+    handleSelectChange('education', [...profile.education, { institution: '', degree: '', year: '' }]);
+  };
+
+  const removeEducation = (index: number) => {
+    const newEducation = profile.education.filter((_, i) => i !== index);
+    handleSelectChange('education', newEducation);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -304,9 +327,19 @@ function CandidateProfilePage() {
               <CardTitle className="flex items-center gap-2"><GraduationCap className="w-5 h-5 text-primary" /> Education</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-              <div className="space-y-1">
-                <Textarea id="education" placeholder="Tell us about your educational background." value={profile.education} onChange={handleInputChange} />
-              </div>
+             {profile.education.map((edu, index) => (
+                <EducationCard 
+                    key={index}
+                    index={index}
+                    education={edu}
+                    updateEducation={updateEducation}
+                    removeEducation={removeEducation}
+                />
+            ))}
+            <Button variant="outline" onClick={addEducation} type="button" className="w-full">
+                <PlusCircle className="mr-2"/>
+                Add Education
+            </Button>
           </CardContent>
       </Card>
 

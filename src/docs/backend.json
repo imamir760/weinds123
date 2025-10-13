@@ -56,12 +56,24 @@
             }
           }
         },
-        "education": { "type": "string" },
+        "education": { 
+          "type": "array",
+          "description": "A list of the candidate's educational qualifications.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "institution": { "type": "string" },
+              "degree": { "type": "string" },
+              "year": { "type": "string" }
+            }
+          }
+        },
         "location": { "type": "string" },
         "employmentStatus": { "type": "string", "enum": ["Fresher", "Working", "Studying"] },
         "preference": { "type": "string", "enum": ["Job", "Internship", "Both"] },
         "achievements": { "type": "string", "description": "A summary of the candidate's achievements." },
-        "projects": { "type": "string", "description": "A summary of the candidate's projects, including URLs." }
+        "projects": { "type": "string", "description": "A summary of the candidate's projects, including URLs." },
+        "phone": { "type": "string" }
       }
     },
     "EmployerProfile": {
