@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -40,39 +40,11 @@ export default function InternshipsPage() {
     const unsubscribe = onSnapshot(internshipsCollectionRef, async (snapshot) => {
       const internshipsData = snapshot.docs.map(doc => ({
         id: doc.id,
+        companyName: doc.data().companyName || 'N/A', // Default to N/A
         ...doc.data()
-      }));
-
-      const employerIds = [...new Set(internshipsData.map(internship => internship.employerId).filter(id => id))];
-      const employersMap: { [key: string]: string } = {};
-
-      if (employerIds.length > 0) {
-        const employerPromises = employerIds.map(id => {
-            const docRef = doc(db, 'employers', id);
-            return getDoc(docRef).catch(serverError => {
-                const permissionError = new FirestorePermissionError({
-                    path: docRef.path,
-                    operation: 'get',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                return null;
-            });
-        });
-        const employerDocs = await Promise.all(employerPromises);
-        
-        employerDocs.forEach(docSnap => {
-            if (docSnap && docSnap.exists()) {
-                employersMap[docSnap.id] = docSnap.data().companyName;
-            }
-        });
-      }
-
-      const populatedInternships = internshipsData.map(internship => ({
-        ...internship,
-        companyName: employersMap[internship.employerId] || 'N/A',
       })) as Internship[];
 
-      setInternships(populatedInternships);
+      setInternships(internshipsData);
       setLoading(false);
     }, (serverError) => {
       const permissionError = new FirestorePermissionError({
