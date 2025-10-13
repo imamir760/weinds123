@@ -22,9 +22,9 @@ import {
 
 const navLinks = [
   { href: '#features', label: 'Features' },
-  { href: '#', label: 'How it works' },
-  { href: '#', label: 'Pricing' },
-  { href: '#', label: 'FAQ' },
+  { href: '#how-it-works', label: 'How it works' },
+  { href: '#pricing', label: 'Pricing' },
+  { href: '#faq', label: 'FAQ' },
 ];
 
 export function Header() {
