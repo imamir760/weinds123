@@ -21,6 +21,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
 import { Combobox } from '../ui/combobox';
 import { cities } from '@/lib/cities';
+import { cn } from '@/lib/utils';
 
 type PostType = 'job' | 'internship';
 type JobDetails = {
@@ -148,7 +149,12 @@ export function PostJobDialog({ open, onOpenChange, onPipelineOpen }: { open: bo
 
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <DialogContent className={cn(
+          "w-full max-h-[90vh] flex flex-col",
+          step === 1 && "sm:max-w-md",
+          step === 2 && "sm:max-w-lg",
+          step === 3 && "max-w-4xl",
+      )}>
         {step === 1 && (
           <>
             <DialogHeader>
