@@ -16,14 +16,18 @@ import { Briefcase, GraduationCap, Loader2 } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
 import { generateJobDescription } from '@/ai/flows/generate-job-description';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 type PostType = 'job' | 'internship';
 type JobDetails = {
   title: string;
   responsibilities: string;
   skills: string;
-  metadata?: string;
-}
+  salary?: string;
+  location?: string;
+  workMode?: 'Remote' | 'Hybrid' | 'On-site';
+  education?: string;
+};
 
 export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const [step, setStep] = useState(1);
@@ -66,7 +70,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         {step === 1 && (
           <>
             <DialogHeader>
@@ -103,7 +107,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                     </DialogDescription>
                 </DialogHeader>
                 <Textarea
-                    rows={10}
+                    rows={15}
                     value={unstructuredText}
                     onChange={(e) => setUnstructuredText(e.target.value)}
                     placeholder="e.g., 'We are looking for a software engineer with 3+ years of experience in React...'"
@@ -126,22 +130,49 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                 Review and edit the information before posting.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
                 <div className="space-y-2">
                     <Label htmlFor="job-title">Title</Label>
                     <Input id="job-title" value={jobDetails.title || ''} onChange={(e) => setJobDetails({...jobDetails, title: e.target.value})} />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="job-responsibilities">Responsibilities</Label>
-                    <Textarea id="job-responsibilities" rows={5} value={jobDetails.responsibilities || ''} onChange={(e) => setJobDetails({...jobDetails, responsibilities: e.target.value})} />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                        <Label htmlFor="job-location">Location</Label>
+                        <Input id="job-location" value={jobDetails.location || ''} onChange={(e) => setJobDetails({...jobDetails, location: e.target.value})} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="job-work-mode">Work Mode</Label>
+                        <Select value={jobDetails.workMode} onValueChange={(value) => setJobDetails({...jobDetails, workMode: value as any})}>
+                            <SelectTrigger id="job-work-mode">
+                                <SelectValue placeholder="Select work mode" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="On-site">On-site</SelectItem>
+                                <SelectItem value="Hybrid">Hybrid</SelectItem>
+                                <SelectItem value="Remote">Remote</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-                <div className="space-y-2">
+
+                 <div className="space-y-2">
+                    <Label htmlFor="job-salary">Salary / Stipend</Label>
+                    <Input id="job-salary" value={jobDetails.salary || ''} onChange={(e) => setJobDetails({...jobDetails, salary: e.target.value})} />
+                </div>
+
+                 <div className="space-y-2">
+                    <Label htmlFor="job-responsibilities">Responsibilities</Label>
+                    <Textarea id="job-responsibilities" rows={6} value={jobDetails.responsibilities || ''} onChange={(e) => setJobDetails({...jobDetails, responsibilities: e.target.value})} />
+                </div>
+                 <div className="space-y-2">
                     <Label htmlFor="job-skills">Skills</Label>
                     <Input id="job-skills" value={jobDetails.skills || ''} onChange={(e) => setJobDetails({...jobDetails, skills: e.target.value})} />
+                     <p className="text-xs text-muted-foreground">Comma-separated skills</p>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="job-metadata">Metadata</Label>
-                    <Input id="job-metadata" value={jobDetails.metadata || ''} onChange={(e) => setJobDetails({...jobDetails, metadata: e.target.value})} />
+                 <div className="space-y-2">
+                    <Label htmlFor="job-education">Education</Label>
+                    <Input id="job-education" value={jobDetails.education || ''} onChange={(e) => setJobDetails({...jobDetails, education: e.target.value})} />
                 </div>
             </div>
             <DialogFooter>

@@ -14,22 +14,24 @@ import {z} from 'genkit';
 const GenerateJobDescriptionInputSchema = z.object({
   text: z
     .string()
-    .describe("Unstructured text containing information about the job."),
+    .describe('Unstructured text containing information about the job.'),
 });
-export type GenerateJobDescriptionInput = z.infer<typeof GenerateJobDescriptionInputSchema>;
+export type GenerateJobDescriptionInput = z.infer<
+  typeof GenerateJobDescriptionInputSchema
+>;
 
 const GenerateJobDescriptionOutputSchema = z.object({
   title: z.string().describe('The title of the job.'),
-  responsibilities: z
-    .string()
-    .describe('The responsibilities of the job.'),
-  skills: z.string().describe('The skills required for the job.'),
-  metadata: z
-    .string()
-    .optional()
-    .describe('Any relevant metadata for filtering the job.'),
+  responsibilities: z.string().describe('The responsibilities of the job.'),
+  skills: z.string().describe('The skills required for the job, comma-separated.'),
+  salary: z.string().optional().describe('The estimated salary or salary range for the role.'),
+  location: z.string().optional().describe('The physical location for the job (e.g., "San Francisco, CA", "Remote").'),
+  workMode: z.enum(['Remote', 'Hybrid', 'On-site']).optional().describe('The work mode (Remote, Hybrid, or On-site).'),
+  education: z.string().optional().describe('The required or preferred educational background.'),
 });
-export type GenerateJobDescriptionOutput = z.infer<typeof GenerateJobDescriptionOutputSchema>;
+export type GenerateJobDescriptionOutput = z.infer<
+  typeof GenerateJobDescriptionOutputSchema
+>;
 
 export async function generateJobDescription(
   input: GenerateJobDescriptionInput
@@ -41,13 +43,20 @@ const prompt = ai.definePrompt({
   name: 'generateJobDescriptionPrompt',
   input: {schema: GenerateJobDescriptionInputSchema},
   output: {schema: GenerateJobDescriptionOutputSchema},
-  prompt: `You are an AI assistant designed to extract information from unstructured text and generate a job description.
+  prompt: `You are an AI assistant designed to extract structured information from unstructured text to generate a job description.
 
-  Extract the job title, responsibilities, and skills required from the following text.  If there is any other relevant metadata, extract that as well.
+  Analyze the following text and extract the following details:
+  - Job Title
+  - Key Responsibilities
+  - Required Skills (as a comma-separated string)
+  - Salary or Salary Range
+  - Location
+  - Work Mode (classify as "Remote", "Hybrid", or "On-site")
+  - Education requirements
 
   Text: {{{text}}}
 
-  Your output should conform to the JSON schema for GenerateJobDescriptionOutputSchema.
+  Your output must conform to the JSON schema for GenerateJobDescriptionOutputSchema.
   `,
 });
 
