@@ -74,7 +74,7 @@ export function PostJobDialog({ open, onOpenChange, onPipelineOpen }: { open: bo
         setDetails(result);
       }
       setStep(3); // Move to the details review step
-    } catch (error) => {
+    } catch (error) {
       console.error('Failed to generate job description:', error);
     } finally {
       setLoading(false);
