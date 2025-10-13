@@ -19,6 +19,8 @@ import { generateJobDescription } from '@/ai/flows/generate-job-description';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
+import { Combobox } from '../ui/combobox';
+import { cities } from '@/lib/cities';
 
 type PostType = 'job' | 'internship';
 type JobDetails = {
@@ -92,14 +94,14 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 
       const isInternship = 'stipend' in details;
       const skillsArray = details.skills?.split(',').map(s => s.trim()).filter(Boolean) || [];
-      const responsibilitiesArray = details.responsibilities?.split('\n').map(s => s.trim().replace(/^-/,'').trim()).filter(Boolean) || [];
+      const responsibilitiesArray = details.responsibilities?.split('\n').map(s => s.replace(/^\d+\.\s*/, '').trim()).filter(Boolean) || [];
 
       return (
         <div className="p-4 border rounded-lg bg-secondary/50 space-y-6">
             <h3 className="text-xl font-bold text-foreground">{details.title}</h3>
             <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5"><Building className="w-4 h-4"/> Your Company Name</div>
-                <div className="flex items-center gap-1.5"><MapPin className="h-4 w-4"/> {details.location}</div>
+                <div className="flex items-center gap-1.5"><MapPin className="h-4 h-4"/> {details.location}</div>
                 { isInternship ? <div className="flex items-center gap-1.5"><DollarSign className="h-4 h-4"/> {details.stipend} (Stipend)</div> : <div className="flex items-center gap-1.5"><DollarSign className="h-4 h-4"/> {details.salary}</div> }
                 { isInternship && <div className="flex items-center gap-1.5"><Clock className="h-4 h-4"/> {details.duration}</div>}
                 <div className="flex items-center gap-1.5"><Monitor className="w-4 h-4" /> {details.workMode}</div>
@@ -107,12 +109,12 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
             </div>
 
             <Separator />
-            
+
              <div>
               <h4 className="font-semibold text-md mb-3 flex items-center gap-2"><GraduationCap className="w-4 h-4 text-primary"/> Education</h4>
               <p className="text-muted-foreground">{details.education}</p>
             </div>
-
+            
             <div>
               <h4 className="font-semibold text-md mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4 text-primary" /> Responsibilities</h4>
               <ol className="space-y-2 text-muted-foreground list-decimal pl-5">
@@ -210,18 +212,25 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                     <div className="space-y-4 pr-6">
                         <div className="space-y-2">
                             <Label htmlFor="post-title">Title</Label>
-                            <Input id="post-title" value={details.title || ''} onChange={(e) => setDetails({...details, title: e.target.value})} className="bg-secondary/50"/>
+                            <Input id="post-title" value={details.title || ''} onChange={(e) => setDetails({...details, title: e.target.value})} className="bg-background"/>
                         </div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="post-location">Location</Label>
-                                <Input id="post-location" value={details.location || ''} onChange={(e) => setDetails({...details, location: e.target.value})} className="bg-secondary/50"/>
+                                <Combobox
+                                  items={cities}
+                                  value={details.location || ""}
+                                  onChange={(value) => setDetails({ ...details, location: value })}
+                                  placeholder="Select location..."
+                                  searchPlaceholder="Search cities..."
+                                  notFoundText="No city found."
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="post-work-mode">Work Mode</Label>
                                 <Select value={details.workMode} onValueChange={(value) => setDetails({...details, workMode: value as any})}>
-                                    <SelectTrigger id="post-work-mode" className="bg-secondary/50">
+                                    <SelectTrigger id="post-work-mode" className="bg-background">
                                         <SelectValue placeholder="Select work mode" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -237,40 +246,40 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                             {postType === 'job' && 'salary' in details && (
                                 <div className="space-y-2">
                                     <Label htmlFor="job-salary">Salary</Label>
-                                    <Input id="job-salary" value={details.salary || ''} onChange={(e) => setDetails({...details, salary: e.target.value})} className="bg-secondary/50"/>
+                                    <Input id="job-salary" value={details.salary || ''} onChange={(e) => setDetails({...details, salary: e.target.value})} className="bg-background"/>
                                 </div>
                             )}
                             {postType === 'internship' && 'stipend' in details && (
                                 <div className="space-y-2">
                                     <Label htmlFor="internship-stipend">Stipend</Label>
-                                    <Input id="internship-stipend" value={(details as InternshipDetails).stipend || ''} onChange={(e) => setDetails({...details, stipend: e.target.value})} className="bg-secondary/50"/>
+                                    <Input id="internship-stipend" value={(details as InternshipDetails).stipend || ''} onChange={(e) => setDetails({...details, stipend: e.target.value})} className="bg-background"/>
                                 </div>
                             )}
                              <div className="space-y-2">
                                 <Label htmlFor="experience">Experience</Label>
-                                <Input id="experience" value={details.experience || ''} onChange={(e) => setDetails({...details, experience: e.target.value})} className="bg-secondary/50"/>
+                                <Input id="experience" value={details.experience || ''} onChange={(e) => setDetails({...details, experience: e.target.value})} className="bg-background"/>
                             </div>
                         </div>
                          {postType === 'internship' && 'duration' in details && (
                             <div className="space-y-2">
                                 <Label htmlFor="internship-duration">Duration (e.g., 3 months)</Label>
-                                <Input id="internship-duration" value={(details as InternshipDetails).duration || ''} onChange={(e) => setDetails({...details, duration: e.target.value})} className="bg-secondary/50"/>
+                                <Input id="internship-duration" value={(details as InternshipDetails).duration || ''} onChange={(e) => setDetails({...details, duration: e.target.value})} className="bg-background"/>
                             </div>
                         )}
 
                         <div className="space-y-2">
                             <Label htmlFor="post-education">Education</Label>
-                            <Input id="post-education" value={details.education || ''} onChange={(e) => setDetails({...details, education: e.target.value})} className="bg-secondary/50"/>
+                            <Input id="post-education" value={details.education || ''} onChange={(e) => setDetails({...details, education: e.target.value})} className="bg-background"/>
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="post-responsibilities">Responsibilities</Label>
-                            <Textarea id="post-responsibilities" rows={6} value={details.responsibilities || ''} onChange={(e) => setDetails({...details, responsibilities: e.target.value})} className="bg-secondary/50"/>
-                             <p className="text-xs text-muted-foreground">One responsibility per line.</p>
+                            <Textarea id="post-responsibilities" rows={6} value={details.responsibilities || ''} onChange={(e) => setDetails({...details, responsibilities: e.target.value})} className="bg-background"/>
+                             <p className="text-xs text-muted-foreground">One responsibility per line, numbered.</p>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="post-skills">Skills</Label>
-                            <Input id="post-skills" value={details.skills || ''} onChange={(e) => setDetails({...details, skills: e.target.value})} className="bg-secondary/50"/>
+                            <Input id="post-skills" value={details.skills || ''} onChange={(e) => setDetails({...details, skills: e.target.value})} className="bg-background"/>
                             <p className="text-xs text-muted-foreground">Comma-separated skills</p>
                         </div>
                     </div>
