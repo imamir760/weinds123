@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, Bell, Menu, User, Filter } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, Bell, Menu, User, Filter, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -17,6 +17,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useState } from 'react';
 import { PostJobDialog } from '@/components/employer/post-job-dialog';
 import { CreatePipelineDialog } from '@/components/employer/create-pipeline-dialog';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 
 const navigation = [
@@ -71,6 +75,18 @@ const pipelineStages = [
 
 
 function SidebarNav() {
+    const { toast } = useToast();
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        await signOut(auth);
+        toast({
+          title: "Logged Out",
+          description: "You have been successfully logged out."
+        });
+        router.push('/');
+    }
+
     return (
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-[60px] items-center border-b px-6">
@@ -100,6 +116,12 @@ function SidebarNav() {
                 </Link>
               ))}
             </nav>
+          </div>
+          <div className="mt-auto p-4">
+            <Button size="sm" variant="outline" className="w-full" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
           </div>
         </div>
     )
