@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, FileText, Bot, Settings, LogOut, User, Search, BarChart2, Star, Menu } from 'lucide-react';
+import { Briefcase, FileText, Bot, Settings, LogOut, User, Search, BarChart2, Star, Menu, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -24,6 +24,7 @@ const navigation = [
   { name: 'My Profile', href: '/candidate/profile', icon: User },
   { name: 'My Applications', href: '/candidate/applications', icon: FileText },
   { name: 'Find Jobs', href: '/candidate/jobs', icon: Search },
+  { name: 'Find Internships', href: '/candidate/internships', icon: GraduationCap },
   { name: 'AI Interviews', href: '/candidate/ai-interviews', icon: Bot },
   { name: 'Resume Builder', href: '/candidate/resume-builder', icon: FileText },
   { name: 'Disha AI', href: '/candidate/disha', icon: Bot },
@@ -148,6 +149,29 @@ function DashboardContent() {
                 </CardContent>
             </Card>
           </div>
+          
+            <div className="grid md:grid-cols-2 gap-6">
+                <Card className="flex flex-col items-center justify-center p-8 bg-blue-50 dark:bg-blue-900/20 border-dashed border-blue-200 dark:border-blue-900">
+                    <div className="bg-blue-100 dark:bg-blue-900/50 p-4 rounded-full mb-4">
+                        <Search className="w-8 h-8 text-blue-600 dark:text-blue-400"/>
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">Explore Job Openings</h3>
+                    <p className="text-muted-foreground text-center mb-4 text-sm">Find your next career move from thousands of opportunities.</p>
+                    <Button variant="outline" asChild>
+                        <Link href="/candidate/jobs">Find Jobs</Link>
+                    </Button>
+                </Card>
+                    <Card className="flex flex-col items-center justify-center p-8 bg-green-50 dark:bg-green-900/20 border-dashed border-green-200 dark:border-green-900">
+                    <div className="bg-green-100 dark:bg-green-900/50 p-4 rounded-full mb-4">
+                        <GraduationCap className="w-8 h-8 text-green-600 dark:text-green-400"/>
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">Find Internships</h3>
+                    <p className="text-muted-foreground text-center mb-4 text-sm">Get hands-on experience and kickstart your career with an internship.</p>
+                    <Button variant="outline" asChild>
+                        <Link href="/candidate/internships">Find Internships</Link>
+                    </Button>
+                </Card>
+            </div>
 
            <Card>
               <CardHeader>
