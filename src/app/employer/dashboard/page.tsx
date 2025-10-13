@@ -94,15 +94,15 @@ function SidebarNav() {
 export default function EmployerDashboardPage() {
   return (
     <div className="min-h-screen w-full bg-gray-100/40 dark:bg-gray-800/40">
-        <div className="hidden lg:block fixed inset-y-0 left-0 z-10 w-[280px] border-r bg-background dark:bg-gray-950">
+        <aside className="hidden lg:block fixed inset-y-0 left-0 z-10 w-[280px] border-r bg-background dark:bg-gray-950">
              <SidebarNav />
-        </div>
+        </aside>
         <div className="lg:pl-[280px]">
-            <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-background px-6 sticky top-0 z-30">
+            <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-background px-4 md:px-6 sticky top-0 z-30">
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button variant="outline" size="icon" className="lg:hidden">
-                            <PanelLeft className="h-5 w-5" />
+                        <Button variant="outline" size="icon" className="lg:hidden h-10 w-10">
+                            <PanelLeft className="h-6 w-6" />
                             <span className="sr-only">Toggle navigation menu</span>
                         </Button>
                     </SheetTrigger>
@@ -111,8 +111,8 @@ export default function EmployerDashboardPage() {
                         <SidebarNav />
                     </SheetContent>
                 </Sheet>
-                 <div className="w-full flex-1">
-                    <h1 className="font-semibold text-lg">Dashboard</h1>
+                 <div className="w-full flex-1 lg:hidden">
+                    <Logo />
                 </div>
                 <div className="ml-auto flex items-center gap-2">
                     <Button asChild>
