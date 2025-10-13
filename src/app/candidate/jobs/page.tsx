@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, doc, getDoc, getDocs } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -12,14 +12,14 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, BookOpen, Building } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Building } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 
 interface Job extends DocumentData {
   id: string;
   title: string;
-  company: string;
+  companyName: string; // Changed from company
   location: string;
   workMode: string;
   match: number;
@@ -34,12 +34,38 @@ export default function JobsPage() {
 
   useEffect(() => {
     const jobsCollectionRef = collection(db, 'jobs');
-    const unsubscribe = onSnapshot(jobsCollectionRef, (snapshot) => {
+    const unsubscribe = onSnapshot(jobsCollectionRef, async (snapshot) => {
       const jobsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as Job));
-      setJobs(jobsData);
+      }));
+
+      // Get unique employer IDs
+      const employerIds = [...new Set(jobsData.map(job => job.employerId).filter(id => id))];
+      
+      let employersMap: { [key: string]: string } = {};
+
+      if (employerIds.length > 0) {
+        // Fetch employer data
+        const employersQuery = collection(db, 'employers');
+        // Firestore doesn't efficiently support `in` queries with more than 10 items on web sdk for snapshots
+        // We'll fetch them individually for simplicity here, but for production, this should be optimized.
+        const employerDocs = await Promise.all(employerIds.map(id => getDoc(doc(db, 'employers', id))));
+        
+        employerDocs.forEach(docSnap => {
+            if (docSnap.exists()) {
+                employersMap[docSnap.id] = docSnap.data().companyName;
+            }
+        });
+      }
+
+      const populatedJobs = jobsData.map(job => ({
+        ...job,
+        companyName: employersMap[job.employerId] || 'N/A',
+      })) as Job[];
+
+
+      setJobs(populatedJobs);
       setLoading(false);
     }, (error) => {
       console.error("Error fetching jobs: ", error);
@@ -82,7 +108,7 @@ export default function JobsPage() {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <CardTitle>{job.title}</CardTitle>
-                                    <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {job.company || 'N/A'}</CardDescription>
+                                    <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {job.companyName}</CardDescription>
                                 </div>
                                 {job.match && (
                                     <div className="text-right">
