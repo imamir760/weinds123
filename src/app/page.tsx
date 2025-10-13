@@ -78,7 +78,6 @@ const testimonials = [
 ];
 
 export default function Home() {
-  const heroImage = PlaceHolderImages[0];
 
   return (
     <div className="flex flex-col">
@@ -96,10 +95,10 @@ export default function Home() {
             </p>
             <div className="flex gap-4 justify-center">
               <Button size="lg" asChild>
-                <Link href="/candidate/signup">Begin Your Journey</Link>
+                <Link href="/candidate/signup">I'm a Candidate</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/employer/signup">Discover Talent</Link>
+                <Link href="/employer/signup">I'm an Employer</Link>
               </Button>
             </div>
             <div className="mt-6 text-sm">

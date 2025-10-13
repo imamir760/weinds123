@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, X, Users, Briefcase, GraduationCap } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from './ui/button';
@@ -61,34 +61,41 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        <div className="flex flex-1 items-center justify-end space-x-2">
           <div className="hidden sm:flex items-center space-x-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost">Log In</Button>
+                <Button variant="ghost">Login</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link href="/candidate/login" className="flex items-center gap-2">
-                    <Users /> For Candidates
-                  </Link>
+                  <Link href="/candidate/login">Candidate Login</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/employer/login" className="flex items-center gap-2">
-                    <Briefcase /> For Employers
-                  </Link>
+                  <Link href="/employer/login">Employer Login</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/tpo/login" className="flex items-center gap-2">
-                    <GraduationCap /> For Institutions
-                  </Link>
+                  <Link href="/tpo/login">Institute Login</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button asChild>
-                <Link href="/candidate/signup">Get Started</Link>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>Sign Up</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href="/candidate/signup">For Candidates</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/employer/signup">For Employers</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/tpo/signup">For Institutions</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
@@ -101,7 +108,7 @@ export function Header() {
             <SheetContent side="left" className="pr-0">
                <SheetHeader className="flex-row justify-between items-center p-4 -ml-4 -mt-4 mr-4">
                 <Logo />
-                <SheetTitle className="sr-only">Menu</SheetTitle>
+                 <SheetTitle className="sr-only">Menu</SheetTitle>
                 <Button
                   variant="ghost"
                   size="icon"
