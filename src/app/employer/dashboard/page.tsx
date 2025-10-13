@@ -104,9 +104,8 @@ export default function EmployerDashboardPage() {
       </div>
       <div className="flex flex-col bg-gray-50/50 dark:bg-gray-900/50 ml-0 lg:ml-[280px]">
         <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-white dark:bg-gray-800/40 px-6 sticky top-0 z-30">
-            {/* Mobile sidebar toggle can be added here */}
             <div className="flex-1">
-                {/* Potentially a search bar */}
+                {/* Potentially a mobile sidebar toggle can be added here */}
             </div>
             <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" className="rounded-full">
@@ -127,7 +126,7 @@ export default function EmployerDashboardPage() {
           </div>
           
           <section id="quick-insights">
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {insights.map((insight, index) => (
                 <Card key={index}>
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
