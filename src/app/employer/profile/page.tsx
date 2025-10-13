@@ -1,19 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from '@/components/auth/auth-provider';
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { saveUserProfile } from '@/lib/user-actions';
-import { errorEmitter } from '@/lib/error-emitter';
-import { FirestorePermissionError } from '@/lib/errors';
 
 type ProfileData = {
   companyName: string;
@@ -24,47 +17,19 @@ type ProfileData = {
   companySize: string;
 };
 
+const staticProfile: ProfileData = {
+    companyName: 'Innovate LLC',
+    website: 'https://innovate.llc',
+    tagline: 'Building the Future of Technology',
+    description: 'We are a forward-thinking technology company focused on creating innovative solutions that solve real-world problems. Our culture is collaborative, fast-paced, and dedicated to excellence.',
+    industry: 'SaaS',
+    companySize: '50-200 employees',
+};
+
+
 export default function CompanyProfilePage() {
-  const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
-  const [profile, setProfile] = useState<ProfileData>({
-    companyName: '',
-    website: '',
-    tagline: '',
-    description: '',
-    industry: '',
-    companySize: '',
-  });
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<ProfileData>(staticProfile);
   const [saving, setSaving] = useState(false);
-
-
-  useEffect(() => {
-    if (user) {
-      const fetchProfile = async () => {
-        const docRef = doc(db, 'employers', user.uid);
-        try {
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-              setProfile(docSnap.data() as ProfileData);
-            } else {
-                setProfile(prev => ({...prev, companyName: user.displayName || ''}));
-            }
-        } catch(serverError) {
-            const permissionError = new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        } finally {
-            setLoading(false);
-        }
-      };
-      fetchProfile();
-    } else if (!authLoading) {
-        setLoading(false);
-    }
-  }, [user, authLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -73,30 +38,13 @@ export default function CompanyProfilePage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
-      return;
-    }
     setSaving(true);
-    saveUserProfile('employers', user.uid, profile);
-
-    toast({
-      title: "Profile Saving...",
-      description: "Your company information is being updated.",
-    });
-
+    console.log("Saving profile (static):", profile);
+    // In a real scenario, this would save to a backend.
     setTimeout(() => {
       setSaving(false);
-      toast({
-        title: "Request Sent",
-        description: "Your profile update has been sent to the server.",
-      });
     }, 1500);
   };
-
-   if (authLoading || loading) {
-    return <div className="container flex justify-center items-center py-8"><Loader2 className="w-8 h-8 animate-spin" /></div>
-  }
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -140,9 +88,9 @@ export default function CompanyProfilePage() {
             </div>
 
             <div className="flex justify-end">
-                <Button type="submit" disabled={saving}>
+                <Button type="submit" disabled={true}>
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Changes
+                  Save Changes (Disabled)
                 </Button>
             </div>
           </form>
