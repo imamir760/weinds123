@@ -92,7 +92,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 
       const isInternship = 'stipend' in details;
       const skillsArray = details.skills?.split(',').map(s => s.trim()).filter(Boolean) || [];
-      const responsibilitiesArray = details.responsibilities?.split('\n').map(s => s.trim()).filter(Boolean) || [];
+      const responsibilitiesArray = details.responsibilities?.split('\n').map(s => s.trim().replace(/^-/,'').trim()).filter(Boolean) || [];
 
       return (
         <div className="p-4 border rounded-lg bg-secondary/50 space-y-6">
@@ -107,6 +107,11 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
             </div>
 
             <Separator />
+            
+             <div>
+              <h4 className="font-semibold text-md mb-3 flex items-center gap-2"><GraduationCap className="w-4 h-4 text-primary"/> Education</h4>
+              <p className="text-muted-foreground">{details.education}</p>
+            </div>
 
              <div>
               <h4 className="font-semibold text-md mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4 text-primary" /> Responsibilities</h4>
@@ -129,10 +134,6 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                   </div>
                 ))}
               </div>
-            </div>
-             <div>
-              <h4 className="font-semibold text-md mb-3 flex items-center gap-2"><GraduationCap className="w-4 h-4 text-primary"/> Education</h4>
-              <p className="text-muted-foreground">{details.education}</p>
             </div>
         </div>
       )
