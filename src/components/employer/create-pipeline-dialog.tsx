@@ -238,7 +238,7 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
 
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="max-w-4xl w-full">
+      <DialogContent className="max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle>Create Custom Hiring Pipeline</DialogTitle>
           {jobDetails && <DialogDescription>For job: <span className="font-medium text-foreground">{jobDetails.title}</span></DialogDescription>}
