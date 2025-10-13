@@ -117,18 +117,28 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails, postType 
           return;
       }
       setSaving(true);
+      
       try {
-        await createJobWithPipeline(postType, jobDetails, selectedPipeline, user.uid);
+        createJobWithPipeline(postType, jobDetails, selectedPipeline, user.uid);
+        
         toast({
-            title: "Success!",
-            description: `Your ${postType} has been posted.`,
+            title: `${postType === 'job' ? 'Job' : 'Internship'} posting...`,
+            description: `Your ${postType} is being submitted.`,
         });
-        resetAndClose();
-        router.push(postType === 'job' ? '/employer/jobs' : '/employer/internships');
+
+        setTimeout(() => {
+            setSaving(false);
+            resetAndClose();
+            toast({
+                title: "Success!",
+                description: `Your ${postType} has been posted.`,
+            });
+            router.push(postType === 'job' ? '/employer/jobs' : '/employer/internships');
+        }, 1500)
+
       } catch (error) {
           console.error("Failed to post job:", error);
           toast({ title: "Error", description: `Failed to post ${postType}.`, variant: "destructive" });
-      } finally {
           setSaving(false);
       }
   }
