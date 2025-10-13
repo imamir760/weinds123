@@ -22,7 +22,9 @@ import {
 
 const navLinks = [
   { href: '#features', label: 'Features' },
-  { href: '#testimonials', label: 'Testimonials' },
+  { href: '#', label: 'How it works' },
+  { href: '#', label: 'Pricing' },
+  { href: '#', label: 'FAQ' },
 ];
 
 export function Header() {
@@ -84,28 +86,9 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button>Sign Up</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                 <DropdownMenuItem asChild>
-                  <Link href="/candidate/signup" className="flex items-center gap-2">
-                    <Users /> For Candidates
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/employer/signup" className="flex items-center gap-2">
-                    <Briefcase /> For Employers
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/tpo/signup" className="flex items-center gap-2">
-                    <GraduationCap /> For Institutions
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button asChild>
+                <Link href="/candidate/signup">Get Started</Link>
+            </Button>
           </div>
 
           <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
@@ -116,7 +99,7 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="pr-0">
-              <SheetHeader className="flex-row justify-between items-center p-4 -ml-4 -mt-4 mr-4">
+               <SheetHeader className="flex-row justify-between items-center p-4 -ml-4 -mt-4 mr-4">
                 <Logo />
                 <SheetTitle className="sr-only">Menu</SheetTitle>
                 <Button

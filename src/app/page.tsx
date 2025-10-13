@@ -82,39 +82,30 @@ export default function Home() {
 
   return (
     <div className="flex flex-col">
-      <section className="py-20 sm:py-32">
+      <section className="py-20 sm:py-32 bg-grid-slate-100">
         <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="text-center lg:text-left">
-              <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
-                <Briefcase className="w-5 h-5" /> Your Career, Supercharged
-              </span>
-              <h1 className="text-4xl lg:text-6xl font-extrabold text-foreground mt-4 mb-6 font-headline tracking-tight">
-                The Future of Talent Acquisition is Here
-              </h1>
-              <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
-                Weinds leverages cutting-edge AI to connect talent with
-                opportunity. Your complete Career Operating System awaits.
-              </p>
-              <div className="flex gap-4 justify-center lg:justify-start">
-                <Button size="lg" asChild>
-                  <Link href="/candidate/signup">
-                    Get Started <ArrowRight className="ml-2" />
-                  </Link>
-                </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <Link href="/employer/login">Hire Talent</Link>
-                </Button>
-              </div>
+          <div className="text-center">
+            <h1 className="text-4xl lg:text-7xl font-extrabold text-foreground mt-4 mb-6 font-headline tracking-tight">
+              Where Ancient Wisdom
+              <br /> Meets <span className="text-primary">Modern Ambition.</span>
+            </h1>
+            <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Inspired by India&apos;s rich heritage of knowledge, Weinds uses AI to
+              forge new career paths for the next generation of builders and
+              thinkers.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <Button size="lg" asChild>
+                <Link href="/candidate/signup">Begin Your Journey</Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/employer/signup">Discover Talent</Link>
+              </Button>
             </div>
-            <div className="relative h-80 lg:h-full w-full">
-              <Image
-                src={heroImage.imageUrl}
-                alt={heroImage.description}
-                fill
-                data-ai-hint={heroImage.imageHint}
-                className="object-cover rounded-2xl shadow-2xl"
-              />
+            <div className="mt-6 text-sm">
+                <Link href="/tpo/signup" className="text-muted-foreground hover:text-primary transition-colors">
+                    Are you an Institute? Start here.
+                </Link>
             </div>
           </div>
         </div>
@@ -221,7 +212,7 @@ export default function Home() {
               className="bg-accent text-accent-foreground hover:bg-accent/90"
               asChild
             >
-              <Link href="/signup">
+              <Link href="/candidate/signup">
                 Sign Up Now <ArrowRight className="ml-2" />
               </Link>
             </Button>

@@ -68,6 +68,22 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    background-image: linear-gradient(to bottom right, hsl(var(--background)), hsl(var(--secondary)));
+  }
+  .bg-grid-slate-100 {
+    background-image: linear-gradient(white 1px, transparent 1px),
+      linear-gradient(to right, white 1px, hsl(var(--background)) 1px);
+    background-size: 2rem 2rem;
+  }
+  .dark .bg-grid-slate-100 {
+    background-image: linear-gradient(
+        hsla(0, 0%, 100%, 0.05) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to right,
+        hsla(0, 0%, 100%, 0.05) 1px,
+        hsl(var(--background)) 1px
+      );
+    background-size: 2rem 2rem;
   }
 }
