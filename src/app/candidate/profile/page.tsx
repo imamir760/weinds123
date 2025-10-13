@@ -1,12 +1,90 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from '@/components/auth/auth-provider';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+
+type ProfileData = {
+  fullName: string;
+  headline: string;
+  skills: string;
+  experience: string;
+  education: string;
+};
 
 export default function CandidateProfilePage() {
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<ProfileData>({
+    fullName: '',
+    headline: '',
+    skills: '',
+    experience: '',
+    education: '',
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      const fetchProfile = async () => {
+        const docRef = doc(db, 'candidates', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfile(docSnap.data() as ProfileData);
+        } else {
+          // If profile doesn't exist, use display name from auth
+          setProfile(prev => ({...prev, fullName: user.displayName || ''}));
+        }
+        setLoading(false);
+      };
+      fetchProfile();
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  }, [user, authLoading]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setProfile(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const docRef = doc(db, 'candidates', user.uid);
+      await setDoc(docRef, profile, { merge: true });
+      toast({
+        title: "Profile Saved",
+        description: "Your information has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Save Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (authLoading || loading) {
+    return <div className="container flex justify-center items-center py-8"><Loader2 className="w-8 h-8 animate-spin" /></div>
+  }
+
   return (
     <div className="container mx-auto py-8 px-4">
       <Card className="max-w-4xl mx-auto">
@@ -15,41 +93,44 @@ export default function CandidateProfilePage() {
           <CardDescription>Keep your profile updated to get the best job recommendations.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSave}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
-                <Input id="fullName" defaultValue="John Doe" />
+                <Input id="fullName" value={profile.fullName} onChange={handleInputChange} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue="john.doe@example.com" disabled />
+                <Input id="email" type="email" value={user?.email || ''} disabled />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="headline">Headline</Label>
-              <Input id="headline" placeholder="e.g., Aspiring Software Engineer | React & Node.js" />
+              <Input id="headline" placeholder="e.g., Aspiring Software Engineer | React & Node.js" value={profile.headline} onChange={handleInputChange} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="skills">Skills</Label>
-              <Textarea id="skills" placeholder="Enter your skills, separated by commas (e.g., JavaScript, React, Figma, SQL)" />
+              <Textarea id="skills" placeholder="Enter your skills, separated by commas (e.g., JavaScript, React, Figma, SQL)" value={profile.skills} onChange={handleInputChange} />
               <p className="text-xs text-muted-foreground">This is crucial for our AI matching engine.</p>
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="experience">Experience</Label>
-              <Textarea id="experience" placeholder="Describe your work experience." rows={5} />
+              <Textarea id="experience" placeholder="Describe your work experience." rows={5} value={profile.experience} onChange={handleInputChange} />
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="education">Education</Label>
-              <Textarea id="education" placeholder="Tell us about your educational background." />
+              <Textarea id="education" placeholder="Tell us about your educational background." value={profile.education} onChange={handleInputChange} />
             </div>
 
             <div className="flex justify-end">
-                <Button>Save Changes</Button>
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
             </div>
           </form>
         </CardContent>

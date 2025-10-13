@@ -2,7 +2,7 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "Represents a user in the system.",
+      "description": "Represents a user for authentication purposes.",
       "type": "object",
       "properties": {
         "uid": {
@@ -16,7 +16,7 @@
         },
         "displayName": {
           "type": "string",
-          "description": "The user's display name."
+          "description": "The user's display name, which could be a person's name, company name, or institution name."
         },
         "role": {
           "type": "string",
@@ -30,6 +30,43 @@
         }
       },
       "required": ["uid", "email", "role", "createdAt"]
+    },
+    "CandidateProfile": {
+      "title": "Candidate Profile",
+      "description": "Stores detailed profile information for a candidate.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "headline": { "type": "string" },
+        "skills": { "type": "string", "description": "Comma-separated skills" },
+        "experience": { "type": "string" },
+        "education": { "type": "string" }
+      }
+    },
+    "EmployerProfile": {
+      "title": "Employer Profile",
+      "description": "Stores detailed profile information for an employer.",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "website": { "type": "string", "format": "uri" },
+        "tagline": { "type": "string" },
+        "description": { "type": "string" },
+        "industry": { "type": "string" },
+        "companySize": { "type": "string" }
+      }
+    },
+    "InstituteProfile": {
+      "title": "Institute Profile",
+      "description": "Stores detailed profile information for a TPO's institution.",
+      "type": "object",
+      "properties": {
+        "institutionName": { "type": "string" },
+        "website": { "type": "string", "format": "uri" },
+        "description": { "type": "string" },
+        "tpoName": { "type": "string" },
+        "tpoEmail": { "type": "string", "format": "email" }
+      }
     },
     "Job": {
       "title": "Job",
@@ -142,7 +179,25 @@
       "schema": {
         "$ref": "#/entities/User"
       },
-      "description": "Stores public profiles for all users."
+      "description": "Stores user authentication records."
+    },
+    "/candidates/{userId}": {
+      "schema": {
+        "$ref": "#/entities/CandidateProfile"
+      },
+      "description": "Stores detailed profiles for candidate users."
+    },
+    "/employers/{userId}": {
+      "schema": {
+        "$ref": "#/entities/EmployerProfile"
+      },
+      "description": "Stores detailed profiles for employer users."
+    },
+    "/institutes/{userId}": {
+      "schema": {
+        "$ref": "#/entities/InstituteProfile"
+      },
+      "description": "Stores detailed profiles for TPO/institute users."
     },
     "/jobs/{jobId}": {
       "schema": {
