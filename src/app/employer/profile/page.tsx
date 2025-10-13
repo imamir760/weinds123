@@ -19,11 +19,11 @@ export default function CompanyProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="companyName">Company Name</Label>
-                <Input id="companyName" defaultValue="TechCorp" />
+                <Input id="companyName" defaultValue="Test LLC" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="website">Website</Label>
-                <Input id="website" type="url" defaultValue="https://techcorp.com" />
+                <Input id="website" type="url" defaultValue="https://testllc.com" />
               </div>
             </div>
 

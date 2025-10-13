@@ -7,11 +7,10 @@ export function ConditionalHeader() {
   const pathname = usePathname();
   
   const noHeaderPaths = [
-      '/candidate/dashboard',
-      '/employer/dashboard',
-      '/tpo/dashboard'
+      '/employer'
   ];
 
+  // Hide header if the current path starts with any of the paths in noHeaderPaths
   const shouldShowHeader = !noHeaderPaths.some(path => pathname.startsWith(path));
 
   return shouldShowHeader ? <Header /> : null;
