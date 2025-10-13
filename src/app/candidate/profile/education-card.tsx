@@ -16,7 +16,9 @@ type EducationCardProps = {
 export function EducationCard({ index, education, updateEducation, removeEducation }: EducationCardProps) {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
-        updateEducation(index, id as keyof Education, value);
+        // The id will be like 'institution-0', so we split it to get the field name
+        const field = id.split('-')[0] as keyof Education;
+        updateEducation(index, field, value);
     }
 
     return (
@@ -24,16 +26,16 @@ export function EducationCard({ index, education, updateEducation, removeEducati
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                     <Label htmlFor={`institution-${index}`}>Institution</Label>
-                    <Input id="institution" value={education.institution} onChange={handleInputChange} placeholder="e.g., IIT Bombay" />
+                    <Input id={`institution-${index}`} value={education.institution} onChange={handleInputChange} placeholder="e.g., IIT Bombay" />
                 </div>
                 <div className="space-y-1">
                     <Label htmlFor={`degree-${index}`}>Degree</Label>
-                    <Input id="degree" value={education.degree} onChange={handleInputChange} placeholder="e.g., B.Tech in Computer Science" />
+                    <Input id={`degree-${index}`} value={education.degree} onChange={handleInputChange} placeholder="e.g., B.Tech in Computer Science" />
                 </div>
             </div>
             <div className="mt-4 space-y-1">
                 <Label htmlFor={`year-${index}`}>Year</Label>
-                <Input id="year" value={education.year} onChange={handleInputChange} placeholder="e.g., 2020-2024" />
+                <Input id={`year-${index}`} value={education.year} onChange={handleInputChange} placeholder="e.g., 2020-2024" />
             </div>
             <Button 
                 variant="ghost" 
