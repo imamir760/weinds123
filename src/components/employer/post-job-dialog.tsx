@@ -142,7 +142,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[90vh] flex flex-col">
         {step === 1 && (
           <>
             <DialogHeader>
@@ -189,7 +189,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                       placeholder={`e.g., 'We are looking for a ${postType === 'job' ? 'software engineer' : 'marketing intern'}...'`}
                   />
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-col-reverse sm:flex-row">
                     <Button variant="outline" onClick={handleBack}>Back</Button>
                     <Button onClick={handleGenerate} disabled={loading || !unstructuredText}>
                         {loading ? <Loader2 className="mr-2 animate-spin" /> : null}
@@ -293,7 +293,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
                     </div>
                 </ScrollArea>
             </div>
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-4 flex-col-reverse sm:flex-row">
               <Button variant="outline" onClick={handleBack}>Back</Button>
               <Button>Post {postType}</Button>
             </DialogFooter>
