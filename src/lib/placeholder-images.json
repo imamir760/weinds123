@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "Diverse group of professionals collaborating in a modern office.",
+      "imageUrl": "https://picsum.photos/seed/weinds-hero/1200/800",
+      "imageHint": "professionals collaboration"
+    },
+    {
+      "id": "avatar1",
+      "description": "Portrait of a smiling woman, software engineer.",
+      "imageUrl": "https://picsum.photos/seed/weinds-avatar1/200/200",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "avatar2",
+      "description": "Portrait of a man in business casual attire.",
+      "imageUrl": "https://picsum.photos/seed/weinds-avatar2/200/200",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "avatar3",
+      "description": "Portrait of a professional woman in an office setting.",
+      "imageUrl": "https://picsum.photos/seed/weinds-avatar3/200/200",
+      "imageHint": "professional woman"
+    }
+  ]
 }
