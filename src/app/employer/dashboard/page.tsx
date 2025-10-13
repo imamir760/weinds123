@@ -69,9 +69,7 @@ function SidebarNav() {
     return (
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-[60px] items-center border-b px-6">
-            <Link href="/employer/dashboard" className="flex items-center gap-2 font-semibold">
-              <Logo />
-            </Link>
+            <Logo />
              <Button variant="ghost" size="icon" className="ml-auto h-8 w-8">
                 <Bell className="h-4 w-4" />
                 <span className="sr-only">Toggle notifications</span>
