@@ -58,14 +58,14 @@ export function Combobox({ items, value, onChange, placeholder, searchPlaceholde
                   key={item.value}
                   value={item.value}
                   onSelect={(currentValue) => {
-                    onChange(currentValue.toLowerCase() === value.toLowerCase() ? "" : currentValue)
+                    onChange(currentValue.toLowerCase() === value?.toLowerCase() ? "" : currentValue)
                     setOpen(false)
                   }}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value.toLowerCase() === item.value.toLowerCase() ? "opacity-100" : "opacity-0"
+                      value?.toLowerCase() === item.value.toLowerCase() ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {item.label}
