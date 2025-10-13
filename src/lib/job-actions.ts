@@ -18,8 +18,7 @@ export async function createJobWithPipeline(
   }
 
   const collectionName = postType === 'job' ? 'jobs' : 'internships';
-  const postCollectionRef = collection(db, collectionName);
-
+  
   const postData = {
     ...jobDetails,
     employerId: userId,
@@ -27,19 +26,26 @@ export async function createJobWithPipeline(
   };
 
   try {
-    const docRef = await addDoc(postCollectionRef, postData);
-    
-    // Create pipeline subcollection
     const batch = writeBatch(db);
-    const pipelineColRef = collection(db, collectionName, docRef.id, 'pipeline');
+
+    // 1. Create the main job/internship document
+    const postDocRef = doc(collection(db, collectionName));
+    batch.set(postDocRef, postData);
     
-    pipeline.forEach(stageConfig => {
+    // 2. Create the pipeline subcollection documents
+    const pipelineColRef = collection(db, collectionName, postDocRef.id, 'pipeline');
+    
+    pipeline.forEach((stageConfig, index) => {
         const stageDocRef = doc(pipelineColRef, stageConfig.stage);
-        batch.set(stageDocRef, { type: stageConfig.type || null, order: pipeline.indexOf(stageConfig) });
+        batch.set(stageDocRef, { 
+            type: stageConfig.type || null, 
+            order: index 
+        });
     });
 
+    // 3. Commit the batch
     await batch.commit();
-    return docRef.id;
+    return postDocRef.id;
 
   } catch (serverError) {
     const permissionError = new FirestorePermissionError({
