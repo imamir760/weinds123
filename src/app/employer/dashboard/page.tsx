@@ -88,17 +88,6 @@ export default function EmployerDashboardPage() {
               ))}
             </nav>
           </div>
-          <div className="mt-auto p-4">
-             <Card>
-                <CardHeader className="pb-4">
-                    <CardTitle>Your Profile</CardTitle>
-                    <CardDescription>Test LLC</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button size="sm" className="w-full">View Profile</Button>
-                </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
       <div className="flex flex-col">
