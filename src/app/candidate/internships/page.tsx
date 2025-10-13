@@ -15,6 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Clock, Building } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 interface Internship extends DocumentData {
   id: string;
@@ -45,9 +47,21 @@ export default function InternshipsPage() {
       let employersMap: { [key: string]: string } = {};
 
       if (employerIds.length > 0) {
-        const employerDocs = await Promise.all(employerIds.map(id => getDoc(doc(db, 'employers', id))));
+        const employerPromises = employerIds.map(id => {
+            const docRef = doc(db, 'employers', id);
+            return getDoc(docRef).catch(serverError => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'get',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                return null;
+            });
+        });
+        const employerDocs = await Promise.all(employerPromises);
+        
         employerDocs.forEach(docSnap => {
-            if (docSnap.exists()) {
+            if (docSnap && docSnap.exists()) {
                 employersMap[docSnap.id] = docSnap.data().companyName;
             }
         });
@@ -60,8 +74,12 @@ export default function InternshipsPage() {
 
       setInternships(populatedInternships);
       setLoading(false);
-    }, (error) => {
-      console.error("Error fetching internships: ", error);
+    }, (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: internshipsCollectionRef.path,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
       setLoading(false);
     });
 

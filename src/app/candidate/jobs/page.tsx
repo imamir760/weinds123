@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, doc, getDoc } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -15,11 +15,13 @@ import { Input } from '@/components/ui/input';
 import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Building } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 interface Job extends DocumentData {
   id: string;
   title: string;
-  companyName: string; // Changed from company
+  companyName: string;
   location: string;
   workMode: string;
   match: number;
@@ -40,20 +42,25 @@ export default function JobsPage() {
         ...doc.data()
       }));
 
-      // Get unique employer IDs
       const employerIds = [...new Set(jobsData.map(job => job.employerId).filter(id => id))];
-      
       let employersMap: { [key: string]: string } = {};
 
       if (employerIds.length > 0) {
-        // Fetch employer data
-        const employersQuery = collection(db, 'employers');
-        // Firestore doesn't efficiently support `in` queries with more than 10 items on web sdk for snapshots
-        // We'll fetch them individually for simplicity here, but for production, this should be optimized.
-        const employerDocs = await Promise.all(employerIds.map(id => getDoc(doc(db, 'employers', id))));
+        const employerPromises = employerIds.map(id => {
+            const docRef = doc(db, 'employers', id);
+            return getDoc(docRef).catch(serverError => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'get',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                return null;
+            });
+        });
+        const employerDocs = await Promise.all(employerPromises);
         
         employerDocs.forEach(docSnap => {
-            if (docSnap.exists()) {
+            if (docSnap && docSnap.exists()) {
                 employersMap[docSnap.id] = docSnap.data().companyName;
             }
         });
@@ -67,8 +74,12 @@ export default function JobsPage() {
 
       setJobs(populatedJobs);
       setLoading(false);
-    }, (error) => {
-      console.error("Error fetching jobs: ", error);
+    }, (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: jobsCollectionRef.path,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
       setLoading(false);
     });
 
