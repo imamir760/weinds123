@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, User, Bell, PanelLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
@@ -107,6 +107,7 @@ export default function EmployerDashboardPage() {
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-[280px] p-0">
+                    <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
                     <SidebarNav />
                 </SheetContent>
             </Sheet>
