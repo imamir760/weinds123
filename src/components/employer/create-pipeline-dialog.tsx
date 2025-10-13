@@ -17,7 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
-import { Briefcase, TestTube2, Bot, UserCheck, IndianRupee } from 'lucide-react';
+import { Briefcase, TestTube2, Bot, UserCheck, IndianRupee, Star } from 'lucide-react';
 
 const STAGE_COSTS = {
   application: 49,
@@ -26,6 +26,7 @@ const STAGE_COSTS = {
   traditional_skill_test: 49,
   ai_interview: 199,
   final_interview: 99,
+  selection: 49,
 };
 
 type PipelineStage = {
@@ -40,6 +41,7 @@ const pipelineStages: PipelineStage[] = [
     { id: 'skill_test', name: 'Skill Test', icon: <TestTube2 /> },
     { id: 'interview', name: 'Interview', icon: <Bot /> },
     { id: 'final_interview', name: 'Final Interview', icon: <UserCheck /> },
+    { id: 'selection', name: 'Selection', icon: <Star /> },
 ];
 
 
@@ -49,6 +51,8 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
   const [skillTestType, setSkillTestType] = useState<'ai' | 'traditional' | null>(null);
   const [includeAiInterview, setIncludeAiInterview] = useState(false);
   const [finalInterviewType, setFinalInterviewType] = useState<'in-person' | 'online' | null>(null);
+  const [includeSelection, setIncludeSelection] = useState(false);
+
 
   const totalCost = useMemo(() => {
     let cost = 0;
@@ -72,8 +76,13 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
         cost += STAGE_COSTS.final_interview;
     }
 
+    if (includeSelection) {
+        cost += STAGE_COSTS.selection;
+    }
+
+
     return cost;
-  }, [applicationType, skillTestType, includeAiInterview, finalInterviewType]);
+  }, [applicationType, skillTestType, includeAiInterview, finalInterviewType, includeSelection]);
 
   const handleApplicationCheck = (type: 'application' | 'invite', checked: boolean) => {
       setApplicationType(prev => {
@@ -189,6 +198,22 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
             </RadioGroup>
           </div>
         );
+       case 5: // Stage 6: Selection
+        return (
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg">Stage 6: Selection</h3>
+            <div className="flex items-center justify-between p-4 border rounded-md">
+                <div>
+                    <Label htmlFor="selection">Final Selection</Label>
+                    <p className="text-xs text-muted-foreground">Mark candidates as hired and send offer letters.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                    <Badge variant="outline">₹{STAGE_COSTS.selection}</Badge>
+                    <Switch id="selection" checked={includeSelection} onCheckedChange={setIncludeSelection} />
+                </div>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -197,6 +222,7 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
   const isNextDisabled = () => {
     if (currentStep === 0 && !applicationType.application && !applicationType.invite) return true;
     if (currentStep === 2 && !skillTestType) return true;
+    if (currentStep === 4 && !finalInterviewType) return true;
     return false;
   }
 
@@ -206,6 +232,7 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
     setSkillTestType(null);
     setIncludeAiInterview(false);
     setFinalInterviewType(null);
+    setIncludeSelection(false);
     onOpenChange(false);
   }
 
@@ -256,7 +283,7 @@ export function CreatePipelineDialog({ open, onOpenChange, jobDetails }: { open:
           {currentStep < pipelineStages.length - 1 ? (
              <Button onClick={() => setCurrentStep(currentStep + 1)} disabled={isNextDisabled()}>Next</Button>
           ) : (
-            <Button>Create Pipeline</Button>
+            <Button>Post Job</Button>
           )}
         </DialogFooter>
       </DialogContent>
