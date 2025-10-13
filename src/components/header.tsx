@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { useAuth } from './auth/auth-provider';
 
 const navLinks = [
   { href: '#features', label: 'Features' },
@@ -29,6 +30,17 @@ const navLinks = [
 
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
+  const { setOpen, setRole, setAction } = useAuth();
+
+  const handleAuthAction = (
+    role: 'candidate' | 'employer' | 'tpo',
+    action: 'login' | 'signup'
+  ) => {
+    setRole(role);
+    setAction(action);
+    setOpen(true);
+    setMenuOpen(false); // Close mobile menu if open
+  };
 
   const NavLink = ({
     href,
@@ -68,14 +80,14 @@ export function Header() {
                 <Button variant="ghost">Login</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href="/candidate/login">Candidate Login</Link>
+                <DropdownMenuItem onClick={() => handleAuthAction('candidate', 'login')}>
+                  Candidate Login
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/employer/login">Employer Login</Link>
+                <DropdownMenuItem onClick={() => handleAuthAction('employer', 'login')}>
+                  Employer Login
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/tpo/login">Institute Login</Link>
+                <DropdownMenuItem onClick={() => handleAuthAction('tpo', 'login')}>
+                  Institute Login
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -85,14 +97,14 @@ export function Header() {
                 <Button>Sign Up</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href="/candidate/signup">For Candidates</Link>
+                <DropdownMenuItem onClick={() => handleAuthAction('candidate', 'signup')}>
+                  For Candidates
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/employer/signup">For Employers</Link>
+                <DropdownMenuItem onClick={() => handleAuthAction('employer', 'signup')}>
+                  For Employers
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/tpo/signup">For Institutions</Link>
+                <DropdownMenuItem onClick={() => handleAuthAction('tpo', 'signup')}>
+                  For Institutions
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -124,25 +136,25 @@ export function Header() {
                 ))}
                 <div className="flex flex-col space-y-2 pt-4 border-t">
                   <h3 className="px-4 text-sm font-semibold text-muted-foreground">Login</h3>
-                   <Button variant="ghost" asChild className="justify-start">
-                      <Link href="/candidate/login" onClick={() => setMenuOpen(false)}>For Candidates</Link>
+                   <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('candidate', 'login')}>
+                      <div>For Candidates</div>
                     </Button>
-                     <Button variant="ghost" asChild className="justify-start">
-                      <Link href="/employer/login" onClick={() => setMenuOpen(false)}>For Employers</Link>
+                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('employer', 'login')}>
+                      <div>For Employers</div>
                     </Button>
-                     <Button variant="ghost" asChild className="justify-start">
-                      <Link href="/tpo/login" onClick={() => setMenuOpen(false)}>For Institutions</Link>
+                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('tpo', 'login')}>
+                      <div>For Institutions</div>
                     </Button>
 
                    <h3 className="px-4 text-sm font-semibold text-muted-foreground pt-4">Sign Up</h3>
-                     <Button variant="ghost" asChild className="justify-start">
-                      <Link href="/candidate/signup" onClick={() => setMenuOpen(false)}>For Candidates</Link>
+                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('candidate', 'signup')}>
+                      <div>For Candidates</div>
                     </Button>
-                     <Button variant="ghost" asChild className="justify-start">
-                      <Link href="/employer/signup" onClick={() => setMenuOpen(false)}>For Employers</Link>
+                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('employer', 'signup')}>
+                      <div>For Employers</div>
                     </Button>
-                     <Button variant="ghost" asChild className="justify-start">
-                      <Link href="/tpo/signup" onClick={() => setMenuOpen(false)}>For Institutions</Link>
+                     <Button variant="ghost" asChild className="justify-start" onClick={() => handleAuthAction('tpo', 'signup')}>
+                      <div>For Institutions</div>
                     </Button>
                 </div>
               </div>

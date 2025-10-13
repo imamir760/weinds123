@@ -1,5 +1,6 @@
-import Image from 'next/image';
-import Link from 'next/link';
+
+'use client';
+
 import {
   ArrowRight,
   Bot,
@@ -13,6 +14,8 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import Link from 'next/link';
+import { useAuth } from '@/components/auth/auth-provider';
 
 const featureList = [
   {
@@ -78,6 +81,16 @@ const testimonials = [
 ];
 
 export default function Home() {
+  const { setOpen, setRole, setAction } = useAuth();
+
+  const handleAuthAction = (
+    role: 'candidate' | 'employer' | 'tpo',
+    action: 'login' | 'signup'
+  ) => {
+    setRole(role);
+    setAction(action);
+    setOpen(true);
+  };
 
   return (
     <div className="flex flex-col">
@@ -94,17 +107,28 @@ export default function Home() {
               thinkers.
             </p>
             <div className="flex gap-4 justify-center">
-              <Button size="lg" asChild>
-                <Link href="/candidate/signup">I'm a Candidate</Link>
+              <Button
+                size="lg"
+                onClick={() => handleAuthAction('candidate', 'signup')}
+              >
+                I'm a Candidate
               </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="/employer/signup">I'm an Employer</Link>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => handleAuthAction('employer', 'signup')}
+              >
+                I'm an Employer
               </Button>
             </div>
             <div className="mt-6 text-sm">
-                <Link href="/tpo/signup" className="text-muted-foreground hover:text-primary transition-colors">
-                    Are you an Institute? Start here.
-                </Link>
+              <Button
+                variant="link"
+                onClick={() => handleAuthAction('tpo', 'signup')}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                Are you an Institute? Start here.
+              </Button>
             </div>
           </div>
         </div>
@@ -209,11 +233,9 @@ export default function Home() {
               size="lg"
               variant="secondary"
               className="bg-accent text-accent-foreground hover:bg-accent/90"
-              asChild
+              onClick={() => handleAuthAction('candidate', 'signup')}
             >
-              <Link href="/candidate/signup">
                 Sign Up Now <ArrowRight className="ml-2" />
-              </Link>
             </Button>
           </div>
         </div>
