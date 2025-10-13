@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Briefcase, GraduationCap, Loader2 } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
-import { generateJobDescription } from '@/ai/flows';
+import { generateJobDescription } from '@/ai/flows/generate-job-description';
 
 type PostType = 'job' | 'internship';
 type JobDetails = {
