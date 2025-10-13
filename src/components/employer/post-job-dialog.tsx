@@ -274,7 +274,7 @@ export function PostJobDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 
                         <div className="space-y-2">
                             <Label htmlFor="post-responsibilities">Responsibilities</Label>
-                            <Textarea id="post-responsibilities" rows={6} value={details.responsibilities || ''} onChange={(e) => setDetails({...details, responsibilities: e.target.value})} className="bg-background"/>
+                            <Textarea id="post-responsibilities" rows={8} value={details.responsibilities || ''} onChange={(e) => setDetails({...details, responsibilities: e.target.value})} className="bg-background"/>
                              <p className="text-xs text-muted-foreground">One responsibility per line, numbered.</p>
                         </div>
                         <div className="space-y-2">
