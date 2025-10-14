@@ -205,7 +205,7 @@
             "candidateHeadline": { "type": "string" },
             "candidateSkills": { "type": "array", "items": { "type": "string" } }
         },
-        "required": ["candidateId", "employerId", "postId", "postType", "postTitle", "companyName", "appliedOn", "status"]
+        "required": ["candidateId", "employerId", "postId", "postType", "postTitle", "companyName", "appliedOn", "status", "candidateName", "candidateEmail"]
     }
   },
   "auth": {

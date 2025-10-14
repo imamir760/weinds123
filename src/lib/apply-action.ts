@@ -67,7 +67,7 @@ export async function applyToAction(
   
   const applicationsCollectionRef = collection(db, 'applications');
   
-  addDoc(collectionRef, applicationData).catch(serverError => {
+  addDoc(applicationsCollectionRef, applicationData).catch(serverError => {
     const permissionError = new FirestorePermissionError({
         path: '/applications',
         operation: 'create',
