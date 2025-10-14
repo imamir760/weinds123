@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, getDoc, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, DocumentData, query, where } from 'firebase/firestore';
 import {
   Card,
   CardContent,
