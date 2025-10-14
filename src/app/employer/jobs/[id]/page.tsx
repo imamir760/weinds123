@@ -32,7 +32,7 @@ type PostDetails = DocumentData & {
 type Applicant = DocumentData & {
   id: string; 
   candidateId: string;
-  currentStage: string;
+  status: string;
   fullName?: string;
   headline?: string;
   avatar?: string;
@@ -198,7 +198,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
                     fullName: profile.fullName || 'Unknown Candidate',
                     headline: profile.headline || 'No headline',
                     avatar: profile.fullName?.charAt(0) || 'U',
-                    currentStage: appData.status || 'Applied',
+                    status: appData.status || 'Applied',
                     matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75), // Placeholder
                 } as Applicant;
             });
@@ -229,7 +229,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
   const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
     const rawStageName = stageNameFromPipelineConfig.split(' ')[0].toLowerCase().replace(/_/g, ' ');
-    return applicants.filter(app => (app.currentStage || 'Applied').toLowerCase().replace(/_/g, ' ') === rawStageName);
+    return applicants.filter(app => (app.status || 'Applied').toLowerCase().replace(/_/g, ' ') === rawStageName);
   };
 
   const handleStageClick = (stageConfig: Stage) => {
