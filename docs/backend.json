@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -44,11 +45,59 @@
           "description": "An array of the candidate's skills.",
           "items": { "type": "string" }
         },
-        "experience": { "type": "string" },
-        "education": { "type": "string" },
+        "experience": { 
+          "type": "array",
+          "description": "A list of the candidate's work experiences.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "jobTitle": { "type": "string" },
+              "company": { "type": "string" },
+              "duration": { "type": "string" }
+            }
+          }
+        },
+        "education": { 
+          "type": "array",
+          "description": "A list of the candidate's educational qualifications.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "institution": { "type": "string" },
+              "degree": { "type": "string" },
+              "year": { "type": "string" }
+            }
+          }
+        },
         "location": { "type": "string" },
         "employmentStatus": { "type": "string", "enum": ["Fresher", "Working", "Studying"] },
-        "preference": { "type": "string", "enum": ["Job", "Internship", "Both"] }
+        "preference": { "type": "string", "enum": ["Job", "Internship", "Both"] },
+        "achievements": { 
+          "type": "array", 
+          "description": "A list of the candidate's achievements.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "projects": { 
+          "type": "array",
+          "description": "A list of the candidate's projects.",
+           "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "url": { "type": "string", "format": "uri" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "phone": { "type": "string" },
+        "githubUrl": { "type": "string", "format": "uri" },
+        "linkedinUrl": { "type": "string", "format": "uri" },
+        "portfolioUrl": { "type": "string", "format": "uri" }
       }
     },
     "EmployerProfile": {
@@ -82,50 +131,18 @@
       "description": "Represents a job posting.",
       "type": "object",
       "properties": {
-        "title": {
-          "type": "string",
-          "description": "The title of the job."
-        },
-        "responsibilities": {
-            "type": "string",
-            "description": "The responsibilities of the job."
-        },
-        "skills": {
-          "type": "string",
-          "description": "A comma-separated list of required skills."
-        },
-        "experience": {
-            "type": "string",
-            "description": "Required years of experience."
-        },
-        "salary": {
-          "type": "string",
-          "description": "The salary for the job."
-        },
-        "location": {
-            "type": "string",
-            "description": "The location of the job."
-        },
-        "workMode": {
-            "type": "string",
-            "enum": ["Remote", "Hybrid", "On-site"]
-        },
-        "education": {
-            "type": "string",
-            "description": "The education requirements for the job."
-        },
-        "employerId": {
-          "type": "string",
-          "description": "The UID of the employer who posted the job."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the job was created."
-        },
+        "title": { "type": "string" },
+        "responsibilities": { "type": "string" },
+        "skills": { "type": "string" },
+        "experience": { "type": "string" },
+        "salary": { "type": "string" },
+        "location": { "type": "string" },
+        "workMode": { "type": "string", "enum": ["Remote", "Hybrid", "On-site"] },
+        "education": { "type": "string" },
+        "employerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
         "pipeline": {
             "type": "array",
-            "description": "The configured hiring pipeline stages.",
             "items": {
                 "type": "object",
                 "properties": {
@@ -142,54 +159,19 @@
       "description": "Represents an internship posting.",
       "type": "object",
       "properties": {
-        "title": {
-          "type": "string",
-          "description": "The title of the internship."
-        },
-        "responsibilities": {
-            "type": "string",
-            "description": "The responsibilities of the internship."
-        },
-        "skills": {
-          "type": "string",
-          "description": "A comma-separated list of required skills."
-        },
-        "experience": {
-            "type": "string",
-            "description": "Required years of experience."
-        },
-        "stipend": {
-            "type": "string",
-            "description": "The monthly stipend for the internship."
-        },
-        "duration": {
-            "type": "string",
-            "description": "The duration of the internship (e.g., '3 months')."
-        },
-        "location": {
-            "type": "string",
-            "description": "The location of the internship."
-        },
-        "workMode": {
-            "type": "string",
-            "enum": ["Remote", "Hybrid", "On-site"]
-        },
-        "education": {
-            "type": "string",
-            "description": "The education requirements for the internship."
-        },
-        "employerId": {
-          "type": "string",
-          "description": "The UID of the employer who posted the internship."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the internship was created."
-        },
+        "title": { "type": "string" },
+        "responsibilities": { "type": "string" },
+        "skills": { "type": "string" },
+        "experience": { "type": "string" },
+        "stipend": { "type": "string" },
+        "duration": { "type": "string" },
+        "location": { "type": "string" },
+        "workMode": { "type": "string", "enum": ["Remote", "Hybrid", "On-site"] },
+        "education": { "type": "string" },
+        "employerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
         "pipeline": {
             "type": "array",
-            "description": "The configured hiring pipeline stages.",
             "items": {
                 "type": "object",
                 "properties": {
@@ -200,6 +182,30 @@
         }
       },
       "required": ["title", "responsibilities", "skills", "employerId", "createdAt"]
+    },
+    "Application": {
+        "title": "Application",
+        "description": "Represents a candidate's application for a job or internship.",
+        "type": "object",
+        "properties": {
+            "postId": { "type": "string" },
+            "postTitle": { "type": "string" },
+            "companyName": { "type": "string" },
+            "appliedOn": { "type": "string", "format": "date-time" },
+            "status": { "type": "string" }
+        },
+        "required": ["postId", "postTitle", "companyName", "appliedOn", "status"]
+    },
+    "Applicant": {
+        "title": "Applicant",
+        "description": "Represents an applicant for a job or internship.",
+        "type": "object",
+        "properties": {
+            "candidateId": { "type": "string" },
+            "appliedOn": { "type": "string", "format": "date-time" },
+            "currentStage": { "type": "string" }
+        },
+        "required": ["candidateId", "appliedOn", "currentStage"]
     }
   },
   "auth": {
@@ -207,34 +213,40 @@
   },
   "firestore": {
     "/candidates/{userId}": {
-      "schema": {
-        "$ref": "#/entities/CandidateProfile"
-      },
+      "schema": { "$ref": "#/entities/CandidateProfile" },
       "description": "Stores detailed profiles for candidate users."
     },
+    "/candidates/{userId}/jobApplications/{jobId}": {
+      "schema": { "$ref": "#/entities/Application" },
+      "description": "Stores a candidate's applications to jobs."
+    },
+     "/candidates/{userId}/internshipApplications/{internshipId}": {
+      "schema": { "$ref": "#/entities/Application" },
+      "description": "Stores a candidate's applications to internships."
+    },
     "/employers/{userId}": {
-      "schema": {
-        "$ref": "#/entities/EmployerProfile"
-      },
+      "schema": { "$ref": "#/entities/EmployerProfile" },
       "description": "Stores detailed profiles for employer users."
     },
     "/institutes/{userId}": {
-      "schema": {
-        "$ref": "#/entities/InstituteProfile"
-      },
+      "schema": { "$ref": "#/entities/InstituteProfile" },
       "description": "Stores detailed profiles for TPO/institute users."
     },
     "/jobs/{jobId}": {
-      "schema": {
-        "$ref": "#/entities/Job"
-      },
+      "schema": { "$ref": "#/entities/Job" },
       "description": "Stores all job postings."
     },
+     "/jobs/{jobId}/applicants/{candidateId}": {
+      "schema": { "$ref": "#/entities/Applicant" },
+      "description": "Stores applicants for a specific job."
+    },
     "/internships/{internshipId}": {
-        "schema": {
-            "$ref": "#/entities/Internship"
-        },
+        "schema": { "$ref": "#/entities/Internship" },
         "description": "Stores all internship postings."
+    },
+    "/internships/{internshipId}/applicants/{candidateId}": {
+      "schema": { "$ref": "#/entities/Applicant" },
+      "description": "Stores applicants for a specific internship."
     }
   }
 }

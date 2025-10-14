@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Clock, Building, PlusCircle, Sparkles, ChevronsRight } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Clock, Building, PlusCircle, Sparkles, ChevronsRight, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -21,7 +21,8 @@ import { FirestorePermissionError } from '@/lib/errors';
 import { useAuth } from '@/components/auth/auth-provider';
 import { matchJobCandidate } from '@/ai/flows';
 import { Badge } from '@/components/ui/badge';
-
+import { applyToAction } from '@/lib/apply-action';
+import { useToast } from '@/hooks/use-toast';
 
 interface Internship extends DocumentData {
   id: string;
@@ -42,9 +43,22 @@ interface Internship extends DocumentData {
 
 export default function InternshipsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [internships, setInternships] = useState<Internship[]>([]);
   const [loading, setLoading] = useState(true);
   const [matching, setMatching] = useState(false);
+  const [appliedInternships, setAppliedInternships] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      const appliedInternshipsRef = collection(db, 'candidates', user.uid, 'internshipApplications');
+      const unsubscribeApplied = onSnapshot(appliedInternshipsRef, (snapshot) => {
+        const appliedIds = snapshot.docs.map(doc => doc.id);
+        setAppliedInternships(appliedIds);
+      });
+      return () => unsubscribeApplied();
+    }
+  }, [user]);
 
   useEffect(() => {
     const internshipsCollectionRef = collection(db, 'internships');
@@ -106,19 +120,16 @@ export default function InternshipsPage() {
                 return;
             }
             
-            // Process internships one by one
             for (const internship of internships) {
-                // Check if the current internship in the state has already been matched
                 const currentInternshipState = internships.find(j => j.id === internship.id);
                 if (currentInternshipState && currentInternshipState.matchScore !== undefined) {
-                    continue; // Skip if already matched
+                    continue; 
                 }
 
                 try {
                     const jobDescription = `Title: ${internship.title}\nResponsibilities: ${internship.responsibilities}\nSkills: ${internship.skills}`;
                     const result = await matchJobCandidate({ candidateProfile, jobDescription });
                     
-                    // Update only the specific internship with the new AI data
                     setInternships(prevInternships => 
                         prevInternships.map(j => 
                             j.id === internship.id ? { ...j, ...result } : j
@@ -126,10 +137,9 @@ export default function InternshipsPage() {
                     );
                 } catch (error) {
                     console.error(`Failed to get match for internship ${internship.id}`, error);
-                    // Optionally update the job to indicate an error
                     setInternships(prevInternships => 
                         prevInternships.map(j => 
-                            j.id === internship.id ? { ...j, matchScore: -1 } : j // Use -1 to indicate error
+                            j.id === internship.id ? { ...j, matchScore: -1 } : j
                         )
                     );
                 }
@@ -139,15 +149,32 @@ export default function InternshipsPage() {
         };
         runMatching();
     }
-  }, [user, internships]); // Rerun when internships list changes
+  }, [user, internships, matching]);
 
   const getPipelineStageName = (stage: { stage: string, type?: string }) => {
     const stageName = stage.stage.replace(/_/g, ' ');
     if (stage.type) {
-      return `${stageName} (${stage.type.replace(/_/g, ' ')})`;
+      const typeName = stage.type.replace(/_/g, ' ');
+      return `${stageName} (${typeName})`;
     }
     return stageName;
   };
+  
+  const handleApply = (internship: Internship) => {
+    if (user) {
+      applyToAction('internship', internship.id, internship.title, internship.companyName, user.uid);
+      toast({
+        title: "Application Sent!",
+        description: `You have successfully applied for ${internship.title}.`,
+      });
+    } else {
+       toast({
+        title: "Please log in",
+        description: `You need to be logged in to apply.`,
+        variant: "destructive",
+      });
+    }
+  }
 
 
   const PageContent = (
@@ -249,9 +276,11 @@ export default function InternshipsPage() {
 
                            <div className="flex flex-col md:flex-row justify-end items-center mt-6 border-t pt-4">
                                 <div className="flex gap-2">
-                                    <Button asChild>
-                                        <Link href={`/candidate/internships/${internship.id}`}>Apply Now</Link>
-                                    </Button>
+                                    {appliedInternships.includes(internship.id) ? (
+                                        <Button disabled variant="outline"><CheckCircle className="mr-2"/> Applied</Button>
+                                    ) : (
+                                        <Button onClick={() => handleApply(internship)}>Apply Now</Button>
+                                    )}
                                      <Button asChild variant="outline">
                                         <Link href={`/candidate/internships/${internship.id}`}>View Details</Link>
                                     </Button>

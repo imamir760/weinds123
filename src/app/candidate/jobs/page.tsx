@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Building, PlusCircle, Sparkles, ChevronsRight } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Building, PlusCircle, Sparkles, ChevronsRight, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -21,7 +21,8 @@ import { FirestorePermissionError } from '@/lib/errors';
 import { useAuth } from '@/components/auth/auth-provider';
 import { matchJobCandidate } from '@/ai/flows';
 import { Badge } from '@/components/ui/badge';
-
+import { applyToAction } from '@/lib/apply-action';
+import { useToast } from '@/hooks/use-toast';
 
 interface Job extends DocumentData {
   id: string;
@@ -41,9 +42,22 @@ interface Job extends DocumentData {
 
 export default function JobsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [matching, setMatching] = useState(false);
+  const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      const appliedJobsRef = collection(db, 'candidates', user.uid, 'jobApplications');
+      const unsubscribeApplied = onSnapshot(appliedJobsRef, (snapshot) => {
+        const appliedIds = snapshot.docs.map(doc => doc.id);
+        setAppliedJobs(appliedIds);
+      });
+      return () => unsubscribeApplied();
+    }
+  }, [user]);
 
   useEffect(() => {
     const jobsCollectionRef = collection(db, 'jobs');
@@ -105,19 +119,16 @@ export default function JobsPage() {
                 return;
             }
             
-            // Process jobs one by one
             for (const job of jobs) {
-                // Check if the current job in the state has already been matched
                 const currentJobState = jobs.find(j => j.id === job.id);
                 if (currentJobState && currentJobState.matchScore !== undefined) {
-                    continue; // Skip if already matched
+                    continue; 
                 }
 
                 try {
                     const jobDescription = `Title: ${job.title}\nResponsibilities: ${job.responsibilities}\nSkills: ${job.skills}`;
                     const result = await matchJobCandidate({ candidateProfile, jobDescription });
                     
-                    // Update only the specific job with the new AI data
                     setJobs(prevJobs => 
                         prevJobs.map(j => 
                             j.id === job.id ? { ...j, ...result } : j
@@ -125,10 +136,9 @@ export default function JobsPage() {
                     );
                 } catch (error) {
                     console.error(`Failed to get match for job ${job.id}`, error);
-                    // Optionally update the job to indicate an error
                     setJobs(prevJobs => 
                         prevJobs.map(j => 
-                            j.id === job.id ? { ...j, matchScore: -1 } : j // Use -1 to indicate error
+                            j.id === job.id ? { ...j, matchScore: -1 } : j
                         )
                     );
                 }
@@ -138,15 +148,32 @@ export default function JobsPage() {
         };
         runMatching();
     }
-}, [user, jobs]); // Rerun when jobs list changes
+}, [user, jobs, matching]);
 
   const getPipelineStageName = (stage: { stage: string, type?: string }) => {
     const stageName = stage.stage.replace(/_/g, ' ');
     if (stage.type) {
-      return `${stageName} (${stage.type.replace(/_/g, ' ')})`;
+      const typeName = stage.type.replace(/_/g, ' ');
+      return `${stageName} (${typeName})`;
     }
     return stageName;
   };
+  
+  const handleApply = (job: Job) => {
+    if (user) {
+      applyToAction('job', job.id, job.title, job.companyName, user.uid);
+      toast({
+        title: "Application Sent!",
+        description: `You have successfully applied for ${job.title}.`,
+      });
+    } else {
+       toast({
+        title: "Please log in",
+        description: `You need to be logged in to apply.`,
+        variant: "destructive",
+      });
+    }
+  }
 
 
   const PageContent = (
@@ -247,9 +274,11 @@ export default function JobsPage() {
 
                             <div className="flex flex-col md:flex-row justify-end items-center mt-6 border-t pt-4">
                                 <div className="flex gap-2">
-                                    <Button asChild>
-                                        <Link href={`/candidate/jobs/${job.id}`}>Apply Now</Link>
-                                    </Button>
+                                    {appliedJobs.includes(job.id) ? (
+                                        <Button disabled variant="outline"><CheckCircle className="mr-2"/> Applied</Button>
+                                    ) : (
+                                        <Button onClick={() => handleApply(job)}>Apply Now</Button>
+                                    )}
                                      <Button asChild variant="outline">
                                         <Link href={`/candidate/jobs/${job.id}`}>View Details</Link>
                                     </Button>
