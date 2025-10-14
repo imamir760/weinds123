@@ -83,13 +83,11 @@ export default function CompaniesPage() {
         }
 
       } catch (error: any) {
-        console.error("Failed to fetch companies and jobs", error);
-        
         let path = '/jobs or /internships';
         if (error.message.includes('employers')) {
             path = '/employers';
         }
-
+        
         const permissionError = new FirestorePermissionError({
             path: path,
             operation: 'list',
