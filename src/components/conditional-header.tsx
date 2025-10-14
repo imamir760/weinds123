@@ -13,6 +13,7 @@ export function ConditionalHeader() {
       '/candidate/jobs',
       '/candidate/internships',
       '/candidate/settings',
+      '/candidate/skill-tests',
       '/tpo/dashboard',
       '/tpo/placements',
       '/tpo/companies',

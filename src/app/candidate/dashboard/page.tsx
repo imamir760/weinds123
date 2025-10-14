@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, FileText, Settings, LogOut, User, Search, Menu, GraduationCap, Building } from 'lucide-react';
+import { Briefcase, FileText, Settings, LogOut, User, Search, Menu, GraduationCap, Building, TestTube2 } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -25,6 +25,7 @@ const navigation = [
   { name: 'My Applications', href: '/candidate/applications', icon: FileText },
   { name: 'Find Jobs', href: '/candidate/jobs', icon: Search },
   { name: 'Find Internships', href: '/candidate/internships', icon: GraduationCap },
+  { name: 'Skill Tests', href: '/candidate/skill-tests', icon: TestTube2 },
   { name: 'Settings', href: '/candidate/settings', icon: Settings },
 ];
 
