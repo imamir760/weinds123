@@ -55,7 +55,7 @@ export default function AllCandidatesPage() {
 
                 const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
                     getDocs(jobsQuery),
-                    getDocs(internshipsSnapshot)
+                    getDocs(internshipsQuery)
                 ]);
 
                 const allPosts = [
