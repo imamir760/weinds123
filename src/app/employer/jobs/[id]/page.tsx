@@ -54,7 +54,8 @@ const getStageName = (stage: Stage) => {
     return stageName;
 };
 
-export default function JobPipelinePage({ params: { id: jobId } }: { params: { id: string } }) {
+export default function JobPipelinePage({ params }: { params: { id: string } }) {
+  const jobId = params.id;
   const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,8 +156,8 @@ export default function JobPipelinePage({ params: { id: jobId } }: { params: { i
 
             <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4">
             {jobDetails.pipeline.map(stage => {
-                if (!stage || !stage.name) return null;
                 const stageName = getStageName(stage);
+                if (!stageName) return null;
                 const candidatesInStage = groupedApplicants[stageName] || [];
                 return (
                     <div key={stageName} className="w-80 flex-shrink-0">
