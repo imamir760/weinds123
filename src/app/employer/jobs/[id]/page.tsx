@@ -79,10 +79,12 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
                                                 <p className="text-xs text-muted-foreground">{candidate.headline}</p>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1 text-primary font-bold text-sm">
-                                            <Star className="w-4 h-4 fill-primary"/>
-                                            {candidate.matchScore}% Match
-                                        </div>
+                                        {candidate.matchScore && (
+                                            <div className="flex items-center gap-1 text-primary font-bold text-sm">
+                                                <Star className="w-4 h-4 fill-primary"/>
+                                                {candidate.matchScore}% Match
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex justify-between items-center border-t pt-3">
                                         <Button asChild variant="outline" size="sm">
@@ -120,12 +122,12 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
   useEffect(() => {
     if (!postId) return;
 
-    let isCancelled = false;
-
     const fetchPostAndApplicants = async (user: FirebaseUser) => {
         setLoading(true);
+        let isCancelled = false;
+
         try {
-            // Step 1: Fetch the main post document (job or internship)
+            // Step 1: Determine post type and fetch post details
             let postSnap;
             let postType: 'job' | 'internship' | null = null;
             const jobRef = doc(db, 'jobs', postId);
@@ -135,9 +137,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             } else {
                 const internshipRef = doc(db, 'internships', postId);
                 postSnap = await getDoc(internshipRef);
-                if (postSnap.exists()) {
-                    postType = 'internship';
-                }
+                if (postSnap.exists()) postType = 'internship';
             }
 
             if (isCancelled || !postSnap.exists() || !postType) {
@@ -148,33 +148,31 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
             if (isCancelled) return;
             setPostDetails(postData);
-            
-            // Step 2: Check ownership
+
+            // Step 2: Verify ownership
             const owner = user.uid === postData.employerId;
             setIsOwner(owner);
             if (!owner) return;
 
-            // Step 3: Fetch applicants using a collectionGroup query
-            const applicationCollectionName = postType === 'job' ? 'jobApplications' : 'internshipApplications';
-            const applicationsQuery = query(collectionGroup(db, applicationCollectionName), where('postId', '==', postId));
-            
-            const applicationsSnapshot = await getDocs(applicationsQuery).catch(serverError => {
-                 const permissionError = new FirestorePermissionError({
-                    path: `/${applicationCollectionName} (collectionGroup)`,
+            // Step 3: Fetch applicants from the subcollection
+            const applicantsCollectionRef = collection(db, postType, postId, 'applicants');
+            const applicantsSnap = await getDocs(applicantsCollectionRef).catch(serverError => {
+                const permissionError = new FirestorePermissionError({
+                    path: applicantsCollectionRef.path,
                     operation: 'list',
                 });
                 errorEmitter.emit('permission-error', permissionError);
                 throw permissionError;
             });
+            
+            const applicantDocsData = applicantsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            const applicantIds = applicationsSnapshot.docs.map(doc => doc.ref.parent.parent!.id);
-            const applicantDocsData = applicationsSnapshot.docs.map(doc => doc.data());
-
-
-            if (applicantIds.length === 0) {
+            if (applicantDocsData.length === 0) {
                 if (!isCancelled) setApplicants([]);
                 return;
             }
+
+            const applicantIds = applicantDocsData.map(app => app.id);
 
             // Step 4: Fetch candidate profiles for the applicants
             const candidatePromises = applicantIds.map(id => getDoc(doc(db, 'candidates', id)).catch(serverError => {
@@ -186,14 +184,14 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
             const mergedApplicants = candidateSnaps.map((snap, index) => {
                 const profile = snap?.exists() ? snap.data() : {};
-                const applicationData = applicantDocsData[index];
+                const applicantData = applicantDocsData[index];
                 return {
                     id: snap?.id || applicantIds[index],
                     candidateId: snap?.id || applicantIds[index],
                     fullName: profile.fullName || 'Unknown Candidate',
                     headline: profile.headline || 'No headline',
                     avatar: profile.fullName?.charAt(0) || 'U',
-                    currentStage: applicationData.status || 'Applied',
+                    currentStage: applicantData.currentStage || 'Applied',
                     matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75), // Placeholder
                 } as Applicant;
             });
@@ -220,7 +218,6 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
     });
 
     return () => {
-      isCancelled = true;
       unsubscribe();
     };
   }, [postId]);
