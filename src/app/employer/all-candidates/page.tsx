@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -9,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import EmployerDashboardPage from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
@@ -33,7 +32,6 @@ interface Applicant {
     candidateName?: string;
     candidateEmail?: string;
     candidateSkills?: string[];
-    candidateAvatar?: string;
 }
 
 export default function AllCandidatesPage() {
@@ -57,7 +55,7 @@ export default function AllCandidatesPage() {
 
                 const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
                     getDocs(jobsQuery),
-                    getDocs(internshipsQuery)
+                    getDocs(internshipsSnapshot)
                 ]);
 
                 const posts = [
