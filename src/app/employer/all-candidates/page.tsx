@@ -38,12 +38,15 @@ export default function AllCandidatesPage() {
     const [allApplicants, setAllApplicants] = useState<Applicant[]>([]);
 
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
 
         const fetchAllApplicants = async () => {
             setLoading(true);
             try {
-                // 1. Fetch all jobs and internships for the employer
+                // Step 1: Fetch all jobs and internships for the employer
                 const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
                 const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
 
@@ -63,13 +66,13 @@ export default function AllCandidatesPage() {
                     return;
                 }
 
-                // 2. For each post, create a promise to fetch its applicants
+                // Step 2: For each post, create a promise to fetch its applicants
                 const applicantPromises = posts.map(post => {
                     const applicantsCollectionRef = collection(db, post.type === 'job' ? 'jobs' : 'internships', post.id, 'applicants');
                     return getDocs(applicantsCollectionRef).then(snapshot => 
                         snapshot.docs.map(d => ({
                             ...d.data(),
-                            candidateId: d.id,
+                            candidateId: d.id, // The applicant doc ID is the candidate's UID
                             postId: post.id,
                             postTitle: post.title,
                             postType: post.type,
@@ -80,12 +83,18 @@ export default function AllCandidatesPage() {
                 const applicantsByPost = await Promise.all(applicantPromises);
                 const allApplicantsFlat = applicantsByPost.flat();
                 
-                // 3. Gather unique candidate IDs
+                if (allApplicantsFlat.length === 0) {
+                    setAllApplicants([]);
+                    setLoading(false);
+                    return;
+                }
+                
+                // Step 3: Gather unique candidate IDs
                 const candidateIds = [...new Set(allApplicantsFlat.map(app => app.candidateId))];
 
-                // 4. Fetch unique candidate profiles
+                // Step 4: Fetch unique candidate profiles
                 const candidateProfiles = new Map<string, DocumentData>();
-                if (candidateIds.length > 0) {
+                 if (candidateIds.length > 0) {
                      const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)));
                      const candidateSnapshots = await Promise.all(candidatePromises);
                      candidateSnapshots.forEach(snap => {
@@ -95,7 +104,7 @@ export default function AllCandidatesPage() {
                      });
                 }
             
-                // 5. Combine data
+                // Step 5: Combine data
                 const combinedApplicants = allApplicantsFlat.map(app => {
                     const profile = candidateProfiles.get(app.candidateId);
                     return {
@@ -110,7 +119,7 @@ export default function AllCandidatesPage() {
 
             } catch (error) {
                 console.error("Failed to fetch all applicants:", error);
-                setAllApplicants([]); // Set to empty on error
+                setAllApplicants([]); // Set to empty on error to reflect failure
             } finally {
                 setLoading(false);
             }
@@ -179,7 +188,7 @@ export default function AllCandidatesPage() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button asChild variant="outline" size="sm">
-                                            <Link href={`/employer/jobs/${app.postId}/candidates/${app.candidateId}`}>View Profile</Link>
+                                            <Link href={`/employer/${app.postType}s/${app.postId}/candidates/${app.candidateId}`}>View Profile</Link>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
