@@ -28,7 +28,7 @@ type Applicant = DocumentData & {
   fullName?: string;
   headline?: string;
   avatar?: string;
-  matchScore?: number;
+  matchScore?: number; // Placeholder
 };
 
 export default function ViewApplicantsPage({ params }: { params: { id: string } }) {
@@ -90,29 +90,32 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
         }
         
         const candidateIds = applicationsData.map(app => app.candidateId).filter(Boolean);
-        if (candidateIds.length === 0) {
+        const uniqueCandidateIds = [...new Set(candidateIds)];
+        
+        if (uniqueCandidateIds.length === 0) {
              setApplicants([]);
              setLoading(false);
              return;
         }
         
-        const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)).catch(serverError => {
+        const candidatePromises = uniqueCandidateIds.map(id => getDoc(doc(db, 'candidates', id)).catch(serverError => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' }));
             return null;
         }));
 
         const candidateSnaps = await Promise.all(candidatePromises);
 
-        const mergedApplicants = candidateSnaps.map((snap, index) => {
-            const profile = snap?.exists() ? snap.data() : {};
-            const appData = applicationsData.find(app => app.candidateId === snap?.id);
+        const candidateProfiles = new Map(candidateSnaps.filter(snap => snap?.exists()).map(snap => [snap!.id, snap!.data()]));
+
+        const mergedApplicants = applicationsData.map(app => {
+            const profile = candidateProfiles.get(app.candidateId) || {};
             return {
-                id: snap?.id || candidateIds[index],
-                candidateId: snap?.id || candidateIds[index],
-                fullName: profile.fullName || 'Unknown Candidate',
+                id: app.candidateId,
+                candidateId: app.candidateId,
+                fullName: profile.fullName || app.candidateName || 'Unknown Candidate',
                 headline: profile.headline || 'No headline',
-                avatar: profile.fullName?.charAt(0) || 'U',
-                status: appData?.status || 'Applied',
+                avatar: (profile.fullName || app.candidateName)?.charAt(0) || 'U',
+                status: app.status || 'Applied',
                 matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75), // Placeholder
             } as Applicant;
         });

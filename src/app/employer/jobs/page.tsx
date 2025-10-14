@@ -24,7 +24,7 @@ import { format } from 'date-fns';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
-type Post = DocumentData & { id: string, type: 'Job' | 'Internship', applicantCount: number, status: string };
+type Post = DocumentData & { id: string; type: 'Job' | 'Internship'; applicantCount: number; status: string; title: string, createdAt: Timestamp };
 
 export default function EmployerJobsPage() {
   const { user } = useAuth();
@@ -62,28 +62,34 @@ export default function EmployerJobsPage() {
         let allPosts = [...jobsData, ...internshipsData];
 
         if (allPosts.length > 0) {
-            const postIds = allPosts.map(p => p.id);
-            const applicationsQuery = query(collection(db, 'applications'), where('postId', 'in', postIds));
-            const applicationsSnapshot = await getDocs(applicationsQuery).catch(e => {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list' }));
-                return null;
-            });
-            
-            if (applicationsSnapshot) {
-                const applicantCounts = new Map<string, number>();
-                applicationsSnapshot.docs.forEach(doc => {
-                    const postId = doc.data().postId;
-                    applicantCounts.set(postId, (applicantCounts.get(postId) || 0) + 1);
-                });
+          // Firestore 'in' queries are limited to 30 items. We need to chunk the requests.
+          const postIds = allPosts.map(p => p.id);
+          const applicantCounts = new Map<string, number>();
 
-                allPosts = allPosts.map(post => ({
-                    ...post,
-                    applicantCount: applicantCounts.get(post.id) || 0
-                }));
-            }
+          const CHUNK_SIZE = 30;
+          for (let i = 0; i < postIds.length; i += CHUNK_SIZE) {
+              const chunk = postIds.slice(i, i + CHUNK_SIZE);
+              const applicationsQuery = query(collection(db, 'applications'), where('postId', 'in', chunk), where('employerId', '==', user.uid));
+              const applicationsSnapshot = await getDocs(applicationsQuery).catch(e => {
+                  errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list' }));
+                  return null;
+              });
+              
+              if (applicationsSnapshot) {
+                  applicationsSnapshot.docs.forEach(doc => {
+                      const postId = doc.data().postId;
+                      applicantCounts.set(postId, (applicantCounts.get(postId) || 0) + 1);
+                  });
+              }
+          }
+
+            allPosts = allPosts.map(post => ({
+                ...post,
+                applicantCount: applicantCounts.get(post.id) || 0
+            }));
         }
         
-        setPosts(allPosts);
+        setPosts(allPosts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
 
       } catch (error) {
         console.error("Error fetching posts:", error);
@@ -160,7 +166,7 @@ export default function EmployerJobsPage() {
                                 <TableCell>
                                     <Badge variant="secondary">{post.status || 'Active'}</Badge>
                                 </TableCell>
-                                <TableCell>{post.applicantCount || 0}</TableCell>
+                                <TableCell>{post.applicantCount}</TableCell>
                                 <TableCell className="text-right space-x-2">
                                      <Button asChild variant="outline" size="sm">
                                         <Link href={`/employer/jobs/${post.id}`}>View Applicants</Link>
