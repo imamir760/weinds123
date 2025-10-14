@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import EmployerDashboardPage from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc, DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, DocumentData, Timestamp } from 'firebase/firestore';
 import { Loader2, Briefcase, GraduationCap } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -25,15 +25,15 @@ import { Label } from '@/components/ui/label';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
-interface Applicant {
+interface Applicant extends DocumentData {
     candidateId: string;
     appliedOn: Timestamp;
     status: string;
     postTitle: string;
     postId: string;
     postType: 'job' | 'internship';
-    candidateName?: string;
-    candidateEmail?: string;
+    candidateName: string;
+    candidateEmail: string;
 }
 
 export default function AllCandidatesPage() {
@@ -65,43 +65,10 @@ export default function AllCandidatesPage() {
                     return;
                 }
                 
-                const applicationsData = applicationsSnapshot.docs.map(d => ({ ...d.data() }) as Applicant);
+                const applicationsData = applicationsSnapshot.docs.map(d => ({ ...d.data() }) as Applicant)
+                    .sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
 
-                if (applicationsData.length === 0) {
-                    setAllApplicants([]);
-                    setLoading(false);
-                    return;
-                }
-                
-                const candidateIds = [...new Set(applicationsData.map(app => app.candidateId))];
-                const candidateProfiles = new Map<string, DocumentData>();
-
-                if (candidateIds.length > 0) {
-                    const candidatePromises = candidateIds.map(id => {
-                        const candidateDocRef = doc(db, 'candidates', id);
-                        return getDoc(candidateDocRef).catch(serverError => {
-                            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: candidateDocRef.path, operation: 'get' }));
-                            return null;
-                        })
-                    });
-                    const candidateSnapshots = await Promise.all(candidatePromises);
-                    candidateSnapshots.forEach(snap => {
-                        if(snap && snap.exists()) {
-                           candidateProfiles.set(snap.id, snap.data());
-                        }
-                    });
-                }
-                
-                const finalApplicants = applicationsData.map(app => {
-                    const profile = candidateProfiles.get(app.candidateId);
-                    return {
-                        ...app,
-                        candidateName: profile?.fullName || 'Unknown Candidate',
-                        candidateEmail: profile?.email || 'No email',
-                    };
-                }).sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
-
-                setAllApplicants(finalApplicants);
+                setAllApplicants(applicationsData);
 
             } catch (error) {
                 console.error("An unexpected error occurred in fetchAllData:", error);
@@ -174,11 +141,11 @@ export default function AllCandidatesPage() {
                                     <TableCell className="font-medium">
                                          <div className="flex items-center gap-3">
                                             <Avatar className="w-9 h-9">
-                                                <AvatarFallback>{app.candidateName?.charAt(0)}</AvatarFallback>
+                                                <AvatarFallback>{app.candidateName?.charAt(0) || 'U'}</AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <p>{app.candidateName}</p>
-                                                <p className="text-xs text-muted-foreground">{app.candidateEmail}</p>
+                                                <p>{app.candidateName || 'Unknown Candidate'}</p>
+                                                <p className="text-xs text-muted-foreground">{app.candidateEmail || 'No email'}</p>
                                             </div>
                                         </div>
                                     </TableCell>
