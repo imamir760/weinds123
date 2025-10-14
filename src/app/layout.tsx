@@ -2,12 +2,11 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
-import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
 import { AuthProvider } from '@/components/auth/auth-provider';
 import { AuthModal } from '@/components/auth/auth-modal';
 import { ConditionalHeader } from '@/components/conditional-header';
 import { ConditionalFooter } from '@/components/conditional-footer';
+import { FirebaseProvider } from '@/components/firebase-provider';
 
 export const metadata: Metadata = {
   title: 'Weinds - Your AI-Powered Career OS',
@@ -39,13 +38,15 @@ export default function RootLayout({
           'min-h-screen bg-background font-body antialiased flex flex-col'
         )}
       >
-        <AuthProvider>
-            <ConditionalHeader />
-            <main className="flex-grow">{children}</main>
-            <ConditionalFooter />
-            <Toaster />
-            <AuthModal />
-        </AuthProvider>
+        <FirebaseProvider>
+          <AuthProvider>
+              <ConditionalHeader />
+              <main className="flex-grow">{children}</main>
+              <ConditionalFooter />
+              <Toaster />
+              <AuthModal />
+          </AuthProvider>
+        </FirebaseProvider>
       </body>
     </html>
   );
