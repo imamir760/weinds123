@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -15,10 +14,8 @@ import EmployerDashboardPage from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, DocumentData, Timestamp } from 'firebase/firestore';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -39,9 +36,6 @@ export default function AllCandidatesPage() {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [allApplicants, setAllApplicants] = useState<Applicant[]>([]);
-    const [jobPosts, setJobPosts] = useState<{ id: string, title: string }[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedJob, setSelectedJob] = useState('all');
 
     useEffect(() => {
         if (!user) return;
@@ -63,8 +57,6 @@ export default function AllCandidatesPage() {
                     ...internshipsSnapshot.docs.map(d => ({ id: d.id, type: 'internship' as const, ...d.data() }))
                 ];
                 
-                setJobPosts(posts.map(p => ({ id: p.id, title: p.title })));
-
                 if (posts.length === 0) {
                     setAllApplicants([]);
                     setLoading(false);
@@ -128,20 +120,6 @@ export default function AllCandidatesPage() {
 
     }, [user]);
 
-    const filteredApplicants = useMemo(() => {
-        return allApplicants.filter(applicant => {
-            const matchesJob = selectedJob === 'all' || applicant.postId === selectedJob;
-            const searchTermLower = searchTerm.toLowerCase();
-            const matchesSearch = searchTerm.trim() === '' ||
-                applicant.candidateName?.toLowerCase().includes(searchTermLower) ||
-                applicant.candidateEmail?.toLowerCase().includes(searchTermLower) ||
-                applicant.postTitle?.toLowerCase().includes(searchTermLower) ||
-                applicant.candidateSkills?.some(skill => skill.toLowerCase().includes(searchTermLower));
-            
-            return matchesJob && matchesSearch;
-        });
-    }, [allApplicants, searchTerm, selectedJob]);
-
     const formatDate = (timestamp: Timestamp | Date | undefined) => {
         if (!timestamp) return 'N/A';
         const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
@@ -152,33 +130,9 @@ export default function AllCandidatesPage() {
         <div className="container mx-auto py-8 px-4">
             <Card>
                 <CardHeader>
-                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                        <div>
-                            <CardTitle>All Applicants</CardTitle>
-                            <CardDescription>Browse all candidates who have applied to your jobs and internships.</CardDescription>
-                        </div>
-                         <div className="flex items-center gap-2 w-full md:w-auto">
-                            <div className="relative w-full md:w-64">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Search by name, skill..." 
-                                    className="pl-10"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                            <Select value={selectedJob} onValueChange={setSelectedJob}>
-                                <SelectTrigger className="w-full md:w-[280px]">
-                                    <SelectValue placeholder="Filter by job..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Jobs & Internships</SelectItem>
-                                    {jobPosts.map(job => (
-                                        <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                         </div>
+                    <div>
+                        <CardTitle>All Applicants</CardTitle>
+                        <CardDescription>Browse all candidates who have applied to your jobs and internships.</CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -186,9 +140,9 @@ export default function AllCandidatesPage() {
                     <div className="flex justify-center items-center h-64">
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     </div>
-                ) : filteredApplicants.length === 0 ? (
+                ) : allApplicants.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
-                        <p>No applicants found for the selected criteria.</p>
+                        <p>No applicants found.</p>
                     </div>
                 ) : (
                     <Table>
@@ -202,7 +156,7 @@ export default function AllCandidatesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredApplicants.map((app) => (
+                            {allApplicants.map((app) => (
                                 <TableRow key={`${app.postId}-${app.candidateId}`}>
                                     <TableCell className="font-medium">
                                          <div className="flex items-center gap-3">
