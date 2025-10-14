@@ -71,8 +71,28 @@
         "location": { "type": "string" },
         "employmentStatus": { "type": "string", "enum": ["Fresher", "Working", "Studying"] },
         "preference": { "type": "string", "enum": ["Job", "Internship", "Both"] },
-        "achievements": { "type": "string", "description": "A summary of the candidate's achievements." },
-        "projects": { "type": "string", "description": "A summary of the candidate's projects, including URLs." },
+        "achievements": { 
+          "type": "array", 
+          "description": "A list of the candidate's achievements.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "projects": { 
+          "type": "array",
+          "description": "A list of the candidate's projects.",
+           "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "url": { "type": "string", "format": "uri" },
+              "description": { "type": "string" }
+            }
+          }
+        },
         "phone": { "type": "string" }
       }
     },

@@ -24,6 +24,8 @@ import { SkillsInput } from './skills-input';
 import { allSkills } from './skills-list';
 import { ExperienceCard } from './experience-card';
 import { EducationCard } from './education-card';
+import { ProjectCard } from './project-card';
+import { AchievementCard } from './achievement-card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 
@@ -39,6 +41,16 @@ export type Education = {
   year: string;
 }
 
+export type Project = {
+  title: string;
+  url: string;
+  description: string;
+}
+
+export type Achievement = {
+  description: string;
+}
+
 type ProfileData = {
   fullName: string;
   email: string;
@@ -49,8 +61,8 @@ type ProfileData = {
   location: string;
   employmentStatus: 'Fresher' | 'Working' | 'Studying';
   preference: 'Job' | 'Internship' | 'Both';
-  achievements: string;
-  projects: string;
+  achievements: Achievement[];
+  projects: Project[];
   phone?: string;
 };
 
@@ -67,8 +79,8 @@ function CandidateProfilePage() {
     location: '',
     employmentStatus: 'Fresher',
     preference: 'Both',
-    achievements: '',
-    projects: '',
+    achievements: [],
+    projects: [],
     phone: '',
   });
   const [loading, setLoading] = useState(true);
@@ -90,6 +102,8 @@ function CandidateProfilePage() {
               if (!Array.isArray(data.skills)) data.skills = [];
               if (!Array.isArray(data.experience)) data.experience = [];
               if (!Array.isArray(data.education)) data.education = [];
+              if (!Array.isArray(data.projects)) data.projects = [];
+              if (!Array.isArray(data.achievements)) data.achievements = [];
               setProfile(data);
             } else {
               setProfile(prev => ({
@@ -120,13 +134,17 @@ function CandidateProfilePage() {
               profile.fullName,
               profile.headline,
               profile.location,
-              profile.achievements,
-              profile.projects,
               profile.phone
           ];
-          const filledFields = fields.filter(Boolean).length;
-          const totalFields = fields.length + (profile.skills.length > 0 ? 1 : 0) + (profile.experience.length > 0 ? 1 : 0) + (profile.education.length > 0 ? 1 : 0);
-          const completeness = Math.round((filledFields / (fields.length + 3)) * 100);
+          const totalFields = fields.length + 5; // +5 for skills, exp, edu, projects, achievements
+          let filledFields = fields.filter(Boolean).length;
+          if (profile.skills.length > 0) filledFields++;
+          if (profile.experience.length > 0) filledFields++;
+          if (profile.education.length > 0) filledFields++;
+          if (profile.projects.length > 0) filledFields++;
+          if (profile.achievements.length > 0) filledFields++;
+          
+          const completeness = Math.round((filledFields / totalFields) * 100);
           setProfileCompleteness(completeness);
       };
       calculateCompleteness();
@@ -185,6 +203,51 @@ function CandidateProfilePage() {
         education: prev.education.filter((_, i) => i !== index)
     }));
   };
+  
+  const updateProject = (index: number, field: keyof Project, value: string) => {
+    setProfile(prev => {
+        const newProjects = [...prev.projects];
+        newProjects[index] = { ...newProjects[index], [field]: value };
+        return { ...prev, projects: newProjects };
+    });
+  };
+
+  const addProject = () => {
+    setProfile(prev => ({
+        ...prev,
+        projects: [...prev.projects, { title: '', url: '', description: '' }]
+    }));
+  };
+
+  const removeProject = (index: number) => {
+    setProfile(prev => ({
+        ...prev,
+        projects: prev.projects.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateAchievement = (index: number, field: keyof Achievement, value: string) => {
+    setProfile(prev => {
+        const newAchievements = [...prev.achievements];
+        newAchievements[index] = { ...newAchievements[index], [field]: value };
+        return { ...prev, achievements: newAchievements };
+    });
+  };
+
+  const addAchievement = () => {
+    setProfile(prev => ({
+        ...prev,
+        achievements: [...prev.achievements, { description: '' }]
+    }));
+  };
+
+  const removeAchievement = (index: number) => {
+    setProfile(prev => ({
+        ...prev,
+        achievements: prev.achievements.filter((_, i) => i !== index)
+    }));
+  };
+
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,7 +352,6 @@ function CandidateProfilePage() {
         </CardContent>
       </Card>
       
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Star className="w-5 h-5 text-primary" /> Skills</CardTitle>
@@ -325,7 +387,6 @@ function CandidateProfilePage() {
         </CardContent>
       </Card>
 
-
       <Card>
           <CardHeader>
               <CardTitle className="flex items-center gap-2"><GraduationCap className="w-5 h-5 text-primary" /> Education</CardTitle>
@@ -349,17 +410,43 @@ function CandidateProfilePage() {
 
       <Card>
            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Accomplishments</CardTitle>
+              <CardTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Projects</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1">
-                <Label htmlFor="projects">Projects</Label>
-                <Textarea id="projects" placeholder="List your projects, including any relevant links to GitHub or live demos." value={profile.projects} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-1">
-                <Label htmlFor="achievements">Achievements</Label>
-                <Textarea id="achievements" placeholder="List any awards, publications, or notable accomplishments." value={profile.achievements} onChange={handleInputChange} />
-            </div>
+             {profile.projects.map((proj, index) => (
+                <ProjectCard 
+                    key={index}
+                    index={index}
+                    project={proj}
+                    updateProject={updateProject}
+                    removeProject={removeProject}
+                />
+            ))}
+            <Button variant="outline" onClick={addProject} type="button" className="w-full">
+                <PlusCircle className="mr-2"/>
+                Add Project
+            </Button>
+          </CardContent>
+      </Card>
+      
+      <Card>
+           <CardHeader>
+              <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Achievements</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             {profile.achievements.map((ach, index) => (
+                <AchievementCard 
+                    key={index}
+                    index={index}
+                    achievement={ach}
+                    updateAchievement={updateAchievement}
+                    removeAchievement={removeAchievement}
+                />
+            ))}
+            <Button variant="outline" onClick={addAchievement} type="button" className="w-full">
+                <PlusCircle className="mr-2"/>
+                Add Achievement
+            </Button>
           </CardContent>
       </Card>
       <div className="flex justify-end gap-2">
@@ -406,7 +493,7 @@ function CandidateProfilePage() {
             </CardContent>
         </Card>
 
-        <Accordion type="multiple" defaultValue={['skills', 'experience', 'education']} className="w-full space-y-4">
+        <Accordion type="multiple" defaultValue={['skills', 'experience', 'education', 'projects', 'achievements']} className="w-full space-y-4">
             <Card>
                 <AccordionItem value="skills">
                     <AccordionTrigger className="p-6 font-semibold text-lg flex items-center gap-2"><Star className="w-5 h-5 text-primary"/> Skills</AccordionTrigger>
@@ -453,10 +540,13 @@ function CandidateProfilePage() {
             <Card>
                  <AccordionItem value="projects">
                     <AccordionTrigger className="p-6 font-semibold text-lg flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Projects</AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6">
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <p>{profile.projects || 'No projects added yet.'}</p>
-                        </div>
+                    <AccordionContent className="px-6 pb-6 space-y-4">
+                       {profile.projects.length > 0 ? profile.projects.map((proj, i) => (
+                            <div key={i} className="p-3 border-b">
+                                 <a href={proj.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{proj.title}</a>
+                                 <p className="text-sm text-muted-foreground">{proj.description}</p>
+                             </div>
+                         )) : <p className="text-muted-foreground">No projects added yet.</p>}
                     </AccordionContent>
                 </AccordionItem>
             </Card>
@@ -464,10 +554,14 @@ function CandidateProfilePage() {
              <Card>
                  <AccordionItem value="achievements">
                     <AccordionTrigger className="p-6 font-semibold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Achievements</AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6">
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <p>{profile.achievements || 'No achievements added yet.'}</p>
-                        </div>
+                    <AccordionContent className="px-6 pb-6 space-y-2">
+                        {profile.achievements.length > 0 ? (
+                          <ul className="list-disc list-inside">
+                            {profile.achievements.map((ach, i) => (
+                              <li key={i} className="text-muted-foreground">{ach.description}</li>
+                            ))}
+                          </ul>
+                        ) : <p className="text-muted-foreground">No achievements added yet.</p>}
                     </AccordionContent>
                 </AccordionItem>
             </Card>
@@ -495,5 +589,3 @@ function CandidateProfilePage() {
 }
 
 export default CandidateProfilePage;
-
-    
