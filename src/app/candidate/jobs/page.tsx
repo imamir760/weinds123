@@ -89,33 +89,56 @@ export default function JobsPage() {
         const runMatching = async () => {
             setMatching(true);
             const candidateDocRef = doc(db, 'candidates', user.uid);
-            const candidateSnap = await getDoc(candidateDocRef);
+            let candidateProfile: string;
 
-            if (!candidateSnap.exists()) {
+            try {
+                const candidateSnap = await getDoc(candidateDocRef);
+                if (!candidateSnap.exists()) {
+                    console.warn("Candidate profile not found. Skipping AI matching.");
+                    setMatching(false);
+                    return;
+                }
+                candidateProfile = JSON.stringify(candidateSnap.data());
+            } catch (error) {
+                console.error("Failed to fetch candidate profile:", error);
                 setMatching(false);
                 return;
             }
-
-            const candidateProfile = JSON.stringify(candidateSnap.data());
             
-            const updatedJobs = await Promise.all(jobs.map(async (job) => {
-                if (job.matchScore !== undefined) return job; // Already matched
+            // Process jobs one by one
+            for (const job of jobs) {
+                // Check if the current job in the state has already been matched
+                const currentJobState = jobs.find(j => j.id === job.id);
+                if (currentJobState && currentJobState.matchScore !== undefined) {
+                    continue; // Skip if already matched
+                }
+
                 try {
                     const jobDescription = `Title: ${job.title}\nResponsibilities: ${job.responsibilities}\nSkills: ${job.skills}`;
                     const result = await matchJobCandidate({ candidateProfile, jobDescription });
-                    return { ...job, ...result };
+                    
+                    // Update only the specific job with the new AI data
+                    setJobs(prevJobs => 
+                        prevJobs.map(j => 
+                            j.id === job.id ? { ...j, ...result } : j
+                        )
+                    );
                 } catch (error) {
                     console.error(`Failed to get match for job ${job.id}`, error);
-                    return job; // Return original job if AI call fails
+                    // Optionally update the job to indicate an error
+                    setJobs(prevJobs => 
+                        prevJobs.map(j => 
+                            j.id === job.id ? { ...j, matchScore: -1 } : j // Use -1 to indicate error
+                        )
+                    );
                 }
-            }));
+            }
 
-            setJobs(updatedJobs);
             setMatching(false);
         };
         runMatching();
     }
-  }, [user, jobs, matching]);
+}, [user, jobs]); // Rerun when jobs list changes
 
 
   const PageContent = (
@@ -156,6 +179,8 @@ export default function JobsPage() {
                                 <div className="text-right flex items-center gap-3 bg-secondary p-2 rounded-lg">
                                     {job.matchScore === undefined ? (
                                         <Loader2 className="w-5 h-5 animate-spin"/>
+                                    ) : job.matchScore === -1 ? (
+                                        <span className="text-xs text-destructive">Error</span>
                                     ) : (
                                         <>
                                             <Sparkles className="w-5 h-5 text-primary" />

@@ -90,33 +90,56 @@ export default function InternshipsPage() {
         const runMatching = async () => {
             setMatching(true);
             const candidateDocRef = doc(db, 'candidates', user.uid);
-            const candidateSnap = await getDoc(candidateDocRef);
+            let candidateProfile: string;
 
-            if (!candidateSnap.exists()) {
+            try {
+                const candidateSnap = await getDoc(candidateDocRef);
+                if (!candidateSnap.exists()) {
+                    console.warn("Candidate profile not found. Skipping AI matching.");
+                    setMatching(false);
+                    return;
+                }
+                candidateProfile = JSON.stringify(candidateSnap.data());
+            } catch (error) {
+                console.error("Failed to fetch candidate profile:", error);
                 setMatching(false);
                 return;
             }
-
-            const candidateProfile = JSON.stringify(candidateSnap.data());
             
-            const updatedInternships = await Promise.all(internships.map(async (internship) => {
-                if (internship.matchScore !== undefined) return internship; // Already matched
+            // Process internships one by one
+            for (const internship of internships) {
+                // Check if the current internship in the state has already been matched
+                const currentInternshipState = internships.find(j => j.id === internship.id);
+                if (currentInternshipState && currentInternshipState.matchScore !== undefined) {
+                    continue; // Skip if already matched
+                }
+
                 try {
                     const jobDescription = `Title: ${internship.title}\nResponsibilities: ${internship.responsibilities}\nSkills: ${internship.skills}`;
                     const result = await matchJobCandidate({ candidateProfile, jobDescription });
-                    return { ...internship, ...result };
+                    
+                    // Update only the specific internship with the new AI data
+                    setInternships(prevInternships => 
+                        prevInternships.map(j => 
+                            j.id === internship.id ? { ...j, ...result } : j
+                        )
+                    );
                 } catch (error) {
                     console.error(`Failed to get match for internship ${internship.id}`, error);
-                    return internship; // Return original job if AI call fails
+                    // Optionally update the job to indicate an error
+                    setInternships(prevInternships => 
+                        prevInternships.map(j => 
+                            j.id === internship.id ? { ...j, matchScore: -1 } : j // Use -1 to indicate error
+                        )
+                    );
                 }
-            }));
+            }
 
-            setInternships(updatedInternships);
             setMatching(false);
         };
         runMatching();
     }
-  }, [user, internships, matching]);
+  }, [user, internships]); // Rerun when internships list changes
 
 
   const PageContent = (
@@ -157,6 +180,8 @@ export default function InternshipsPage() {
                               <div className="text-right flex items-center gap-3 bg-secondary p-2 rounded-lg">
                                   {internship.matchScore === undefined ? (
                                       <Loader2 className="w-5 h-5 animate-spin"/>
+                                  ) : internship.matchScore === -1 ? (
+                                    <span className="text-xs text-destructive">Error</span>
                                   ) : (
                                     <>
                                         <Sparkles className="w-5 h-5 text-primary" />
