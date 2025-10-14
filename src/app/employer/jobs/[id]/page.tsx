@@ -45,6 +45,7 @@ interface JobDetails extends DocumentData {
 }
 
 const getStageName = (stage: Stage) => {
+    if (!stage || !stage.name) return '';
     const stageName = stage.name.replace(/_/g, ' ');
     if (stage.type) {
       const typeName = stage.type.replace(/_/g, ' ');
@@ -122,6 +123,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
   }, [jobId]);
 
   const groupedApplicants = jobDetails?.pipeline.reduce((acc, stage) => {
+    if (!stage || !stage.name) return acc;
     const stageKey = stage.type ? `${stage.name}_${stage.type}` : stage.name;
     const stageName = getStageName(stage);
     acc[stageName] = applicants.filter(app => {
@@ -154,6 +156,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
             <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4">
             {jobDetails.pipeline.map(stage => {
+                if (!stage || !stage.name) return null;
                 const stageName = getStageName(stage);
                 const candidatesInStage = groupedApplicants[stageName] || [];
                 return (
