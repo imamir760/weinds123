@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -27,7 +28,7 @@ import { FirestorePermissionError } from '@/lib/errors';
 interface Applicant {
     candidateId: string;
     appliedOn: Timestamp;
-    currentStage: string;
+    status: string;
     postTitle: string;
     postId: string;
     postType: 'job' | 'internship';
@@ -38,8 +39,7 @@ interface Applicant {
 export default function AllCandidatesPage() {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [jobApplicants, setJobApplicants] = useState<Applicant[]>([]);
-    const [internshipApplicants, setInternshipApplicants] = useState<Applicant[]>([]);
+    const [allApplicants, setAllApplicants] = useState<Applicant[]>([]);
     const [showInternships, setShowInternships] = useState(false);
 
     useEffect(() => {
@@ -52,66 +52,30 @@ export default function AllCandidatesPage() {
             setLoading(true);
             
             try {
-                const jobsQuery = query(collection(db, 'jobs'), where("employerId", "==", user.uid));
-                const internshipsQuery = query(collection(db, 'internships'), where("employerId", "==", user.uid));
-
-                const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
-                    getDocs(jobsQuery).catch(serverError => {
-                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: jobsQuery.toString(), operation: 'list'}));
-                        return null;
-                    }),
-                    getDocs(internshipsQuery).catch(serverError => {
-                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: internshipsQuery.toString(), operation: 'list'}));
-                        return null;
-                    })
-                ]);
+                const applicationsQuery = query(collection(db, 'applications'), where("employerId", "==", user.uid));
                 
-                if (!jobsSnapshot && !internshipsSnapshot) {
-                    setLoading(false);
-                    return;
-                }
-
-                const allPosts = [
-                    ...(jobsSnapshot?.docs.map(d => ({...d.data(), id: d.id, type: 'job' as const})) || []),
-                    ...(internshipsSnapshot?.docs.map(d => ({...d.data(), id: d.id, type: 'internship' as const})) || [])
-                ];
-
-                if (allPosts.length === 0) {
-                    setJobApplicants([]);
-                    setInternshipApplicants([]);
-                    setLoading(false);
-                    return;
-                }
-
-                const applicantPromises = allPosts.map(post => {
-                    const postCollectionName = post.type === 'job' ? 'jobs' : 'internships';
-                    const applicantsCollectionRef = collection(db, postCollectionName, post.id, 'applicants');
-                    return getDocs(applicantsCollectionRef).then(snapshot => 
-                        snapshot.docs.map(applicantDoc => ({
-                            ...applicantDoc.data(),
-                            candidateId: applicantDoc.id,
-                            postId: post.id,
-                            postTitle: post.title,
-                            postType: post.type,
-                        } as Applicant))
-                    ).catch(serverError => {
-                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: applicantsCollectionRef.path, operation: 'list' }));
-                        return []; // Return empty array on error
-                    });
+                const applicationsSnapshot = await getDocs(applicationsQuery).catch(serverError => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list'}));
+                    return null;
                 });
 
-                const applicantsByPost = await Promise.all(applicantPromises);
-                const allApplicantsFlat = applicantsByPost.flat();
-
-                if (allApplicantsFlat.length === 0) {
-                    setJobApplicants([]);
-                    setInternshipApplicants([]);
+                if (!applicationsSnapshot) {
+                    setAllApplicants([]);
                     setLoading(false);
                     return;
                 }
                 
-                const candidateIds = [...new Set(allApplicantsFlat.map(app => app.candidateId))];
+                const applicationsData = applicationsSnapshot.docs.map(d => ({ ...d.data() }) as Applicant);
+
+                if (applicationsData.length === 0) {
+                    setAllApplicants([]);
+                    setLoading(false);
+                    return;
+                }
+                
+                const candidateIds = [...new Set(applicationsData.map(app => app.candidateId))];
                 const candidateProfiles = new Map<string, DocumentData>();
+
                 if (candidateIds.length > 0) {
                     const candidatePromises = candidateIds.map(id => {
                         const candidateDocRef = doc(db, 'candidates', id);
@@ -128,7 +92,7 @@ export default function AllCandidatesPage() {
                     });
                 }
                 
-                const finalApplicants = allApplicantsFlat.map(app => {
+                const finalApplicants = applicationsData.map(app => {
                     const profile = candidateProfiles.get(app.candidateId);
                     return {
                         ...app,
@@ -137,8 +101,7 @@ export default function AllCandidatesPage() {
                     };
                 }).sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
 
-                setJobApplicants(finalApplicants.filter(a => a.postType === 'job'));
-                setInternshipApplicants(finalApplicants.filter(a => a.postType === 'internship'));
+                setAllApplicants(finalApplicants);
 
             } catch (error) {
                 console.error("An unexpected error occurred in fetchAllData:", error);
@@ -151,7 +114,7 @@ export default function AllCandidatesPage() {
 
     }, [user]);
 
-    const displayedApplicants = showInternships ? internshipApplicants : jobApplicants;
+    const displayedApplicants = showInternships ? allApplicants.filter(a => a.postType === 'internship') : allApplicants.filter(a => a.postType === 'job');
 
     const formatDate = (timestamp: Timestamp | Date | undefined) => {
         if (!timestamp) return 'N/A';
@@ -224,7 +187,7 @@ export default function AllCandidatesPage() {
                                     </TableCell>
                                     <TableCell>{formatDate(app.appliedOn)}</TableCell>
                                     <TableCell>
-                                        <Badge variant="secondary" className="capitalize">{app.currentStage.replace(/_/g, ' ')}</Badge>
+                                        <Badge variant="secondary" className="capitalize">{app.status.replace(/_/g, ' ')}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button asChild variant="outline" size="sm">

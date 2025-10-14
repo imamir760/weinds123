@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -6,9 +7,10 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, MoreVertical, Loader2, GraduationCap } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import EmployerDashboardPage from '../dashboard/page';
 import { Label } from '@/components/ui/label';
@@ -20,7 +22,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
-type Post = DocumentData & { id: string, type: 'Job' | 'Internship', applicantCount: number };
+type Post = DocumentData & { id: string, type: 'Job' | 'Internship', applicantCount: number, status: string };
 
 export default function EmployerJobsPage() {
   const { user } = useAuth();
@@ -46,22 +48,8 @@ export default function EmployerJobsPage() {
           getDocs(internshipsQuery)
         ]);
 
-        const processPosts = async (snapshot: DocumentData, type: 'Job' | 'Internship'): Promise<Post[]> => {
-          const postsData = snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() }));
-          
-          const postsWithCounts = await Promise.all(
-            postsData.map(async (post: DocumentData) => {
-              const collectionName = type === 'Job' ? 'jobs' : 'internships';
-              const applicantsRef = collection(db, collectionName, post.id, 'applicants');
-              const applicantsSnap = await getDocs(applicantsRef);
-              return { ...post, type, applicantCount: applicantsSnap.size };
-            })
-          );
-          return postsWithCounts;
-        }
-
-        const jobsData = await processPosts(jobsSnapshot, 'Job');
-        const internshipsData = await processPosts(internshipsSnapshot, 'Internship');
+        const jobsData = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
+        const internshipsData = internshipsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post));
         
         setPosts([...jobsData, ...internshipsData]);
 
@@ -79,7 +67,7 @@ export default function EmployerJobsPage() {
     return posts.filter(post => showInternships ? post.type === 'Internship' : post.type === 'Job');
   }, [posts, showInternships]);
 
-  const formatDate = (timestamp: Timestamp | Date) => {
+  const formatDate = (timestamp: Timestamp | Date | undefined) => {
     if (!timestamp) return 'N/A';
     const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
     return format(date, 'MMM d, yyyy');
@@ -89,8 +77,8 @@ export default function EmployerJobsPage() {
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-8">
           <div>
-              <h1 className="text-3xl font-bold font-headline">Job Postings</h1>
-              <p className="text-muted-foreground">Manage your active and inactive job listings.</p>
+              <h1 className="text-3xl font-bold font-headline">My Postings</h1>
+              <CardDescription>Manage your active and inactive job listings.</CardDescription>
           </div>
           <div className="flex items-center space-x-2">
             <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
@@ -140,7 +128,7 @@ export default function EmployerJobsPage() {
                                 <TableCell>
                                     <Badge variant="secondary">{post.status || 'Active'}</Badge>
                                 </TableCell>
-                                <TableCell>{post.applicantCount}</TableCell>
+                                <TableCell>{post.applicantCount || 0}</TableCell>
                                 <TableCell className="text-right space-x-2">
                                      <Button asChild variant="outline" size="sm">
                                         <Link href={`/employer/jobs/${post.id}`}>View Pipeline</Link>

@@ -110,7 +110,8 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
 
 
 export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  const postId = React.use(params).id;
+  const paramsData = React.use(params);
+  const postId = paramsData.id;
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);

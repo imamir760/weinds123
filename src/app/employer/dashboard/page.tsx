@@ -14,7 +14,6 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useEffect } from 'react';
 import { PostJobDialog } from '@/components/employer/post-job-dialog';
 import { CreatePipelineDialog } from '@/components/employer/create-pipeline-dialog';
@@ -31,7 +30,7 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
-    { name: 'Job Postings', href: '/employer/jobs', icon: Briefcase, count: 8 },
+    { name: 'My Postings', href: '/employer/jobs', icon: Briefcase, count: 8 },
     { name: 'All Applicants', href: '/employer/all-candidates', icon: Users },
     { name: 'Shortlisted', href: '/employer/shortlisted', icon: Star },
     { name: 'Final Interviews', href: '/employer/final-interview', icon: Bot },
@@ -202,11 +201,14 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                 const newStats = {
                     activeJobs: allPosts.length,
                     totalCandidates: totalCandidates,
-                    shortlisted: 0, // Placeholder
-                    hired: 0 // Placeholder
+                    shortlisted: 0, // This would require querying all applications
+                    hired: 0 // This would require querying all applications
                 };
                 setStats(newStats);
                 
+                // We reset the pipeline stages counts here. 
+                // A full count would require fetching all applications which is expensive for a dashboard.
+                // The main logic is now on the specific job pipeline page.
                 setPipelineStages(initialPipelineStages.map(s => ({...s, count: 0})));
 
 
@@ -278,7 +280,7 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                         <div>
                             <CardTitle>Hiring Pipeline Overview</CardTitle>
-                            <CardDescription>A summary of your candidate progression stages across all posts. Data per stage is now available in the 'Job Postings' section.</CardDescription>
+                            <CardDescription>A summary of your candidate progression stages across all posts. Data per stage is now available in the 'My Postings' section.</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
