@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData } from 'firebase/firestore';
 import EmployerDashboardPage from '../../dashboard/page';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { onAuthStateChanged } from 'firebase/auth';
 
 type Stage = {
   stage: string;
@@ -107,7 +108,7 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
 
 
 export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  const { id: postId } = React.use(params);
+  const { id: postId } = params;
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,30 +125,16 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
         let postType: 'job' | 'internship' | null = null;
         
         const jobRef = doc(db, 'jobs', postId);
-        try {
-            postSnap = await getDoc(jobRef);
-            if (postSnap.exists()) {
-              postType = 'job';
-            }
-        } catch (error) {
-            const permissionError = new FirestorePermissionError({ path: jobRef.path, operation: 'get' });
-            errorEmitter.emit('permission-error', permissionError);
-            setLoading(false);
-            return;
+        postSnap = await getDoc(jobRef).catch(err => { console.error("Error checking job doc", err); return null; });
+        if (postSnap && postSnap.exists()) {
+            postType = 'job';
         }
 
         if (!postType) {
             const internshipRef = doc(db, 'internships', postId);
-            try {
-                postSnap = await getDoc(internshipRef);
-                if (postSnap.exists()) {
-                    postType = 'internship';
-                }
-            } catch (error) {
-                const permissionError = new FirestorePermissionError({ path: internshipRef.path, operation: 'get' });
-                errorEmitter.emit('permission-error', permissionError);
-                setLoading(false);
-                return;
+            postSnap = await getDoc(internshipRef).catch(err => { console.error("Error checking internship doc", err); return null; });
+            if (postSnap && postSnap.exists()) {
+                postType = 'internship';
             }
         }
         
@@ -217,12 +204,22 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
         setLoading(false);
       }
     };
+    
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          fetchPipelineData();
+        } else {
+          console.log("User is not authenticated. Cannot fetch pipeline data.");
+          setLoading(false);
+        }
+    });
 
-    fetchPipelineData();
+    return () => unsubscribe();
   }, [postId]);
 
   const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
+    // Normalize stage name by removing type info like (ai) and replacing underscores
     const rawStageName = stageNameFromPipelineConfig.split(' ')[0].toLowerCase().replace(/_/g, ' ');
      return applicants.filter(app => (app.currentStage || 'Applied').toLowerCase().replace(/_/g, ' ') === rawStageName);
   };
@@ -266,6 +263,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {postDetails.pipeline.map((stageConfig, index) => {
+                        if (!stageConfig || !stageConfig.stage) return null;
                         const stageDisplayName = getStageName(stageConfig);
                         const stageApplicants = candidatesByStage(stageConfig.stage);
                         return (
@@ -303,3 +301,5 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
   return <EmployerDashboardPage>{PageContent}</EmployerDashboardPage>;
 }
+
+    
