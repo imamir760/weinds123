@@ -24,6 +24,7 @@ import { generateSpecializations } from './flows/generate-specializations';
 import { conductAiInterview } from './flows/conduct-ai-interview';
 import { matchJobCandidate } from './flows/match-job-candidate';
 import { diagnoseError } from './flows/diagnose-error';
+import { generateSkillTest } from './flows/generate-skill-test';
 
 import type {
   GenerateLearningRoadmapInput,
@@ -53,6 +54,11 @@ import type {
   DiagnoseErrorInput,
   DiagnoseErrorOutput,
 } from './schemas/diagnose-error-schema';
+import type {
+  GenerateSkillTestInput,
+  GenerateSkillTestOutput,
+} from './schemas/generate-skill-test-schema';
+
 
 export {
   generateLearningRoadmap,
@@ -62,6 +68,7 @@ export {
   conductAiInterview,
   matchJobCandidate,
   diagnoseError,
+  generateSkillTest,
 };
 export type {
   GenerateLearningRoadmapInput,
@@ -78,4 +85,6 @@ export type {
   MatchJobCandidateOutput,
   DiagnoseErrorInput,
   DiagnoseErrorOutput,
+  GenerateSkillTestInput,
+  GenerateSkillTestOutput,
 };
