@@ -28,7 +28,7 @@ interface Job extends DocumentData {
   id: string;
   title: string;
   employerId: string;
-  companyName?: string;
+  companyName: string; // Now denormalized
   location: string;
   workMode: string;
   salary: string;
@@ -75,40 +75,9 @@ export default function JobsPage() {
         ...doc.data()
       })) as Job[];
 
-      const employerIds = [...new Set(jobsData.map(job => job.employerId).filter(Boolean))];
-
-      if (employerIds.length > 0) {
-        const employerProfiles = new Map<string, DocumentData>();
-        try {
-          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(async (error) => {
-              const permissionError = new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' });
-              errorEmitter.emit('permission-error', permissionError);
-              return null;
-          }));
-
-          const employerDocs = await Promise.all(employerPromises);
-          
-          employerDocs.forEach(docSnap => {
-            if (docSnap && docSnap.exists()) {
-              employerProfiles.set(docSnap.id, docSnap.data());
-            }
-          });
-
-          const enrichedJobs = jobsData.map(job => ({
-            ...job,
-            companyName: employerProfiles.get(job.employerId)?.companyName || 'Company Name N/A'
-          }));
-          setJobs(enrichedJobs);
-
-        } catch (error) {
-          console.error("Failed to fetch some employer profiles.", error);
-          setJobs(jobsData.map(job => ({...job, companyName: 'Company Name N/A'})));
-        }
-      } else {
-        setJobs(jobsData);
-      }
-      
+      setJobs(jobsData);
       setLoading(false);
+
     }, (error) => {
       console.error("Error fetching jobs:", error);
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: jobsCollectionRef.path, operation: 'list' }));
@@ -319,5 +288,3 @@ export default function JobsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
-
-    
