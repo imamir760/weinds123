@@ -2,18 +2,23 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { motion } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData } from 'firebase/firestore';
 import EmployerDashboardPage from '../../dashboard/page';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, Star, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowLeft, Star } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 type Stage = {
   name: string;
@@ -36,12 +41,11 @@ type Applicant = DocumentData & {
   matchScore?: number;
 };
 
-// Define a more specific type for the page props
 type JobPipelinePageProps = {
   params: Promise<{ id: string }>;
 };
 
-const getStageName = (stage: Stage) => {
+const getStageName = (stage: Stage): string => {
     if (!stage || !stage.name) return '';
     const stageName = stage.name.replace(/_/g, ' ');
     if (stage.type) {
@@ -51,9 +55,7 @@ const getStageName = (stage: Stage) => {
     return stageName;
 };
 
-
 export default function JobPipelinePage(props: JobPipelinePageProps) {
-  // Correctly unwrap the promise-based params with React.use()
   const params = use(props.params);
   const jobId = params.id;
 
@@ -126,107 +128,96 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
     fetchPipelineData();
   }, [jobId]);
 
-  const candidatesByStage = (stageName: string) => {
-    // Normalize stage name from "skill_test (ai)" to "skill_test"
-    const rawStageName = stageName.split(' ')[0].toLowerCase().replace(/_/g, ' ');
+  const candidatesByStage = (stageNameFromPipelineConfig: string) => {
+    // Normalize stage name by removing type info like (ai) and replacing underscores
+    const rawStageName = stageNameFromPipelineConfig.split(' ')[0].toLowerCase().replace(/_/g, ' ');
      return applicants.filter(app => (app.currentStage || 'Applied').toLowerCase().replace(/_/g, ' ') === rawStageName);
   };
-  
-  const handleNextStage = (candidateId: string) => {
-      // This is a placeholder for the logic to update the candidate's stage in Firestore.
-      console.log(`Move candidate ${candidateId} to the next stage.`);
-      alert(`Moving candidate ${candidateId} to the next stage.`);
-  }
 
   const PageContent = (
-      <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900/50">
-         <header className="p-4 border-b bg-background sticky top-0 z-10">
-            <div className="flex justify-between items-center">
-                 <div className="flex items-center gap-4">
-                    <Button asChild variant="outline" size="sm">
-                        <Link href="/employer/jobs"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Jobs</Link>
-                    </Button>
-                    <div>
-                        <h1 className="text-xl font-bold">{jobDetails?.title || 'Loading...'}</h1>
-                        <p className="text-sm text-muted-foreground">Hiring Pipeline</p>
-                    </div>
-                </div>
-                <div>
-                    <Button>Manage Job</Button>
-                </div>
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex items-center gap-4 mb-6">
+            <Button asChild variant="outline" size="sm">
+                <Link href="/employer/jobs"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Jobs</Link>
+            </Button>
+            <div>
+                <h1 className="text-xl font-bold">{jobDetails?.title || 'Loading...'}</h1>
+                <p className="text-sm text-muted-foreground">Hiring Pipeline</p>
             </div>
-        </header>
+        </div>
 
         {loading ? (
-            <div className="flex-1 flex justify-center items-center">
+            <div className="flex justify-center items-center h-64">
                 <Loader2 className="w-12 h-12 animate-spin text-primary" />
             </div>
         ) : !jobDetails || !jobDetails.pipeline || jobDetails.pipeline.length === 0 ? (
-             <div className="flex-1 flex justify-center items-center text-muted-foreground">
-                <p>No pipeline configured for this job.</p>
-            </div>
+             <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                    <p>No pipeline configured for this job.</p>
+                </CardContent>
+             </Card>
         ) : (
-             <div className="flex-1 overflow-x-auto">
-                 <div className="flex h-full p-4 gap-6 min-w-max">
-                    {jobDetails.pipeline.map((stage, index) => {
-                        const stageName = getStageName(stage);
-                        const stageApplicants = candidatesByStage(stageName);
-                        return (
-                            <div key={index} className="w-[320px] flex-shrink-0 flex flex-col">
-                                <div className="flex justify-between items-center mb-4 px-2">
-                                    <h2 className="font-semibold capitalize text-lg">{stageName}</h2>
-                                    <Badge variant="secondary">{stageApplicants.length}</Badge>
-                                </div>
-                                <motion.div
-                                    layout
-                                    className="bg-muted/50 rounded-lg p-2 flex-1 flex flex-col gap-3 overflow-y-auto min-h-[300px]"
-                                >
-                                    {stageApplicants.length > 0 ? stageApplicants.map((candidate, i) => (
-                                         <motion.div
-                                            key={candidate.id}
-                                            layout
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.9 }}
-                                            transition={{ duration: 0.3, delay: i * 0.05 }}
-                                        >
-                                           <Card className="bg-background rounded-lg shadow-sm border hover:shadow-md transition-shadow">
-                                            <CardContent className="p-4 space-y-3">
-                                                 <div className="flex justify-between items-start">
-                                                    <Link href={`/employer/jobs/${jobId}/candidates/${candidate.id}`} className="flex items-center gap-3 group">
-                                                         <Avatar className="w-11 h-11 border-2 border-transparent group-hover:border-primary transition-colors">
-                                                            <AvatarFallback>{candidate.avatar}</AvatarFallback>
-                                                        </Avatar>
-                                                        <div>
-                                                            <p className="font-semibold text-base group-hover:text-primary transition-colors">{candidate.fullName}</p>
-                                                            <p className="text-xs text-muted-foreground">{candidate.headline}</p>
-                                                        </div>
-                                                    </Link>
-                                                    <div className="flex items-center gap-1 text-primary font-bold">
-                                                        <Star className="w-4 h-4 fill-primary"/>
-                                                        {candidate.matchScore}%
-                                                    </div>
-                                                </div>
-                                                <div className="flex justify-end gap-2 border-t pt-3">
-                                                    <Button variant="outline" size="sm">Reject</Button>
-                                                    <Button size="sm" onClick={() => handleNextStage(candidate.id)}>
-                                                        Next Stage <ArrowRight className="w-4 h-4 ml-2"/>
-                                                    </Button>
-                                                </div>
-                                            </CardContent>
-                                          </Card>
-                                        </motion.div>
-                                    )) : (
-                                        <div className="flex justify-center items-center h-full text-sm text-muted-foreground">
-                                            <p>No candidates in this stage.</p>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Pipeline Stages</CardTitle>
+                    <CardDescription>Click a stage to see the candidates within it.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Accordion type="multiple" className="w-full">
+                        {jobDetails.pipeline.map((stageConfig, index) => {
+                            const stageDisplayName = getStageName(stageConfig);
+                            const stageApplicants = candidatesByStage(stageConfig.name);
+                            return (
+                                <AccordionItem value={`item-${index}`} key={index}>
+                                    <AccordionTrigger className="hover:no-underline">
+                                        <div className="flex justify-between items-center w-full pr-4">
+                                            <span className="text-lg font-semibold capitalize">{stageDisplayName}</span>
+                                            <Badge variant="secondary">{stageApplicants.length}</Badge>
                                         </div>
-                                    )}
-                                </motion.div>
-                            </div>
-                        )
-                    })}
-                 </div>
-            </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        {stageApplicants.length > 0 ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+                                                {stageApplicants.map(candidate => (
+                                                    <Card key={candidate.id} className="bg-background/50">
+                                                        <CardContent className="p-4 space-y-3">
+                                                            <div className="flex justify-between items-start">
+                                                                <div className="flex items-center gap-3 group">
+                                                                    <Avatar className="w-11 h-11 border-2 border-transparent">
+                                                                        <AvatarFallback>{candidate.avatar}</AvatarFallback>
+                                                                    </Avatar>
+                                                                    <div>
+                                                                        <p className="font-semibold text-base">{candidate.fullName}</p>
+                                                                        <p className="text-xs text-muted-foreground">{candidate.headline}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center gap-1 text-primary font-bold text-sm">
+                                                                    <Star className="w-4 h-4 fill-primary"/>
+                                                                    {candidate.matchScore}%
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex justify-between items-center border-t pt-3">
+                                                                <Button asChild variant="outline" size="sm">
+                                                                    <Link href={`/employer/jobs/${jobId}/candidates/${candidate.id}`}>View Profile</Link>
+                                                                </Button>
+                                                                <Button size="sm">Next Stage</Button>
+                                                            </div>
+                                                        </CardContent>
+                                                    </Card>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-8 text-sm text-muted-foreground">
+                                                <p>No candidates in this stage.</p>
+                                            </div>
+                                        )}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            )
+                        })}
+                    </Accordion>
+                </CardContent>
+            </Card>
         )}
       </div>
   );
