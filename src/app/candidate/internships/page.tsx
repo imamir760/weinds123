@@ -318,3 +318,5 @@ export default function InternshipsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
+    
