@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { motion } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData } from 'firebase/firestore';
@@ -36,6 +36,11 @@ type Applicant = DocumentData & {
   matchScore?: number;
 };
 
+// Define a more specific type for the page props
+type JobPipelinePageProps = {
+  params: { id: string };
+};
+
 const getStageName = (stage: Stage) => {
     if (!stage || !stage.name) return '';
     const stageName = stage.name.replace(/_/g, ' ');
@@ -47,7 +52,11 @@ const getStageName = (stage: Stage) => {
 };
 
 
-export default function JobPipelinePage({ params: { id: jobId } }: { params: { id: string } }) {
+export default function JobPipelinePage(props: JobPipelinePageProps) {
+  // Unwrap the promise using React.use()
+  const params = use(props.params);
+  const jobId = params.id;
+
   const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
