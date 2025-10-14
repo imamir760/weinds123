@@ -23,20 +23,29 @@ export async function applyToAction(
 
   let candidateName = 'Unknown Candidate';
   let candidateEmail = 'No email provided';
+  let candidateHeadline = 'No headline';
+  let candidateSkills: string[] = [];
   
   try {
       const candidateRef = doc(db, 'candidates', candidateId);
-      // Ensure we await the result of getDoc
       const candidateSnap = await getDoc(candidateRef);
       if (candidateSnap.exists()) {
-          candidateName = candidateSnap.data().fullName || candidateName;
-          candidateEmail = candidateSnap.data().email || candidateEmail;
+          const data = candidateSnap.data();
+          candidateName = data.fullName || candidateName;
+          candidateEmail = data.email || candidateEmail;
+          candidateHeadline = data.headline || candidateHeadline;
+          candidateSkills = Array.isArray(data.skills) ? data.skills : [];
+      } else {
+        console.warn(`Candidate profile not found for id: ${candidateId}`);
       }
   } catch (error) {
     console.error("Could not fetch candidate profile for application.", error);
-    // Don't emit here, let the application creation fail and handle it there,
-    // as applying without a profile is a failure condition.
-    // This will now be caught by the outer try/catch.
+    const permissionError = new FirestorePermissionError({
+      path: `/candidates/${candidateId}`,
+      operation: 'get',
+    });
+    errorEmitter.emit('permission-error', permissionError);
+    // Re-throw the error so the UI can know the application failed
     throw error;
   }
   
@@ -44,19 +53,21 @@ export async function applyToAction(
     postId: postId,
     postType: postType,
     candidateId: candidateId,
-    candidateName: candidateName,
-    candidateEmail: candidateEmail,
     employerId: employerId,
     postTitle: postTitle,
     companyName: companyName,
     appliedOn: serverTimestamp(),
-    status: 'Applied'
+    status: 'Applied',
+    // Denormalized data
+    candidateName: candidateName,
+    candidateEmail: candidateEmail,
+    candidateHeadline: candidateHeadline,
+    candidateSkills: candidateSkills,
   };
   
   const applicationsCollectionRef = collection(db, 'applications');
   
   try {
-    // Await the addDoc to properly catch errors on this operation
     await addDoc(applicationsCollectionRef, applicationData);
   } catch (serverError) {
     const permissionError = new FirestorePermissionError({

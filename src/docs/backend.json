@@ -199,7 +199,11 @@
             "postTitle": { "type": "string" },
             "companyName": { "type": "string" },
             "appliedOn": { "type": "string", "format": "date-time" },
-            "status": { "type": "string" }
+            "status": { "type": "string" },
+            "candidateName": { "type": "string" },
+            "candidateEmail": { "type": "string", "format": "email" },
+            "candidateHeadline": { "type": "string" },
+            "candidateSkills": { "type": "array", "items": { "type": "string" } }
         },
         "required": ["candidateId", "employerId", "postId", "postType", "postTitle", "companyName", "appliedOn", "status"]
     }

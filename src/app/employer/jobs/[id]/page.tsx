@@ -32,17 +32,17 @@ type Applicant = DocumentData & {
   applicationId: string;
   candidateId: string;
   status: string;
-  fullName?: string;
-  headline?: string;
-  email?: string;
-  skills?: string[];
+  candidateName: string;
+  candidateHeadline: string;
+  candidateEmail: string;
+  candidateSkills: string[];
   avatar?: string;
   matchScore?: number;
   justification?: string;
 };
 
 export default function ViewApplicantsPage({ params }: { params: { id: string } }) {
-  const { id: postId } = use(params);
+  const { id: postId } = params;
   const { toast } = useToast();
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
@@ -90,60 +90,47 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
 
         const applicationsRef = collection(db, 'applications');
         const q = query(applicationsRef, where('postId', '==', postId), where('employerId', '==', currentUser.uid));
-        const applicationsSnap = await getDocs(q);
-
-        const applicationsData = applicationsSnap.docs.map(doc => ({ ...doc.data(), applicationId: doc.id }));
         
-        if (applicationsData.length === 0) {
-            setApplicants([]);
-            setLoading(false);
-            setMatching(false);
-            return;
+        let applicationsSnap;
+        try {
+            applicationsSnap = await getDocs(q);
+        } catch (serverError) {
+             const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list', requestResourceData: {postId, employerId: currentUser.uid} });
+             errorEmitter.emit('permission-error', permissionError);
+             throw permissionError;
         }
-        
-        const candidateIds = applicationsData.map(app => app.candidateId).filter(Boolean);
-        const uniqueCandidateIds = [...new Set(candidateIds)];
-        
-        if (uniqueCandidateIds.length === 0) {
-             setApplicants([]);
-             setLoading(false);
-             setMatching(false);
-             return;
-        }
-        
-        const candidatePromises = uniqueCandidateIds.map(id => getDoc(doc(db, 'candidates', id)).catch(serverError => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' }));
-            return null;
-        }));
 
-        const candidateSnaps = await Promise.all(candidatePromises);
-        const candidateProfiles = new Map(candidateSnaps.filter(snap => snap?.exists()).map(snap => [snap!.id, snap!.data()]));
-
-        let mergedApplicants = applicationsData.map(app => {
-            const profile = candidateProfiles.get(app.candidateId) || {};
+        const applicationsData = applicationsSnap.docs.map(doc => {
+            const data = doc.data();
             return {
-                id: app.candidateId,
-                applicationId: app.applicationId,
-                candidateId: app.candidateId,
-                fullName: profile.fullName || app.candidateName || 'Unknown Candidate',
-                headline: profile.headline || 'No headline',
-                email: profile.email || 'No email',
-                skills: profile.skills || [],
-                avatar: (profile.fullName || app.candidateName)?.charAt(0) || 'U',
-                status: app.status || 'Applied',
+                id: data.candidateId,
+                applicationId: doc.id,
+                candidateId: data.candidateId,
+                status: data.status || 'Applied',
+                candidateName: data.candidateName || 'Unknown Candidate',
+                candidateHeadline: data.candidateHeadline || 'No headline',
+                candidateEmail: data.candidateEmail || 'No email',
+                candidateSkills: data.candidateSkills || [],
+                avatar: (data.candidateName || 'U').charAt(0),
             } as Applicant;
         });
         
-        setApplicants(mergedApplicants);
+        setApplicants(applicationsData);
         setLoading(false);
         
         // Run AI matching in the background
         const jobDescription = `Title: ${postData.title}\nResponsibilities: ${postData.responsibilities}\nSkills: ${postData.skills}`;
-        const applicantsToMatch = mergedApplicants.filter(a => !a.matchScore);
+        
+        const applicantsToMatch = applicationsData.filter(a => !a.matchScore);
         
         for (const applicant of applicantsToMatch) {
           try {
-            const candidateProfileString = JSON.stringify(candidateProfiles.get(applicant.candidateId) || {});
+            // We can't stringify the whole profile, so we build a summary.
+            const candidateProfileString = `
+              Full Name: ${applicant.candidateName}
+              Headline: ${applicant.candidateHeadline}
+              Skills: ${applicant.candidateSkills.join(', ')}
+            `;
             const matchResult: MatchJobCandidateOutput = await matchJobCandidate({
               candidateProfile: candidateProfileString,
               jobDescription,
@@ -152,7 +139,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
             setApplicants(prev => prev.map(a => a.id === applicant.id ? {...a, ...matchResult} : a));
 
           } catch (error) {
-            console.error(`AI matching failed for ${applicant.fullName}:`, error);
+            console.error(`AI matching failed for ${applicant.candidateName}:`, error);
             setApplicants(prev => prev.map(a => a.id === applicant.id ? {...a, matchScore: -1} : a));
           }
         }
@@ -160,8 +147,8 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
 
     } catch (error) {
         console.error("An error occurred during data fetching:", error);
-    } finally {
-        // Final loading states are set inside the try block
+        setLoading(false);
+        setMatching(false);
     }
   }, [postId]);
   
@@ -246,10 +233,10 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                                   <AvatarFallback>{applicant.avatar}</AvatarFallback>
                               </Avatar>
                               <div className="flex-1">
-                                  <CardTitle className="text-lg">{applicant.fullName}</CardTitle>
-                                  <CardDescription>{applicant.headline}</CardDescription>
-                                  <a href={`mailto:${applicant.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1">
-                                      <Mail className="w-3 h-3"/> {applicant.email}
+                                  <CardTitle className="text-lg">{applicant.candidateName}</CardTitle>
+                                  <CardDescription>{applicant.candidateHeadline}</CardDescription>
+                                  <a href={`mailto:${applicant.candidateEmail}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1">
+                                      <Mail className="w-3 h-3"/> {applicant.candidateEmail}
                                   </a>
                               </div>
                                {applicant.matchScore !== undefined ? (
@@ -271,10 +258,10 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                               <div>
                                   <h4 className="text-sm font-semibold mb-2">Skills</h4>
                                   <div className="flex flex-wrap gap-1">
-                                      {(applicant.skills || []).slice(0, 5).map(skill => (
+                                      {(applicant.candidateSkills || []).slice(0, 5).map(skill => (
                                           <Badge key={skill} variant="secondary">{skill}</Badge>
                                       ))}
-                                      {(applicant.skills?.length || 0) > 5 && <Badge variant="outline">+{ (applicant.skills?.length || 0) - 5} more</Badge>}
+                                      {(applicant.candidateSkills?.length || 0) > 5 && <Badge variant="outline">+{ (applicant.candidateSkills?.length || 0) - 5} more</Badge>}
                                   </div>
                               </div>
                                <div>
