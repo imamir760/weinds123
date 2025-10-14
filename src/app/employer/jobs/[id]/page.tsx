@@ -6,7 +6,7 @@ import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData, query, where, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Loader2, ArrowLeft, Star, Mail, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Loader2, ArrowLeft, Star, Mail, ThumbsUp, ThumbsDown, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -180,14 +180,14 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
   }, [applicants, filter]);
 
 
-  const handleUpdateStatus = async (applicationId: string, newStatus: 'Shortlisted' | 'Rejected') => {
+  const handleUpdateStatus = async (applicationId: string, newStatus: 'Shortlisted' | 'Rejected' | 'Applied') => {
       const appRef = doc(db, 'applications', applicationId);
       try {
           await updateDoc(appRef, { status: newStatus });
           setApplicants(prev => prev.map(app => app.applicationId === applicationId ? {...app, status: newStatus} : app));
           toast({
               title: "Status Updated",
-              description: `Candidate has been ${newStatus.toLowerCase()}.`
+              description: `Candidate has been moved to ${newStatus}.`
           });
       } catch (error) {
           console.error("Failed to update status", error);
@@ -290,12 +290,26 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                               </div>
                           </CardContent>
                           <CardFooter className="bg-secondary/30 p-2 flex justify-end gap-2">
-                            <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Rejected')} disabled={applicant.status === 'Rejected'}>
-                                <ThumbsDown className="mr-1.5 w-3.5 h-3.5"/> Reject
-                            </Button>
-                             <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Shortlisted')} disabled={applicant.status === 'Shortlisted'}>
-                                <ThumbsUp className="mr-1.5 w-3.5 h-3.5"/> Shortlist
-                            </Button>
+                             {filter === 'Applied' && (
+                                <>
+                                  <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Rejected')}>
+                                      <ThumbsDown className="mr-1.5 w-3.5 h-3.5"/> Reject
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Shortlisted')}>
+                                      <ThumbsUp className="mr-1.5 w-3.5 h-3.5"/> Shortlist
+                                  </Button>
+                                </>
+                             )}
+                             {filter === 'Shortlisted' && (
+                                <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Rejected')}>
+                                    <ThumbsDown className="mr-1.5 w-3.5 h-3.5"/> Reject
+                                </Button>
+                             )}
+                              {filter === 'Rejected' && (
+                                <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Applied')}>
+                                    <Undo2 className="mr-1.5 w-3.5 h-3.5"/> Reconsider
+                                </Button>
+                             )}
                           </CardFooter>
                       </Card>
                   ))}
