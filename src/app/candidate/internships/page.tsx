@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,7 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Clock, Building, PlusCircle, Sparkles } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Clock, Building, PlusCircle, Sparkles, ChevronsRight } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -33,6 +34,7 @@ interface Internship extends DocumentData {
   skills: string;
   duration: string;
   responsibilities: string;
+  pipeline: { stage: string, type?: string }[];
   matchScore?: number;
   recommendedSkills?: string[];
   justification?: string;
@@ -145,11 +147,11 @@ export default function InternshipsPage() {
         ) : (
           <div className="space-y-6">
               {internships.map(internship => (
-                  <Card key={internship.id} className="hover:shadow-lg transition-shadow">
+                  <Card key={internship.id} className="bg-card hover:shadow-lg transition-shadow">
                       <CardHeader>
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-start gap-4">
                               <div>
-                                  <CardTitle className="text-xl">{internship.title}</CardTitle>
+                                  <CardTitle className="text-xl font-headline">{internship.title}</CardTitle>
                                   <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {internship.companyName}</CardDescription>
                               </div>
                               <div className="text-right flex items-center gap-3 bg-secondary p-2 rounded-lg">
@@ -182,8 +184,22 @@ export default function InternshipsPage() {
                               </p>
                            )}
 
-                           {internship.recommendedSkills && internship.recommendedSkills.length > 0 && (
+                           {internship.pipeline && internship.pipeline.length > 0 && (
                                 <div className="mb-4">
+                                    <h4 className="font-semibold text-sm mb-2">Hiring Pipeline</h4>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {internship.pipeline.map((stage, index) => (
+                                            <div key={index} className="flex items-center gap-2">
+                                                <Badge variant="secondary" className="capitalize">{stage.stage.replace(/_/g, ' ')}</Badge>
+                                                {index < internship.pipeline.length -1 && <ChevronsRight className="w-4 h-4 text-muted-foreground"/>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                           {internship.recommendedSkills && internship.recommendedSkills.length > 0 && (
+                                <div className="my-4">
                                     <h4 className="font-semibold text-sm mb-2">Recommended Skills to Add</h4>
                                     <div className="flex flex-wrap gap-2">
                                         {internship.recommendedSkills.map(skill => (
@@ -198,7 +214,7 @@ export default function InternshipsPage() {
                                 </div>
                             )}
 
-                           <div className="flex flex-col md:flex-row justify-end items-center mt-4">
+                           <div className="flex flex-col md:flex-row justify-end items-center mt-6 border-t pt-4">
                                 <div className="flex gap-2">
                                     <Button asChild>
                                         <Link href={`/candidate/internships/${internship.id}`}>Apply Now</Link>
