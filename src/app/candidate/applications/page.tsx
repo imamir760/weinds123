@@ -74,7 +74,7 @@ export default function ApplicationsPage() {
       const unsubscribeInternships = onSnapshot(internshipsQuery, (snapshot) => {
         const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Application));
         setInternshipApplications(apps);
-        setLoading(false);
+        // Don't set loading to false here again to avoid flicker
       },
       async (serverError) => {
         const permissionError = new FirestorePermissionError({
