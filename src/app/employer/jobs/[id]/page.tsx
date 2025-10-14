@@ -68,21 +68,35 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
         let postSnap;
         let postType: 'job' | 'internship' | null = null;
         
-        // Try fetching from 'jobs' first
         const jobRef = doc(db, 'jobs', postId);
-        postSnap = await getDoc(jobRef);
-        if (postSnap.exists()) {
-          postType = 'job';
-        } else {
-          // If not in 'jobs', try 'internships'
-          const internshipRef = doc(db, 'internships', postId);
-          postSnap = await getDoc(internshipRef);
-          if (postSnap.exists()) {
-            postType = 'internship';
-          }
+        try {
+            postSnap = await getDoc(jobRef);
+            if (postSnap.exists()) {
+              postType = 'job';
+            }
+        } catch (error) {
+            const permissionError = new FirestorePermissionError({ path: jobRef.path, operation: 'get' });
+            errorEmitter.emit('permission-error', permissionError);
+            setLoading(false);
+            return;
+        }
+
+        if (!postType) {
+            const internshipRef = doc(db, 'internships', postId);
+            try {
+                postSnap = await getDoc(internshipRef);
+                if (postSnap.exists()) {
+                    postType = 'internship';
+                }
+            } catch (error) {
+                const permissionError = new FirestorePermissionError({ path: internshipRef.path, operation: 'get' });
+                errorEmitter.emit('permission-error', permissionError);
+                setLoading(false);
+                return;
+            }
         }
         
-        if (!postSnap.exists() || !postType) {
+        if (!postSnap?.exists() || !postType) {
           console.error("Post not found");
           setPostDetails(null);
           setLoading(false);
@@ -92,9 +106,12 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
         const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
         setPostDetails(postData);
 
-        // Fetch applicants from the correct subcollection
         const applicantsCollectionRef = collection(db, postType, postId, 'applicants');
-        const applicantsSnap = await getDocs(applicantsCollectionRef);
+        const applicantsSnap = await getDocs(applicantsCollectionRef).catch(error => {
+            const permissionError = new FirestorePermissionError({ path: applicantsCollectionRef.path, operation: 'list' });
+            errorEmitter.emit('permission-error', permissionError);
+            throw permissionError; // Stop execution
+        });
         
         const applicantsData = applicantsSnap.docs.map(d => ({ 
             id: d.id, 
@@ -108,18 +125,23 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             return;
         }
 
-        // Fetch candidate profiles for all applicants
         const candidateIds = [...new Set(applicantsData.map(app => app.candidateId))];
-        const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)));
+        const candidatePromises = candidateIds.map(id => 
+            getDoc(doc(db, 'candidates', id)).catch(error => {
+                const permissionError = new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' });
+                errorEmitter.emit('permission-error', permissionError);
+                return null; // Return null on error to not break Promise.all
+            })
+        );
         const candidateSnaps = await Promise.all(candidatePromises);
+        
         const candidatesMap = new Map<string, DocumentData>();
         candidateSnaps.forEach(snap => {
-            if (snap.exists()) {
+            if (snap && snap.exists()) {
                 candidatesMap.set(snap.id, snap.data());
             }
         });
 
-        // Merge applicant data with candidate profiles
         const mergedApplicants = applicantsData.map(app => {
             const profile = candidatesMap.get(app.candidateId);
             return {
@@ -135,9 +157,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
       } catch (error) {
         console.error("Error fetching pipeline data: ", error);
-        if (error instanceof Error && error.name.includes('Permission')) {
-           errorEmitter.emit('permission-error', error as FirestorePermissionError);
-        }
+        // Errors are emitted in the individual catch blocks.
       } finally {
         setLoading(false);
       }
@@ -148,7 +168,6 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
   const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
-    // Normalize stage name by removing type info like (ai) and replacing underscores
     const rawStageName = stageNameFromPipelineConfig.split(' ')[0].toLowerCase().replace(/_/g, ' ');
      return applicants.filter(app => (app.currentStage || 'Applied').toLowerCase().replace(/_/g, ' ') === rawStageName);
   };
@@ -248,3 +267,5 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
   return <EmployerDashboardPage>{PageContent}</EmployerDashboardPage>;
 }
+
+    
