@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -121,12 +122,9 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setAuthUser(user);
-      if(postDetails){
-          setIsOwner(user?.uid === postDetails.employerId);
-      }
     });
     return () => unsubscribe();
-  }, [postDetails]);
+  }, []);
 
   useEffect(() => {
     if (!postId) return;
@@ -168,7 +166,6 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
         const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
         if (!cancelled) {
             setPostDetails(postData);
-            setLoading(false); // Stop loading after public data is fetched
         }
     };
 
@@ -180,22 +177,38 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
   }, [postId]);
 
   useEffect(() => {
-    if (!postDetails || !authUser || authUser.uid !== postDetails.employerId) {
-      setIsOwner(false);
-      setApplicants([]);
+    // Wait until we have both the authenticated user and the post details
+    if (!postDetails || authUser === null) {
+      // If auth is loaded but no user, we know they're not the owner.
+      if (!loading && authUser === null) {
+          setIsOwner(false);
+          setLoading(false);
+      }
       return;
     }
     
-    setIsOwner(true);
-    let cancelled = false;
+    const employerId = postDetails.employerId as string | undefined;
+    const isUserOwner = authUser?.uid === employerId;
+    setIsOwner(isUserOwner);
 
+    if (!isUserOwner) {
+        setApplicants([]);
+        setLoading(false);
+        return;
+    }
+
+    let cancelled = false;
     const fetchApplicantsIfOwner = async () => {
+        setLoading(true);
         try {
             const applicantsCollectionRef = collection(db, postDetails.type, postDetails.id, 'applicants');
             const applicantsSnap = await getDocs(applicantsCollectionRef);
 
             if (applicantsSnap.empty) {
-                if (!cancelled) setApplicants([]);
+                if (!cancelled) {
+                    setApplicants([]);
+                    setLoading(false);
+                }
                 return;
             }
 
@@ -225,14 +238,20 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
                 } as Applicant;
             });
 
-            if (!cancelled) setApplicants(mergedApplicants);
+            if (!cancelled) {
+              setApplicants(mergedApplicants);
+              setLoading(false);
+            }
         } catch (serverError) {
             const permissionError = new FirestorePermissionError({
                 path: collection(db, postDetails.type, postDetails.id, 'applicants').path,
                 operation: 'list',
             });
             errorEmitter.emit('permission-error', permissionError);
-            if (!cancelled) setApplicants([]);
+            if (!cancelled) {
+              setApplicants([]);
+              setLoading(false);
+            }
         }
     };
 
@@ -250,6 +269,7 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
   };
 
   const handleStageClick = (stageConfig: Stage) => {
+    if(!isOwner) return;
     const stageDisplayName = getStageName(stageConfig);
     const stageCandidates = candidatesByStage(stageConfig.stage);
     setSelectedStage({ stageName: stageDisplayName, candidates: stageCandidates });
