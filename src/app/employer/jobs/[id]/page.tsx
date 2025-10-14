@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -81,7 +80,7 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
                                         </div>
                                         <div className="flex items-center gap-1 text-primary font-bold text-sm">
                                             <Star className="w-4 h-4 fill-primary"/>
-                                            {candidate.matchScore}% 
+                                            {candidate.matchScore}%
                                         </div>
                                     </div>
                                     <div className="flex justify-between items-center border-t pt-3">
@@ -116,150 +115,115 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<{ stageName: string; candidates: Applicant[] } | null>(null);
-  const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setAuthUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (!postId) return;
     let cancelled = false;
 
-    const fetchPost = async () => {
-      setLoading(true);
-      let postSnap: DocumentData | null = null;
-      let postType: 'job' | 'internship' | null = null;
-      let postRef: any = null;
+    const fetchPostAndApplicants = async (user: FirebaseUser | null) => {
+        setLoading(true);
 
-      try {
-        postRef = doc(db, 'jobs', postId);
-        postSnap = await getDoc(postRef);
-        if (postSnap.exists()) {
-          postType = 'job';
-        } else {
-          postRef = doc(db, 'internships', postId);
-          postSnap = await getDoc(postRef);
-          if (postSnap.exists()) {
-            postType = 'internship';
-          }
-        }
-      } catch (serverError) {
-          const permissionError = new FirestorePermissionError({ path: postRef.path, operation: 'get' });
-          errorEmitter.emit('permission-error', permissionError);
-          if (!cancelled) setLoading(false);
-          return;
-      }
+        // 1. Fetch public post data
+        let postSnap: DocumentData | null = null;
+        let postType: 'job' | 'internship' | null = null;
 
-      if (!postSnap || !postSnap.exists() || !postType) {
-        if (!cancelled) {
-            setPostDetails(null);
-            setApplicants([]);
-            setIsOwner(false);
-            setLoading(false);
-        }
-        return;
-      }
-
-      const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
-      if (!cancelled) {
-        setPostDetails(postData);
-        if (authUser) {
-          setIsOwner(authUser.uid === postData.employerId);
-        }
-        setLoading(false);
-      }
-    };
-
-    fetchPost();
-    return () => { cancelled = true; };
-  }, [postId, authUser]);
-
-  useEffect(() => {
-    if (!postDetails || !postId || !authUser || authUser.uid !== postDetails.employerId) {
-      if(postDetails && authUser && authUser.uid !== postDetails.employerId){
-          setIsOwner(false);
-          setApplicants([]);
-      }
-      return;
-    }
-    
-    setIsOwner(true);
-    let cancelled = false;
-
-    const fetchApplicantsIfOwner = async () => {
-      setLoading(true);
-      const applicantsCollectionRef = collection(db, postDetails.type, postId, 'applicants');
-      
-      try {
-        const applicantsSnap = await getDocs(applicantsCollectionRef);
-
-        if (applicantsSnap.empty) {
-          if (!cancelled) {
-            setApplicants([]);
-            setLoading(false);
-          }
-          return;
+        try {
+            const jobRef = doc(db, 'jobs', postId);
+            postSnap = await getDoc(jobRef);
+            if (postSnap.exists()) {
+                postType = 'job';
+            } else {
+                const internshipRef = doc(db, 'internships', postId);
+                postSnap = await getDoc(internshipRef);
+                if (postSnap.exists()) {
+                    postType = 'internship';
+                }
+            }
+        } catch (error) {
+             console.error("Error fetching post:", error);
+             if (!cancelled) setLoading(false);
+             return;
         }
 
-        const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
-
-        const candidatePromises = applicantsData.map(applicant => {
-          const candidateDocRef = doc(db, 'candidates', applicant.candidateId);
-          return getDoc(candidateDocRef).catch(error => {
-            const permissionError = new FirestorePermissionError({
-              path: candidateDocRef.path,
-              operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            return null; // Gracefully handle failure for a single profile
-          });
-        });
+        if (cancelled || !postSnap || !postSnap.exists() || !postType) {
+            if (!cancelled) {
+                setPostDetails(null);
+                setApplicants([]);
+                setLoading(false);
+            }
+            return;
+        }
         
-        const candidateSnaps = await Promise.all(candidatePromises);
+        const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
+        if (!cancelled) setPostDetails(postData);
 
-        const candidatesMap = new Map<string, DocumentData>();
-        candidateSnaps.forEach(snap => {
-          if (snap && snap.exists()) {
-            candidatesMap.set(snap.id, snap.data());
-          }
-        });
+        // 2. Check ownership and fetch applicants if owner
+        const ownerId = postData.employerId;
+        const currentUserIsOwner = user?.uid === ownerId;
+        if (!cancelled) setIsOwner(currentUserIsOwner);
 
-        const mergedApplicants = applicantsData.map(app => {
-          const profile = candidatesMap.get(app.candidateId);
-          return {
-            ...app,
-            fullName: profile?.fullName || 'Unknown Candidate',
-            headline: profile?.headline || 'No headline available',
-            avatar: profile?.fullName?.charAt(0) || 'U',
-            matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75)
-          } as Applicant;
-        });
+        if (currentUserIsOwner) {
+            try {
+                const applicantsCollectionRef = collection(db, postType, postId, 'applicants');
+                const applicantsSnap = await getDocs(applicantsCollectionRef);
 
-        if (!cancelled) {
-          setApplicants(mergedApplicants);
+                if (applicantsSnap.empty) {
+                    if (!cancelled) setApplicants([]);
+                } else {
+                    const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
+
+                    const candidatePromises = applicantsData.map(applicant =>
+                        getDoc(doc(db, 'candidates', applicant.candidateId)).catch(err => {
+                            const permissionError = new FirestorePermissionError({ path: `/candidates/${applicant.candidateId}`, operation: 'get' });
+                            errorEmitter.emit('permission-error', permissionError);
+                            return null;
+                        })
+                    );
+                    const candidateSnaps = await Promise.all(candidatePromises);
+
+                    const candidatesMap = new Map<string, DocumentData>();
+                    candidateSnaps.forEach(snap => {
+                        if (snap && snap.exists()) candidatesMap.set(snap.id, snap.data());
+                    });
+
+                    const mergedApplicants = applicantsData.map(app => {
+                        const profile = candidatesMap.get(app.candidateId);
+                        return {
+                            ...app,
+                            fullName: profile?.fullName || 'Unknown Candidate',
+                            headline: profile?.headline || 'No headline available',
+                            avatar: profile?.fullName?.charAt(0) || 'U',
+                            matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75)
+                        } as Applicant;
+                    });
+
+                    if (!cancelled) setApplicants(mergedApplicants);
+                }
+            } catch (serverError) {
+                const permissionError = new FirestorePermissionError({
+                    path: collection(db, postType, postId, 'applicants').path,
+                    operation: 'list',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                if (!cancelled) setApplicants([]);
+            }
+        } else {
+            if (!cancelled) setApplicants([]); // Not owner, clear applicants
         }
-
-      } catch (serverError) {
-        const permissionError = new FirestorePermissionError({
-          path: applicantsCollectionRef.path,
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+        
+        if (!cancelled) setLoading(false);
     };
 
-    fetchApplicantsIfOwner();
-    return () => { cancelled = true; };
-  }, [postDetails, authUser, postId]);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      fetchPostAndApplicants(user);
+    });
+
+    return () => {
+        cancelled = true;
+        unsubscribe();
+    };
+  }, [postId]);
 
   const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
@@ -290,6 +254,13 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
             <Card>
                 <CardContent className="flex justify-center items-center h-64">
                     <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                </CardContent>
+            </Card>
+        ) : isOwner === false ? (
+            <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                    <p className="font-semibold text-lg text-destructive">Access Denied</p>
+                    <p>You do not have permission to view the applicants for this post.</p>
                 </CardContent>
             </Card>
         ) : !postDetails || !postDetails.pipeline || postDetails.pipeline.length === 0 ? (
