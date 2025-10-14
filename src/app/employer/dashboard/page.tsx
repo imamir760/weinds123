@@ -8,20 +8,23 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, Bell, Menu, User, Filter, LogOut } from 'lucide-react';
+import { PlusCircle, Briefcase, Users, Star, Bookmark, Building, TestTube2, Bot, Bell, Menu, User, Filter, LogOut, ChevronsRight } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PostJobDialog } from '@/components/employer/post-job-dialog';
 import { CreatePipelineDialog } from '@/components/employer/create-pipeline-dialog';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-
+import { useAuth } from '@/components/auth/auth-provider';
+import { collection, query, where, getDocs, doc, getDoc, DocumentData, Timestamp } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
@@ -35,43 +38,27 @@ const navigation = [
     { name: 'Company Profile', href: '/employer/profile', icon: User },
 ];
 
-const insights = [
-  {
-    title: 'Active Jobs',
-    value: '8',
-    icon: <Briefcase className="w-6 h-6 text-orange-500" />,
-    description: '+0 since last month',
-  },
-  {
-    title: 'Total Candidates',
-    value: '10',
-    icon: <Users className="w-6 h-6 text-green-500" />,
-    description: '+0 since last month',
-  },
-  {
-    title: 'Shortlisted',
-    value: '6',
-    icon: <Star className="w-6 h-6 text-yellow-500" />,
-    description: '+0 since last week',
-  },
-  {
-    title: 'Hired This Month',
-    value: '1',
-    icon: <Bookmark className="w-6 h-6 text-indigo-500" />,
-    description: '+0 this week',
-  },
+const initialPipelineStages = [
+  { name: "Applied", id: "applied", count: 0, color: "bg-orange-100 dark:bg-orange-900/30", textColor: "text-orange-600 dark:text-orange-400" },
+  { name: "Shortlisted", id: "shortlisted", count: 0, color: "bg-yellow-100 dark:bg-yellow-900/30", textColor: "text-yellow-600 dark:text-yellow-400" },
+  { name: "Skill Test", id: "skill_test", count: 0, color: "bg-green-100 dark:bg-green-900/30", textColor: "text-green-600 dark:text-green-400" },
+  { name: "Interview", id: "interview", count: 0, color: "bg-green-200 dark:bg-green-800/40", textColor: "text-green-700 dark:text-green-300" },
+  { name: "Final Interview", id: "final_interview", count: 0, color: "bg-teal-100 dark:bg-teal-900/30", textColor: "text-teal-600 dark:text-teal-400" },
+  { name: "Selection", id: "selection", count: 0, color: "bg-blue-100 dark:bg-blue-900/30", textColor: "text-blue-600 dark:text-blue-400" },
+  { name: "Hired", id: "hired", count: 0, color: "bg-indigo-100 dark:bg-indigo-900/30", textColor: "text-indigo-600 dark:text-indigo-400" },
+  { name: "Rejected", id: "rejected", count: 0, color: "bg-slate-100 dark:bg-slate-800", textColor: "text-slate-600 dark:text-slate-400" }
 ];
 
-const pipelineStages = [
-  { name: "Applied", count: 4, color: "bg-orange-100 dark:bg-orange-900/30", textColor: "text-orange-600 dark:text-orange-400" },
-  { name: "Invite", count: 2, color: "bg-orange-200 dark:bg-orange-800/40", textColor: "text-orange-700 dark:text-orange-300" },
-  { name: "Shortlisted", count: 6, color: "bg-yellow-100 dark:bg-yellow-900/30", textColor: "text-yellow-600 dark:text-yellow-400" },
-  { name: "Skill Test", count: 2, color: "bg-green-100 dark:bg-green-900/30", textColor: "text-green-600 dark:text-green-400" },
-  { name: "Interview", count: 1, color: "bg-green-200 dark:bg-green-800/40", textColor: "text-green-700 dark:text-green-300" },
-  { name: "Final Interview", count: 0, color: "bg-teal-100 dark:bg-teal-900/30", textColor: "text-teal-600 dark:text-teal-400" },
-  { name: "Selection", count: 0, color: "bg-blue-100 dark:bg-blue-900/30", textColor: "text-blue-600 dark:text-blue-400" },
-  { name: "Rejected", count: 0, color: "bg-slate-100 dark:bg-slate-800", textColor: "text-slate-600 dark:text-slate-400" }
-];
+type Applicant = DocumentData & {
+  id: string;
+  candidateId: string;
+  currentStage: string;
+  postType: 'job' | 'internship';
+  postId: string;
+  fullName?: string;
+  headline?: string;
+  avatar?: string;
+};
 
 
 function SidebarNav() {
@@ -110,9 +97,6 @@ function SidebarNav() {
                 >
                   <item.icon className="h-4 w-4" />
                   {item.name}
-                  {item.count && (
-                    <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200/80 text-xs dark:bg-gray-700/80">{item.count}</span>
-                  )}
                 </Link>
               ))}
             </nav>
@@ -127,12 +111,164 @@ function SidebarNav() {
     )
 }
 
+const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, postType }: {
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    stageName: string;
+    candidates: Applicant[];
+    postType: 'job' | 'internship';
+}) => {
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Candidates in "{stageName}"</DialogTitle>
+                    <DialogDescription>{candidates.length} candidate(s) in this stage.</DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto pr-4 space-y-4">
+                    {candidates.length > 0 ? (
+                        candidates.map(candidate => (
+                            <Card key={candidate.id} className="bg-background/50 shadow-sm">
+                                <CardContent className="p-4 flex justify-between items-center">
+                                    <div className="flex items-center gap-3 group">
+                                        <Avatar className="w-11 h-11 border-2 border-primary/20">
+                                            <AvatarFallback>{candidate.avatar}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-semibold text-base">{candidate.fullName}</p>
+                                            <p className="text-xs text-muted-foreground">{candidate.headline}</p>
+                                        </div>
+                                    </div>
+                                    <Button asChild variant="outline" size="sm">
+                                        <Link href={`/employer/${candidate.postType}s/${candidate.postId}/candidates/${candidate.id}`}>View Profile</Link>
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ))
+                    ) : (
+                        <div className="text-center py-8 text-sm text-muted-foreground">
+                            <p>No candidates in this stage.</p>
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+};
+
+
 function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
+    const { user } = useAuth();
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({ activeJobs: 0, totalCandidates: 0, shortlisted: 0, hired: 0 });
+    const [pipelineStages, setPipelineStages] = useState(initialPipelineStages);
+    const [allApplicants, setAllApplicants] = useState<Applicant[]>([]);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [selectedStage, setSelectedStage] = useState<{ name: string; id: string } | null>(null);
+
+    useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        const fetchDashboardData = async () => {
+            setLoading(true);
+            try {
+                // 1. Fetch all posts (jobs and internships)
+                const jobsQuery = query(collection(db, 'jobs'), where("employerId", "==", user.uid));
+                const internshipsQuery = query(collection(db, 'internships'), where("employerId", "==", user.uid));
+
+                const [jobsSnapshot, internshipsSnapshot] = await Promise.all([getDocs(jobsQuery), getDocs(internshipsQuery)]);
+                
+                const allPosts = [
+                    ...jobsSnapshot.docs.map(d => ({ ...d.data(), id: d.id, type: 'job' as const })),
+                    ...internshipsSnapshot.docs.map(d => ({ ...d.data(), id: d.id, type: 'internship' as const }))
+                ];
+
+                // 2. Fetch all applicants for each post
+                const applicantPromises = allPosts.map(post => {
+                    const applicantsRef = collection(db, post.type === 'job' ? 'jobs' : 'internships', post.id, 'applicants');
+                    return getDocs(applicantsRef).then(snapshot => 
+                        snapshot.docs.map(doc => ({...doc.data(), id: doc.id, postType: post.type, postId: post.id } as Applicant))
+                    );
+                });
+
+                const applicantsByPost = await Promise.all(applicantPromises);
+                const fetchedApplicants = applicantsByPost.flat();
+                
+                // 3. Fetch candidate profiles
+                const candidateIds = [...new Set(fetchedApplicants.map(app => app.candidateId))];
+                const candidateProfiles = new Map<string, DocumentData>();
+                 if (candidateIds.length > 0) {
+                    const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)));
+                    const candidateSnapshots = await Promise.all(candidatePromises);
+                    candidateSnapshots.forEach(snap => {
+                        if(snap.exists()) {
+                           candidateProfiles.set(snap.id, snap.data());
+                        }
+                    });
+                }
+                
+                // 4. Merge profiles into applicants
+                const mergedApplicants = fetchedApplicants.map(app => {
+                    const profile = candidateProfiles.get(app.candidateId);
+                    return {
+                        ...app,
+                        fullName: profile?.fullName || 'Unknown Candidate',
+                        headline: profile?.headline || 'No headline',
+                        avatar: profile?.fullName?.charAt(0) || 'U',
+                    };
+                });
+                setAllApplicants(mergedApplicants);
+
+                // 5. Calculate stats and pipeline counts
+                const stageCounts = new Map<string, number>();
+                initialPipelineStages.forEach(s => stageCounts.set(s.id, 0));
+
+                mergedApplicants.forEach(app => {
+                    const stageKey = (app.currentStage || 'applied').toLowerCase().replace(/ /g, '_');
+                    stageCounts.set(stageKey, (stageCounts.get(stageKey) || 0) + 1);
+                });
+
+                const newStats = {
+                    activeJobs: allPosts.length,
+                    totalCandidates: mergedApplicants.length,
+                    shortlisted: stageCounts.get('shortlisted') || 0,
+                    hired: stageCounts.get('hired') || 0
+                };
+                setStats(newStats);
+                setPipelineStages(initialPipelineStages.map(s => ({ ...s, count: stageCounts.get(s.id) || 0 })));
+
+            } catch (error) {
+                console.error("Failed to fetch dashboard data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+    }, [user]);
+
+    const handleStageClick = (stage: { name: string; id: string; }) => {
+        setSelectedStage(stage);
+        setIsDialogOpen(true);
+    };
+
+    const filteredCandidates = selectedStage ? allApplicants.filter(app => (app.currentStage || 'applied').toLowerCase().replace(/ /g, '_') === selectedStage.id) : [];
+
+    const insightCards = [
+        { title: 'Active Posts', value: stats.activeJobs, icon: <Briefcase className="w-6 h-6 text-orange-500" /> },
+        { title: 'Total Candidates', value: stats.totalCandidates, icon: <Users className="w-6 h-6 text-green-500" /> },
+        { title: 'Shortlisted', value: stats.shortlisted, icon: <Star className="w-6 h-6 text-yellow-500" /> },
+        { title: 'Hired This Month', value: stats.hired, icon: <Bookmark className="w-6 h-6 text-indigo-500" /> },
+    ];
+    
     return (
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                  <h1 className="font-semibold text-2xl md:text-3xl">Welcome, Test LLC!</h1>
+                  <h1 className="font-semibold text-2xl md:text-3xl">Welcome, {user?.displayName || 'Employer'}!</h1>
                   <p className="text-muted-foreground">Your command center for smart hiring. Let's find your next great hire.</p>
                 </div>
                 <Button onClick={onPostJobOpen}>
@@ -141,24 +277,27 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
               </div>
               
               <section id="quick-insights">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {insights.map((insight, index) => (
-                    <Card key={index}>
-                      <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">
-                          {insight.title}
-                        </CardTitle>
-                        {insight.icon}
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-4xl font-bold">{insight.value}</div>
-                        <p className="text-xs text-muted-foreground">
-                          {insight.description}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                 {loading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                       {[...Array(4)].map((_, i) => <Card key={i}><CardHeader><CardTitle className="text-sm font-medium h-5 bg-muted rounded"></CardTitle></CardHeader><CardContent><div className="h-10 bg-muted rounded"></div></CardContent></Card>)}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {insightCards.map((insight, index) => (
+                        <Card key={index}>
+                          <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">
+                              {insight.title}
+                            </CardTitle>
+                            {insight.icon}
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-4xl font-bold">{insight.value}</div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                )}
               </section>
 
               <div className="grid gap-6 md:grid-cols-1">
@@ -167,31 +306,27 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                         <div>
                             <CardTitle>Hiring Pipeline Overview</CardTitle>
-                            <CardDescription>A summary of your candidate progression stages.</CardDescription>
-                        </div>
-                        <div className="w-full md:w-64">
-                             <Select>
-                                <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Filter by job..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Active Jobs</SelectItem>
-                                    <SelectItem value="job1">Senior Frontend Developer</SelectItem>
-                                    <SelectItem value="job2">UX/UI Designer</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <CardDescription>A summary of your candidate progression stages across all posts.</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
-                      {pipelineStages.map((stage) => (
-                        <Card key={stage.name} className={`flex flex-col justify-between p-4 hover:shadow-lg transition-all duration-300 border-0 ${stage.color}`}>
-                           <div className="text-center">
-                             <p className={`text-5xl font-extrabold ${stage.textColor}`}>{stage.count}</p>
-                             <h3 className={`font-semibold mt-2 text-sm ${stage.textColor}`}>{stage.name}</h3>
-                           </div>
-                        </Card>
-                      ))}
+                     <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+                      {loading ? (
+                          [...Array(8)].map((_, i) => <Card key={i} className="p-4 h-28 bg-muted animate-pulse"></Card>)
+                      ) : (
+                          pipelineStages.map((stage) => (
+                            <Card 
+                                key={stage.id} 
+                                className={`flex flex-col justify-between p-4 hover:shadow-lg transition-all duration-300 border-0 ${stage.color} ${stage.count > 0 ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+                                onClick={() => stage.count > 0 && handleStageClick(stage)}
+                            >
+                               <div className="text-center">
+                                 <p className={`text-5xl font-extrabold ${stage.textColor}`}>{stage.count}</p>
+                                 <h3 className={`font-semibold mt-2 text-sm ${stage.textColor}`}>{stage.name}</h3>
+                               </div>
+                            </Card>
+                          ))
+                      )}
                     </CardContent>
                   </Card>
                     <div className="grid md:grid-cols-2 gap-6">
@@ -217,6 +352,15 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                         </Card>
                     </div>
               </div>
+                {selectedStage && (
+                  <CandidateStageDialog
+                      isOpen={isDialogOpen}
+                      onOpenChange={setIsDialogOpen}
+                      stageName={selectedStage.name}
+                      candidates={filteredCandidates}
+                      postType="job" // This might need to be dynamic if showing mixed applicants
+                  />
+              )}
             </main>
     )
 }
