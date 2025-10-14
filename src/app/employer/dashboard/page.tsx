@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -304,7 +305,7 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                             <h3 className="text-xl font-bold mb-2">Explore Campus Talent</h3>
                             <p className="text-muted-foreground text-center mb-4 text-sm">Discover promising new talent from top colleges across the country.</p>
                             <Button variant="outline" asChild>
-                                <Link href="/employer/campus">View Campus Pool</Link>
+                                <Link href="#">View Campus Pool</Link>
                             </Button>
                         </Card>
                          <Card className="flex flex-col items-center justify-center p-8 bg-green-50 dark:bg-green-900/20 border-dashed border-green-200 dark:border-green-900">
@@ -314,7 +315,7 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                             <h3 className="text-xl font-bold mb-2">Manage AI Skill Tests</h3>
                             <p className="text-muted-foreground text-center mb-4 text-sm">Create, assign, and review AI-powered skill assessments for your candidates.</p>
                             <Button variant="outline" asChild>
-                                <Link href="/employer/skill-tests">Go to Skill Tests</Link>
+                                <Link href="#">Go to Skill Tests</Link>
                             </Button>
                         </Card>
                     </div>
