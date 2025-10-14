@@ -47,11 +47,11 @@ export default function EmployerJobsPage() {
         
         const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
           getDocs(jobsQuery).catch(e => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list' }));
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
           }),
           getDocs(internshipsQuery).catch(e => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list' }));
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
           })
         ]);
@@ -70,8 +70,10 @@ export default function EmployerJobsPage() {
           for (let i = 0; i < postIds.length; i += CHUNK_SIZE) {
               const chunk = postIds.slice(i, i + CHUNK_SIZE);
               const applicationsQuery = query(collection(db, 'applications'), where('postId', 'in', chunk), where('employerId', '==', user.uid));
-              const applicationsSnapshot = await getDocs(applicationsQuery).catch(e => {
-                  errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list' }));
+              
+              const applicationsSnapshot = await getDocs(applicationsQuery).catch(serverError => {
+                  const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list', requestResourceData: { postIds: chunk, employerId: user.uid } });
+                  errorEmitter.emit('permission-error', permissionError);
                   return null;
               });
               
