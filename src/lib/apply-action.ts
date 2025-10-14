@@ -42,18 +42,4 @@ export function applyToAction(
     });
     errorEmitter.emit('permission-error', permissionError);
   });
-  
-  // Increment the applicantCount on the job/internship posting
-  const postCollectionName = postType === 'job' ? 'jobs' : 'internships';
-  const postRef = doc(db, postCollectionName, postId);
-  updateDoc(postRef, {
-      applicantCount: increment(1)
-  }).catch(async (serverError) => {
-    const permissionError = new FirestorePermissionError({
-        path: postRef.path,
-        operation: 'update',
-        requestResourceData: { applicantCount: 'increment' }
-    });
-    errorEmitter.emit('permission-error', permissionError);
-  })
 }
