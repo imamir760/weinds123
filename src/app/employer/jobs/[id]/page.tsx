@@ -80,7 +80,7 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
                                         </div>
                                         <div className="flex items-center gap-1 text-primary font-bold text-sm">
                                             <Star className="w-4 h-4 fill-primary"/>
-                                            {candidate.matchScore}%
+                                            {candidate.matchScore}% 
                                         </div>
                                     </div>
                                     <div className="flex justify-between items-center border-t pt-3">
@@ -116,15 +116,24 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<{ stageName: string; candidates: Applicant[] } | null>(null);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
+  const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setAuthUser(user);
+      if(postDetails){
+          setIsOwner(user?.uid === postDetails.employerId);
+      }
+    });
+    return () => unsubscribe();
+  }, [postDetails]);
 
   useEffect(() => {
     if (!postId) return;
     let cancelled = false;
 
-    const fetchPostAndApplicants = async (user: FirebaseUser | null) => {
+    const fetchPost = async () => {
         setLoading(true);
-
-        // 1. Fetch public post data
         let postSnap: DocumentData | null = null;
         let postType: 'job' | 'internship' | null = null;
 
@@ -150,80 +159,89 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
             if (!cancelled) {
                 setPostDetails(null);
                 setApplicants([]);
+                setIsOwner(false);
                 setLoading(false);
             }
             return;
         }
         
         const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
-        if (!cancelled) setPostDetails(postData);
-
-        // 2. Check ownership and fetch applicants if owner
-        const ownerId = postData.employerId;
-        const currentUserIsOwner = user?.uid === ownerId;
-        if (!cancelled) setIsOwner(currentUserIsOwner);
-
-        if (currentUserIsOwner) {
-            try {
-                const applicantsCollectionRef = collection(db, postType, postId, 'applicants');
-                const applicantsSnap = await getDocs(applicantsCollectionRef);
-
-                if (applicantsSnap.empty) {
-                    if (!cancelled) setApplicants([]);
-                } else {
-                    const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
-
-                    const candidatePromises = applicantsData.map(applicant =>
-                        getDoc(doc(db, 'candidates', applicant.candidateId)).catch(err => {
-                            const permissionError = new FirestorePermissionError({ path: `/candidates/${applicant.candidateId}`, operation: 'get' });
-                            errorEmitter.emit('permission-error', permissionError);
-                            return null;
-                        })
-                    );
-                    const candidateSnaps = await Promise.all(candidatePromises);
-
-                    const candidatesMap = new Map<string, DocumentData>();
-                    candidateSnaps.forEach(snap => {
-                        if (snap && snap.exists()) candidatesMap.set(snap.id, snap.data());
-                    });
-
-                    const mergedApplicants = applicantsData.map(app => {
-                        const profile = candidatesMap.get(app.candidateId);
-                        return {
-                            ...app,
-                            fullName: profile?.fullName || 'Unknown Candidate',
-                            headline: profile?.headline || 'No headline available',
-                            avatar: profile?.fullName?.charAt(0) || 'U',
-                            matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75)
-                        } as Applicant;
-                    });
-
-                    if (!cancelled) setApplicants(mergedApplicants);
-                }
-            } catch (serverError) {
-                const permissionError = new FirestorePermissionError({
-                    path: collection(db, postType, postId, 'applicants').path,
-                    operation: 'list',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                if (!cancelled) setApplicants([]);
-            }
-        } else {
-            if (!cancelled) setApplicants([]); // Not owner, clear applicants
+        if (!cancelled) {
+            setPostDetails(postData);
+            setLoading(false); // Stop loading after public data is fetched
         }
-        
-        if (!cancelled) setLoading(false);
     };
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      fetchPostAndApplicants(user);
-    });
+    fetchPost();
 
     return () => {
         cancelled = true;
-        unsubscribe();
     };
   }, [postId]);
+
+  useEffect(() => {
+    if (!postDetails || !authUser || authUser.uid !== postDetails.employerId) {
+      setIsOwner(false);
+      setApplicants([]);
+      return;
+    }
+    
+    setIsOwner(true);
+    let cancelled = false;
+
+    const fetchApplicantsIfOwner = async () => {
+        try {
+            const applicantsCollectionRef = collection(db, postDetails.type, postDetails.id, 'applicants');
+            const applicantsSnap = await getDocs(applicantsCollectionRef);
+
+            if (applicantsSnap.empty) {
+                if (!cancelled) setApplicants([]);
+                return;
+            }
+
+            const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
+
+            const candidatePromises = applicantsData.map(applicant =>
+                getDoc(doc(db, 'candidates', applicant.candidateId)).catch(err => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${applicant.candidateId}`, operation: 'get' }));
+                    return null;
+                })
+            );
+            const candidateSnaps = await Promise.all(candidatePromises);
+
+            const candidatesMap = new Map<string, DocumentData>();
+            candidateSnaps.forEach(snap => {
+                if (snap && snap.exists()) candidatesMap.set(snap.id, snap.data());
+            });
+
+            const mergedApplicants = applicantsData.map(app => {
+                const profile = candidatesMap.get(app.candidateId);
+                return {
+                    ...app,
+                    fullName: profile?.fullName || 'Unknown Candidate',
+                    headline: profile?.headline || 'No headline available',
+                    avatar: profile?.fullName?.charAt(0) || 'U',
+                    matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75)
+                } as Applicant;
+            });
+
+            if (!cancelled) setApplicants(mergedApplicants);
+        } catch (serverError) {
+            const permissionError = new FirestorePermissionError({
+                path: collection(db, postDetails.type, postDetails.id, 'applicants').path,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            if (!cancelled) setApplicants([]);
+        }
+    };
+
+    fetchApplicantsIfOwner();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [postDetails, authUser]);
 
   const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
