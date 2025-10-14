@@ -615,5 +615,3 @@ function CandidateProfilePage() {
 }
 
 export default CandidateProfilePage;
-
-    
