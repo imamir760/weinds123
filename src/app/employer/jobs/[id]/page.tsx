@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData } from 'firebase/firestore';
 import EmployerDashboardPage from '../../dashboard/page';
@@ -43,10 +43,6 @@ type Applicant = DocumentData & {
   matchScore?: number;
 };
 
-type JobPipelinePageProps = {
-  params: Promise<{ id: string }>;
-};
-
 const getStageName = (stage: Stage): string => {
     if (!stage || !stage.stage) return '';
     const stageName = stage.stage.replace(/_/g, ' ');
@@ -57,8 +53,8 @@ const getStageName = (stage: Stage): string => {
     return stageName;
 };
 
-export default function JobPipelinePage(props: JobPipelinePageProps) {
-  const { id: postId } = use(props.params);
+export default function JobPipelinePage({ params }: { params: { id: string } }) {
+  const { id: postId } = React.use(params);
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,32 +65,42 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
     const fetchPipelineData = async () => {
       setLoading(true);
       try {
-        // 1. Determine if it's a job or internship
+        let postSnap;
+        let postType: 'job' | 'internship' | null = null;
+        
+        // Try fetching from 'jobs' first
         const jobRef = doc(db, 'jobs', postId);
-        const internshipRef = doc(db, 'internships', postId);
-
-        let postSnap = await getDoc(jobRef);
-        let postType: 'job' | 'internship' = 'job';
-
-        if (!postSnap.exists()) {
-            postSnap = await getDoc(internshipRef);
+        postSnap = await getDoc(jobRef);
+        if (postSnap.exists()) {
+          postType = 'job';
+        } else {
+          // If not in 'jobs', try 'internships'
+          const internshipRef = doc(db, 'internships', postId);
+          postSnap = await getDoc(internshipRef);
+          if (postSnap.exists()) {
             postType = 'internship';
+          }
         }
-
-        if (!postSnap.exists()) {
+        
+        if (!postSnap.exists() || !postType) {
           console.error("Post not found");
+          setPostDetails(null);
           setLoading(false);
           return;
         }
-        
+
         const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
         setPostDetails(postData);
 
-        // 2. Fetch all applicants for this post from the subcollection
-        const collectionName = postType === 'job' ? 'jobs' : 'internships';
-        const applicantsRef = collection(db, collectionName, postId, 'applicants');
-        const applicantsSnap = await getDocs(applicantsRef);
-        const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
+        // Fetch applicants from the correct subcollection
+        const applicantsCollectionRef = collection(db, postType, postId, 'applicants');
+        const applicantsSnap = await getDocs(applicantsCollectionRef);
+        
+        const applicantsData = applicantsSnap.docs.map(d => ({ 
+            id: d.id, 
+            candidateId: d.id, 
+            ...d.data() 
+        })) as Applicant[];
 
         if (applicantsData.length === 0) {
             setApplicants([]);
@@ -102,19 +108,24 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
             return;
         }
 
-        // 3. Fetch candidate profiles for all applicants
+        // Fetch candidate profiles for all applicants
         const candidateIds = [...new Set(applicantsData.map(app => app.candidateId))];
         const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)));
         const candidateSnaps = await Promise.all(candidatePromises);
-        const candidatesMap = new Map(candidateSnaps.map(snap => [snap.id, snap.data()]));
+        const candidatesMap = new Map<string, DocumentData>();
+        candidateSnaps.forEach(snap => {
+            if (snap.exists()) {
+                candidatesMap.set(snap.id, snap.data());
+            }
+        });
 
-        // 4. Merge applicant data with candidate profiles
+        // Merge applicant data with candidate profiles
         const mergedApplicants = applicantsData.map(app => {
             const profile = candidatesMap.get(app.candidateId);
             return {
                 ...app,
                 fullName: profile?.fullName || 'Unknown Candidate',
-                headline: profile?.headline || 'No headline',
+                headline: profile?.headline || 'No headline available',
                 avatar: profile?.fullName?.charAt(0) || 'U',
                 matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75) // Mock score for now
             };
@@ -135,13 +146,12 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
     fetchPipelineData();
   }, [postId]);
 
- const candidatesByStage = (stageNameFromPipelineConfig: string) => {
+  const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
     // Normalize stage name by removing type info like (ai) and replacing underscores
     const rawStageName = stageNameFromPipelineConfig.split(' ')[0].toLowerCase().replace(/_/g, ' ');
      return applicants.filter(app => (app.currentStage || 'Applied').toLowerCase().replace(/_/g, ' ') === rawStageName);
   };
-
 
   const PageContent = (
       <div className="container mx-auto py-8 px-4">
@@ -164,7 +174,7 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
         ) : !postDetails || !postDetails.pipeline || postDetails.pipeline.length === 0 ? (
              <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                    <p>No pipeline configured for this post.</p>
+                    <p>No pipeline configured for this post. Please edit the post to add a hiring pipeline.</p>
                 </CardContent>
              </Card>
         ) : (
@@ -238,5 +248,3 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
 
   return <EmployerDashboardPage>{PageContent}</EmployerDashboardPage>;
 }
-
-    
