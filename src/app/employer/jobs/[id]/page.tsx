@@ -3,45 +3,58 @@
 
 import React, { useState, useEffect, useCallback, use } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, collection, getDocs, DocumentData, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, DocumentData, query, where, updateDoc } from 'firebase/firestore';
 import EmployerDashboardPage from '../../dashboard/page';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Loader2, ArrowLeft, Star, User } from 'lucide-react';
+import { Loader2, ArrowLeft, Star, User, Mail, ThumbsUp, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { matchJobCandidate, MatchJobCandidateOutput } from '@/ai/flows';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type PostDetails = DocumentData & {
   id: string;
   title: string;
   type: 'job' | 'internship';
   employerId?: string;
+  responsibilities: string;
+  skills: string;
 };
 
 type Applicant = DocumentData & {
   id: string; // This is the candidate's UID
+  applicationId: string;
   candidateId: string;
   status: string;
   fullName?: string;
   headline?: string;
+  email?: string;
+  skills?: string[];
   avatar?: string;
-  matchScore?: number; // Placeholder
+  matchScore?: number;
+  justification?: string;
 };
 
 export default function ViewApplicantsPage({ params }: { params: { id: string } }) {
   const postId = params.id;
+  const { toast } = useToast();
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [matching, setMatching] = useState(false);
 
   const fetchPostAndApplicants = useCallback(async (currentUser: FirebaseUser) => {
     setLoading(true);
+    setMatching(true);
 
     try {
         let postSnap;
@@ -60,6 +73,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
             setPostDetails(null);
             setIsOwner(false);
             setLoading(false);
+            setMatching(false);
             return;
         }
 
@@ -70,6 +84,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
         setIsOwner(owner);
         if (!owner) {
             setLoading(false);
+            setMatching(false);
             return;
         }
 
@@ -81,11 +96,12 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
              throw permissionError;
         });
 
-        const applicationsData = applicationsSnap.docs.map(doc => doc.data());
+        const applicationsData = applicationsSnap.docs.map(doc => ({ ...doc.data(), applicationId: doc.id }));
         
         if (applicationsData.length === 0) {
             setApplicants([]);
             setLoading(false);
+            setMatching(false);
             return;
         }
         
@@ -95,6 +111,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
         if (uniqueCandidateIds.length === 0) {
              setApplicants([]);
              setLoading(false);
+             setMatching(false);
              return;
         }
         
@@ -104,28 +121,51 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
         }));
 
         const candidateSnaps = await Promise.all(candidatePromises);
-
         const candidateProfiles = new Map(candidateSnaps.filter(snap => snap?.exists()).map(snap => [snap!.id, snap!.data()]));
 
-        const mergedApplicants = applicationsData.map(app => {
+        let mergedApplicants = applicationsData.map(app => {
             const profile = candidateProfiles.get(app.candidateId) || {};
             return {
                 id: app.candidateId,
+                applicationId: app.applicationId,
                 candidateId: app.candidateId,
                 fullName: profile.fullName || app.candidateName || 'Unknown Candidate',
                 headline: profile.headline || 'No headline',
+                email: profile.email || 'No email',
+                skills: profile.skills || [],
                 avatar: (profile.fullName || app.candidateName)?.charAt(0) || 'U',
                 status: app.status || 'Applied',
-                matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75), // Placeholder
             } as Applicant;
         });
         
         setApplicants(mergedApplicants);
+        setLoading(false);
+        
+        // Run AI matching in the background
+        const jobDescription = `Title: ${postData.title}\nResponsibilities: ${postData.responsibilities}\nSkills: ${postData.skills}`;
+        const applicantsToMatch = mergedApplicants.filter(a => !a.matchScore);
+        
+        for (const applicant of applicantsToMatch) {
+          try {
+            const candidateProfileString = JSON.stringify(candidateProfiles.get(applicant.candidateId) || {});
+            const matchResult: MatchJobCandidateOutput = await matchJobCandidate({
+              candidateProfile: candidateProfileString,
+              jobDescription,
+            });
+            
+            setApplicants(prev => prev.map(a => a.id === applicant.id ? {...a, ...matchResult} : a));
+
+          } catch (error) {
+            console.error(`AI matching failed for ${applicant.fullName}:`, error);
+            setApplicants(prev => prev.map(a => a.id === applicant.id ? {...a, matchScore: -1} : a));
+          }
+        }
+        setMatching(false);
 
     } catch (error) {
         console.error("An error occurred during data fetching:", error);
     } finally {
-        setLoading(false);
+        // Final loading states are set inside the try block
     }
   }, [postId]);
   
@@ -142,6 +182,32 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
 
     return () => unsubscribe();
   }, [fetchPostAndApplicants]);
+
+  const handleUpdateStatus = (applicationId: string, newStatus: string) => {
+    const appRef = doc(db, 'applications', applicationId);
+    updateDoc(appRef, { status: newStatus })
+      .then(() => {
+        setApplicants(prev => prev.map(app => app.applicationId === applicationId ? {...app, status: newStatus} : app));
+        toast({
+          title: "Status Updated",
+          description: `Candidate has been moved to ${newStatus}.`,
+        });
+      })
+      .catch(serverError => {
+         const permissionError = new FirestorePermissionError({
+            path: appRef.path,
+            operation: 'update',
+            requestResourceData: { status: newStatus }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+            title: "Update Failed",
+            description: "You may not have permission to change the status.",
+            variant: "destructive"
+        });
+      });
+  }
+
 
   const PageContent = (
       <div className="container mx-auto py-8 px-4">
@@ -175,30 +241,68 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                 </CardContent>
              </Card>
         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {applicants.map(applicant => (
-                    <Card key={applicant.id}>
-                        <CardHeader className="flex flex-row items-center gap-4">
-                             <Avatar className="w-12 h-12">
-                                <AvatarFallback>{applicant.avatar}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <CardTitle>{applicant.fullName}</CardTitle>
-                                <CardDescription>{applicant.headline}</CardDescription>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="flex justify-between items-center">
-                            <div className="flex items-center gap-1 text-yellow-500">
-                                <Star className="w-5 h-5"/>
-                                <span className="font-bold">{applicant.matchScore}% Match</span>
-                            </div>
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={`/employer/jobs/${postId}/candidates/${applicant.candidateId}`}>View Profile</Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
+            <TooltipProvider>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {applicants.map(applicant => (
+                      <Card key={applicant.id} className="flex flex-col">
+                          <CardHeader className="flex flex-row items-start gap-4 pb-4">
+                              <Avatar className="w-12 h-12">
+                                  <AvatarFallback>{applicant.avatar}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                  <CardTitle className="text-lg">{applicant.fullName}</CardTitle>
+                                  <CardDescription>{applicant.headline}</CardDescription>
+                                  <a href={`mailto:${applicant.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1">
+                                      <Mail className="w-3 h-3"/> {applicant.email}
+                                  </a>
+                              </div>
+                               {applicant.matchScore !== undefined ? (
+                                    applicant.matchScore === -1 ? <Badge variant="destructive">Error</Badge> :
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="flex items-center gap-1.5 text-primary cursor-pointer">
+                                                <Star className="w-5 h-5"/>
+                                                <span className="font-bold text-lg">{applicant.matchScore}%</span>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p className="max-w-xs">{applicant.justification || "AI Match Score"}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ) : ( matching && <Loader2 className="w-5 h-5 animate-spin"/> )}
+                          </CardHeader>
+                          <CardContent className="flex-grow space-y-4">
+                              <div>
+                                  <h4 className="text-sm font-semibold mb-2">Skills</h4>
+                                  <div className="flex flex-wrap gap-1">
+                                      {(applicant.skills || []).slice(0, 5).map(skill => (
+                                          <Badge key={skill} variant="secondary">{skill}</Badge>
+                                      ))}
+                                      {(applicant.skills?.length || 0) > 5 && <Badge variant="outline">+{ (applicant.skills?.length || 0) - 5} more</Badge>}
+                                  </div>
+                              </div>
+                               <div>
+                                  <h4 className="text-sm font-semibold mb-2">Status</h4>
+                                  <Badge className="capitalize">{applicant.status?.replace(/_/g, ' ')}</Badge>
+                               </div>
+                          </CardContent>
+                          <div className="p-6 pt-0 flex flex-col gap-2">
+                             <Button asChild variant="outline" size="sm">
+                                  <Link href={`/employer/jobs/${postId}/candidates/${applicant.candidateId}`}>View Full Profile</Link>
+                              </Button>
+                              <div className="grid grid-cols-2 gap-2">
+                                  <Button size="sm" variant="outline" className="hover:bg-destructive/10 hover:text-destructive" onClick={() => handleUpdateStatus(applicant.applicationId, 'Rejected')} disabled={applicant.status === 'Rejected'}>
+                                      <ThumbsDown className="mr-2"/> Reject
+                                  </Button>
+                                  <Button size="sm" onClick={() => handleUpdateStatus(applicant.applicationId, 'Shortlisted')} disabled={applicant.status === 'Shortlisted'}>
+                                      <ThumbsUp className="mr-2"/> Shortlist
+                                  </Button>
+                              </div>
+                          </div>
+                      </Card>
+                  ))}
+              </div>
+            </TooltipProvider>
         )}
       </div>
   );
