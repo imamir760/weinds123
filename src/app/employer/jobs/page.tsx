@@ -20,7 +20,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
-type Post = DocumentData & { id: string, type: 'Job' | 'Internship' };
+type Post = DocumentData & { id: string, type: 'Job' | 'Internship', applicantCount: number };
 
 export default function EmployerJobsPage() {
   const { user } = useAuth();
@@ -29,7 +29,7 @@ export default function EmployerJobsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchPostsAndApplicants = async () => {
       if (!user) {
         setLoading(false);
         return;
@@ -46,8 +46,22 @@ export default function EmployerJobsPage() {
           getDocs(internshipsQuery)
         ]);
 
-        const jobsData: Post[] = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'Job' as const }));
-        const internshipsData: Post[] = internshipsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'Internship' as const }));
+        const processPosts = async (snapshot: DocumentData, type: 'Job' | 'Internship'): Promise<Post[]> => {
+          const postsData = snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() }));
+          
+          const postsWithCounts = await Promise.all(
+            postsData.map(async (post: DocumentData) => {
+              const collectionName = type === 'Job' ? 'jobs' : 'internships';
+              const applicantsRef = collection(db, collectionName, post.id, 'applicants');
+              const applicantsSnap = await getDocs(applicantsRef);
+              return { ...post, type, applicantCount: applicantsSnap.size };
+            })
+          );
+          return postsWithCounts;
+        }
+
+        const jobsData = await processPosts(jobsSnapshot, 'Job');
+        const internshipsData = await processPosts(internshipsSnapshot, 'Internship');
         
         setPosts([...jobsData, ...internshipsData]);
 
@@ -58,7 +72,7 @@ export default function EmployerJobsPage() {
       }
     };
 
-    fetchPosts();
+    fetchPostsAndApplicants();
   }, [user]);
 
   const filteredPosts = useMemo(() => {
@@ -126,7 +140,7 @@ export default function EmployerJobsPage() {
                                 <TableCell>
                                     <Badge variant="secondary">{post.status || 'Active'}</Badge>
                                 </TableCell>
-                                <TableCell>{post.applicants || 0}</TableCell>
+                                <TableCell>{post.applicantCount}</TableCell>
                                 <TableCell className="text-right space-x-2">
                                      <Button asChild variant="outline" size="sm">
                                         <Link href={`/employer/jobs/${post.id}`}>View Pipeline</Link>
