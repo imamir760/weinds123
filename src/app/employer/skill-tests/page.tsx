@@ -24,7 +24,13 @@ import EmployerLayout from '../layout';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 
-type Post = DocumentData & { id: string; type: 'Job' | 'Internship'; title: string, createdAt: Timestamp };
+type Post = DocumentData & { 
+    id: string; 
+    type: 'Job' | 'Internship'; 
+    title: string, 
+    createdAt: Timestamp,
+    pipeline: { stage: string, type?: string }[];
+};
 
 export default function SkillTestsPage() {
   const { user } = useAuth();
@@ -82,6 +88,21 @@ export default function SkillTestsPage() {
     return format(date, 'MMM d, yyyy');
   }
 
+  const getTestType = (pipeline: { stage: string, type?: string }[]) => {
+      const skillTestStage = pipeline?.find(p => p.stage === 'skill_test');
+      if (!skillTestStage || !skillTestStage.type) return <Badge variant="outline">Not Set</Badge>;
+      
+      const type = skillTestStage.type;
+
+      if (type === 'ai') {
+          return <Badge>AI Test</Badge>
+      }
+      if (type === 'traditional') {
+          return <Badge variant="secondary">Traditional</Badge>
+      }
+      return <Badge variant="outline">{type}</Badge>
+  }
+
   const PageContent = (
      <div className="container mx-auto py-8 px-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-8">
@@ -128,6 +149,7 @@ export default function SkillTestsPage() {
                         <TableRow>
                             <TableHead>Title</TableHead>
                             <TableHead>Type</TableHead>
+                            <TableHead>Test Type</TableHead>
                             <TableHead>Created On</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -142,6 +164,7 @@ export default function SkillTestsPage() {
                                       {post.type}
                                     </Badge>
                                 </TableCell>
+                                <TableCell>{getTestType(post.pipeline)}</TableCell>
                                 <TableCell>{formatDate(post.createdAt)}</TableCell>
                                 <TableCell className="text-right space-x-2">
                                      <Button asChild variant="outline" size="sm">
