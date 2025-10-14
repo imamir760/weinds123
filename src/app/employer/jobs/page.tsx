@@ -163,7 +163,7 @@ export default function EmployerJobsPage() {
                                 <TableCell>{post.applicantCount || 0}</TableCell>
                                 <TableCell className="text-right space-x-2">
                                      <Button asChild variant="outline" size="sm">
-                                        <Link href={`/employer/jobs/${post.id}`}>View Pipeline</Link>
+                                        <Link href={`/employer/jobs/${post.id}`}>View Applicants</Link>
                                     </Button>
                                      <Button asChild variant="outline" size="sm">
                                         <Link href={`/employer/jobs/edit/${post.id}`}>Edit</Link>
