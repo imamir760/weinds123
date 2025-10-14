@@ -67,7 +67,7 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
                 <div className="max-h-[60vh] overflow-y-auto pr-4 space-y-4">
                     {candidates.length > 0 ? (
                         candidates.map(candidate => (
-                            <Card key={candidate.id} className="bg-background/50 shadow-md hover:shadow-lg transition-shadow">
+                            <Card key={`${postId}-${candidate.id}`} className="bg-background/50 shadow-md hover:shadow-lg transition-shadow">
                                 <CardContent className="p-4 space-y-3">
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-3 group">
