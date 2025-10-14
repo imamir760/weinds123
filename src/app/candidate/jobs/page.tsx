@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { collection, onSnapshot, doc, getDoc, DocumentData, query, where, getDocs } from 'firebase/firestore';
 import {
@@ -28,7 +28,7 @@ interface Job extends DocumentData {
   id: string;
   title: string;
   employerId: string;
-  companyName: string; // Now denormalized
+  companyName?: string; 
   location: string;
   workMode: string;
   salary: string;
@@ -48,6 +48,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [matching, setMatching] = useState(false);
   const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -75,7 +76,29 @@ export default function JobsPage() {
         ...doc.data()
       })) as Job[];
 
-      setJobs(jobsData);
+      // Get unique employer IDs
+      const employerIds = [...new Set(jobsData.map(job => job.employerId).filter(Boolean))];
+      
+      if (employerIds.length > 0) {
+          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(err => null));
+          const employerSnapshots = await Promise.all(employerPromises);
+          
+          const employerMap = new Map<string, string>();
+          employerSnapshots.forEach(snap => {
+              if (snap && snap.exists()) {
+                  employerMap.set(snap.id, snap.data().companyName || 'Unknown Company');
+              }
+          });
+
+          const jobsWithCompanyNames = jobsData.map(job => ({
+              ...job,
+              companyName: employerMap.get(job.employerId)
+          }));
+          setJobs(jobsWithCompanyNames);
+      } else {
+        setJobs(jobsData);
+      }
+
       setLoading(false);
 
     }, (error) => {
@@ -136,6 +159,15 @@ export default function JobsPage() {
     }
   }, [user, jobs, matching]);
 
+  const filteredJobs = useMemo(() => {
+      if (!searchTerm) return jobs;
+      return jobs.filter(job => 
+          job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          job.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          job.skills?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+  }, [jobs, searchTerm]);
+
   const getPipelineStageName = (stage: { stage: string, type?: string }) => {
     const stageName = stage.stage.replace(/_/g, ' ');
     if (stage.type) {
@@ -168,13 +200,14 @@ export default function JobsPage() {
         <Card className="mb-8">
             <CardContent className="pt-6">
                 <div className="grid md:grid-cols-3 gap-4">
-                    <div className="relative">
+                    <div className="relative col-span-2">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input placeholder="Job title or keyword" className="pl-10" />
-                    </div>
-                     <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input placeholder="Location" className="pl-10" />
+                        <Input 
+                            placeholder="Search by job title, company, or skills..." 
+                            className="pl-10" 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                     <Button className="w-full md:w-auto">
                         <Filter className="mr-2" />
@@ -190,13 +223,13 @@ export default function JobsPage() {
             </div>
         ) : (
             <div className="space-y-6">
-                {jobs.map(job => (
+                {filteredJobs.map(job => (
                     <Card key={job.id} className="bg-card hover:shadow-lg transition-shadow">
                         <CardHeader>
                             <div className="flex justify-between items-start gap-4">
                                 <div>
                                     <CardTitle className="text-xl font-headline">{job.title}</CardTitle>
-                                    <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {job.companyName || 'Company Name N/A'}</CardDescription>
+                                    <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {job.companyName || 'Loading...'}</CardDescription>
                                 </div>
                                 <div className="text-right flex items-center gap-3 bg-secondary p-2 rounded-lg">
                                     {job.matchScore === undefined ? (
@@ -264,7 +297,7 @@ export default function JobsPage() {
                                     {appliedJobs.includes(job.id) ? (
                                         <Button disabled variant="outline"><CheckCircle className="mr-2"/> Applied</Button>
                                     ) : (
-                                        <Button onClick={() => handleApply(job)}>Apply Now</Button>
+                                        <Button onClick={() => handleApply(job)} disabled={!job.companyName}>Apply Now</Button>
                                     )}
                                      <Button asChild variant="outline">
                                         <Link href={`/candidate/jobs/${job.id}`}>View Details</Link>
@@ -276,7 +309,7 @@ export default function JobsPage() {
                 ))}
             </div>
         )}
-         {!loading && jobs.length === 0 && (
+         {!loading && filteredJobs.length === 0 && (
             <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
                     <p>No jobs posted yet. Check back soon!</p>
