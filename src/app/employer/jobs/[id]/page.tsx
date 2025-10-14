@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -44,7 +44,12 @@ interface JobDetails extends DocumentData {
     pipeline: Stage[];
 }
 
-const getStageName = (stage: Stage) => {
+const getStageKey = (stage: Stage): string => {
+    if (!stage || !stage.name) return '';
+    return stage.type ? `${stage.name}_${stage.type}` : stage.name;
+}
+
+const getStageName = (stage: Stage): string => {
     if (!stage || !stage.name) return '';
     const stageName = stage.name.replace(/_/g, ' ');
     if (stage.type) {
@@ -55,7 +60,7 @@ const getStageName = (stage: Stage) => {
 };
 
 export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  const { id: jobId } = params;
+  const jobId = params.id;
   const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +86,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             // 2. Fetch Applicants
             const applicantsColRef = collection(db, 'jobs', jobId, 'applicants');
             const applicantsSnapshot = await getDocs(applicantsColRef);
-            const applicantsData = applicantsSnapshot.docs.map(d => ({ id: d.id, candidateId: d.data().candidateId, currentStage: d.data().currentStage, ...d.data() } as Applicant));
+            const applicantsData = applicantsSnapshot.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() } as Applicant));
 
             // 3. Fetch Candidate Profiles
             const candidateIds = [...new Set(applicantsData.map(app => app.candidateId))];
@@ -97,10 +102,9 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
                         candidate: {
                             id: app.candidateId,
                             name: profile?.fullName || "Unknown",
-                            // Placeholder for avatar and match score, as they aren't in the model
                             avatarUrl: `https://avatar.vercel.sh/${profile?.email || app.candidateId}.png`,
                             avatarFallback: (profile?.fullName || 'U').charAt(0),
-                            matchScore: Math.floor(Math.random() * (98 - 75 + 1)) + 75, // Random score
+                            matchScore: Math.floor(Math.random() * (98 - 75 + 1)) + 75,
                         }
                     }
                 });
@@ -122,20 +126,15 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
     fetchJobAndApplicants();
   }, [jobId]);
 
-  const groupedApplicants = jobDetails?.pipeline.reduce((acc, stage) => {
-    if (!stage || !stage.name) return acc;
-    const stageKey = stage.type ? `${stage.name}_${stage.type}` : stage.name;
-    const stageName = getStageName(stage);
-    acc[stageName] = applicants.filter(app => {
-        // A bit of logic to match simple stages vs typed stages
-        if (app.currentStage.includes('(')) { // e.g. "skill_test (ai)"
-             const [appStage, appType] = app.currentStage.replace(')', '').split(' (');
-             return appStage === stage.name && appType === stage.type;
-        }
-        return app.currentStage === stage.name;
-    });
-    return acc;
-  }, {} as Record<string, Applicant[]>) || {};
+  const groupedApplicants = useMemo(() => {
+    if (!jobDetails?.pipeline) return {};
+    return jobDetails.pipeline.reduce((acc, stage) => {
+        const stageKey = getStageKey(stage);
+        if (!stageKey) return acc;
+        acc[stageKey] = applicants.filter(app => app.currentStage === stageKey);
+        return acc;
+    }, {} as Record<string, Applicant[]>);
+  }, [applicants, jobDetails]);
 
 
   const PageContent = (
@@ -155,12 +154,13 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             </div>
 
             <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4">
-            {jobDetails.pipeline.map(stage => {
+            {(jobDetails.pipeline || []).map(stage => {
+                const stageKey = getStageKey(stage);
+                if (!stageKey) return null;
                 const stageName = getStageName(stage);
-                if (!stageName) return null;
-                const candidatesInStage = groupedApplicants[stageName] || [];
+                const candidatesInStage = groupedApplicants[stageKey] || [];
                 return (
-                    <div key={stageName} className="w-80 flex-shrink-0">
+                    <div key={stageKey} className="w-80 flex-shrink-0">
                         <Card className="h-full bg-secondary/50 dark:bg-secondary/20">
                         <CardHeader>
                             <CardTitle className="flex justify-between items-center text-lg capitalize">
