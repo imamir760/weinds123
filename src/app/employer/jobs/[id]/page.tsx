@@ -42,7 +42,7 @@ type Applicant = DocumentData & {
 };
 
 export default function ViewApplicantsPage({ params }: { params: { id: string } }) {
-  const postId = params.id;
+  const { id: postId } = use(params);
   const { toast } = useToast();
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
