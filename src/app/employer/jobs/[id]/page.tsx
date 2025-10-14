@@ -16,7 +16,7 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { matchJobCandidate, MatchJobCandidateOutput } from '@/ai/flows';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 type PostDetails = DocumentData & {
   id: string;
@@ -90,11 +90,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
 
         const applicationsRef = collection(db, 'applications');
         const q = query(applicationsRef, where('postId', '==', postId), where('employerId', '==', currentUser.uid));
-        const applicationsSnap = await getDocs(q).catch(serverError => {
-             const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list', requestResourceData: {postId, employerId: currentUser.uid} });
-             errorEmitter.emit('permission-error', permissionError);
-             throw permissionError;
-        });
+        const applicationsSnap = await getDocs(q);
 
         const applicationsData = applicationsSnap.docs.map(doc => ({ ...doc.data(), applicationId: doc.id }));
         
