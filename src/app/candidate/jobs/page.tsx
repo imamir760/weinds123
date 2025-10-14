@@ -54,6 +54,8 @@ export default function JobsPage() {
       const unsubscribeApplied = onSnapshot(appliedJobsRef, (snapshot) => {
         const appliedIds = snapshot.docs.map(doc => doc.id);
         setAppliedJobs(appliedIds);
+      }, (error) => {
+        console.error("Failed to listen for applied jobs:", error);
       });
       return () => unsubscribeApplied();
     }
@@ -71,16 +73,22 @@ export default function JobsPage() {
       const employerIds = [...new Set(jobsData.map(job => job.employerId).filter(id => id))];
       
       if (employerIds.length > 0) {
-        const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)));
-        const employerSnapshots = await Promise.all(employerPromises);
-        const employersMap = new Map(employerSnapshots.map(snap => [snap.id, snap.data()?.companyName || 'N/A']));
-        
-        const jobsWithCompanyNames = jobsData.map(job => ({
-          ...job,
-          companyName: employersMap.get(job.employerId) || 'N/A'
-        })) as Job[];
+        try {
+          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)));
+          const employerSnapshots = await Promise.all(employerPromises);
+          const employersMap = new Map(employerSnapshots.map(snap => [snap.id, snap.data()?.companyName || 'N/A']));
+          
+          const jobsWithCompanyNames = jobsData.map(job => ({
+            ...job,
+            companyName: employersMap.get(job.employerId) || 'N/A'
+          })) as Job[];
 
-        setJobs(jobsWithCompanyNames);
+          setJobs(jobsWithCompanyNames);
+        } catch (error) {
+            console.error("Error fetching employer data:", error);
+            // Even if employer data fails, show jobs with default company name
+            setJobs(jobsData.map(j => ({ ...j, companyName: 'N/A' })) as Job[]);
+        }
       } else {
         setJobs(jobsData as Job[]);
       }
@@ -119,12 +127,9 @@ export default function JobsPage() {
                 return;
             }
             
-            for (const job of jobs) {
-                const currentJobState = jobs.find(j => j.id === job.id);
-                if (currentJobState && currentJobState.matchScore !== undefined) {
-                    continue; 
-                }
+            const jobsToMatch = jobs.filter(job => job.matchScore === undefined);
 
+            for (const job of jobsToMatch) {
                 try {
                     const jobDescription = `Title: ${job.title}\nResponsibilities: ${job.responsibilities}\nSkills: ${job.skills}`;
                     const result = await matchJobCandidate({ candidateProfile, jobDescription });
@@ -148,7 +153,7 @@ export default function JobsPage() {
         };
         runMatching();
     }
-}, [user, jobs, matching]);
+  }, [user, jobs.length]); // Depend on jobs.length to re-trigger if jobs are added/removed
 
   const getPipelineStageName = (stage: { stage: string, type?: string }) => {
     const stageName = stage.stage.replace(/_/g, ' ');

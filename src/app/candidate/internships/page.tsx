@@ -55,6 +55,8 @@ export default function InternshipsPage() {
       const unsubscribeApplied = onSnapshot(appliedInternshipsRef, (snapshot) => {
         const appliedIds = snapshot.docs.map(doc => doc.id);
         setAppliedInternships(appliedIds);
+      }, (error) => {
+          console.error("Failed to listen for applied internships:", error);
       });
       return () => unsubscribeApplied();
     }
@@ -72,16 +74,21 @@ export default function InternshipsPage() {
       const employerIds = [...new Set(internshipsData.map(internship => internship.employerId).filter(id => id))];
 
       if (employerIds.length > 0) {
-        const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)));
-        const employerSnapshots = await Promise.all(employerPromises);
-        const employersMap = new Map(employerSnapshots.map(snap => [snap.id, snap.data()?.companyName || 'N/A']));
+        try {
+            const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)));
+            const employerSnapshots = await Promise.all(employerPromises);
+            const employersMap = new Map(employerSnapshots.map(snap => [snap.id, snap.data()?.companyName || 'N/A']));
 
-        const internshipsWithCompanyNames = internshipsData.map(internship => ({
-          ...internship,
-          companyName: employersMap.get(internship.employerId) || 'N/A'
-        })) as Internship[];
-        
-        setInternships(internshipsWithCompanyNames);
+            const internshipsWithCompanyNames = internshipsData.map(internship => ({
+              ...internship,
+              companyName: employersMap.get(internship.employerId) || 'N/A'
+            })) as Internship[];
+            
+            setInternships(internshipsWithCompanyNames);
+        } catch(error) {
+            console.error("Error fetching employer data for internships:", error);
+            setInternships(internshipsData.map(i => ({...i, companyName: 'N/A'})) as Internship[]);
+        }
       } else {
         setInternships(internshipsData as Internship[]);
       }
@@ -120,26 +127,23 @@ export default function InternshipsPage() {
                 return;
             }
             
-            for (const internship of internships) {
-                const currentInternshipState = internships.find(j => j.id === internship.id);
-                if (currentInternshipState && currentInternshipState.matchScore !== undefined) {
-                    continue; 
-                }
+            const internshipsToMatch = internships.filter(internship => internship.matchScore === undefined);
 
+            for (const internship of internshipsToMatch) {
                 try {
                     const jobDescription = `Title: ${internship.title}\nResponsibilities: ${internship.responsibilities}\nSkills: ${internship.skills}`;
                     const result = await matchJobCandidate({ candidateProfile, jobDescription });
                     
                     setInternships(prevInternships => 
-                        prevInternships.map(j => 
-                            j.id === internship.id ? { ...j, ...result } : j
+                        prevInternships.map(i => 
+                            i.id === internship.id ? { ...i, ...result } : i
                         )
                     );
                 } catch (error) {
                     console.error(`Failed to get match for internship ${internship.id}`, error);
                     setInternships(prevInternships => 
-                        prevInternships.map(j => 
-                            j.id === internship.id ? { ...j, matchScore: -1 } : j
+                        prevInternships.map(i => 
+                            i.id === internship.id ? { ...i, matchScore: -1 } : i
                         )
                     );
                 }
@@ -149,7 +153,7 @@ export default function InternshipsPage() {
         };
         runMatching();
     }
-  }, [user, internships, matching]);
+  }, [user, internships.length]);
 
   const getPipelineStageName = (stage: { stage: string, type?: string }) => {
     const stageName = stage.stage.replace(/_/g, ' ');
