@@ -10,7 +10,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap, TestTube2, FilePlus, Eye, CheckCircle } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, TestTube2, FilePlus, Eye, CheckCircle, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
@@ -92,7 +92,7 @@ export default function SkillTestsPage() {
       const skillTestStage = pipeline?.find(p => p.stage === 'skill_test');
       if (!skillTestStage || !skillTestStage.type) return {
           badge: <Badge variant="outline">Not Set</Badge>,
-          isAi: false
+          type: 'none'
       };
       
       const type = skillTestStage.type;
@@ -100,18 +100,18 @@ export default function SkillTestsPage() {
       if (type === 'ai') {
           return {
               badge: <Badge>AI Test</Badge>,
-              isAi: true
+              type: 'ai'
           }
       }
       if (type === 'traditional') {
           return {
               badge: <Badge variant="secondary">Traditional</Badge>,
-              isAi: false
+              type: 'traditional'
           }
       }
       return {
           badge: <Badge variant="outline">{type}</Badge>,
-          isAi: false
+          type: 'none'
       }
   }
 
@@ -187,10 +187,15 @@ export default function SkillTestsPage() {
                                               View Tests
                                             </Link>
                                         </Button>
-                                        {testInfo.isAi ? (
+                                        {testInfo.type === 'ai' ? (
                                             <Button size="sm" disabled>
                                                 <CheckCircle className="mr-2 h-3 w-3"/>
                                                 AI Test Enabled
+                                            </Button>
+                                        ) : testInfo.type === 'traditional' ? (
+                                            <Button size="sm">
+                                                <Upload className="mr-2 h-3 w-3"/>
+                                                Upload Test
                                             </Button>
                                         ) : (
                                             <Button asChild size="sm">
