@@ -54,7 +54,6 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
 
   const fetchPostAndApplicants = useCallback(async (currentUser: FirebaseUser) => {
     setLoading(true);
-    setMatching(true);
 
     try {
         let postSnap;
@@ -73,7 +72,6 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
             setPostDetails(null);
             setIsOwner(false);
             setLoading(false);
-            setMatching(false);
             return;
         }
 
@@ -84,7 +82,6 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
         setIsOwner(owner);
         if (!owner) {
             setLoading(false);
-            setMatching(false);
             return;
         }
 
@@ -100,32 +97,44 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
              throw permissionError;
         }
 
-        const applicationsData = applicationsSnap.docs.map(doc => {
-            const data = doc.data();
+        const applicationsData = applicationsSnap.docs.map(doc => ({
+            applicationId: doc.id,
+            ...(doc.data() as Omit<Applicant, 'applicationId'>)
+        }));
+        
+        const candidatePromises = applicationsData.map(app => 
+            getDoc(doc(db, 'candidates', app.candidateId)).catch(serverError => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${app.candidateId}`, operation: 'get' }));
+                return null;
+            })
+        );
+        const candidateSnapshots = await Promise.all(candidatePromises);
+
+        const fullApplicantsData = applicationsData.map((app, index) => {
+            const candidateSnap = candidateSnapshots[index];
+            const profileData = candidateSnap?.exists() ? candidateSnap.data() : {};
             return {
-                id: data.candidateId,
-                applicationId: doc.id,
-                candidateId: data.candidateId,
-                status: data.status || 'Applied',
-                candidateName: data.candidateName || 'Unknown Candidate',
-                candidateHeadline: data.candidateHeadline || 'No headline',
-                candidateEmail: data.candidateEmail || 'No email',
-                candidateSkills: data.candidateSkills || [],
-                avatar: (data.candidateName || 'U').charAt(0),
-            } as Applicant;
+                id: app.candidateId,
+                applicationId: app.applicationId,
+                status: app.status || 'Applied',
+                candidateId: app.candidateId,
+                candidateName: profileData.fullName || app.candidateName || 'Unknown Candidate',
+                candidateHeadline: profileData.headline || app.candidateHeadline || 'No headline',
+                candidateEmail: profileData.email || app.candidateEmail || 'No email',
+                candidateSkills: profileData.skills || app.candidateSkills || [],
+                avatar: (profileData.fullName || app.candidateName || 'U').charAt(0),
+            } as Applicant
         });
         
-        setApplicants(applicationsData);
+        setApplicants(fullApplicantsData);
         setLoading(false);
+        setMatching(true);
         
         // Run AI matching in the background
         const jobDescription = `Title: ${postData.title}\nResponsibilities: ${postData.responsibilities}\nSkills: ${postData.skills}`;
         
-        const applicantsToMatch = applicationsData.filter(a => !a.matchScore);
-        
-        for (const applicant of applicantsToMatch) {
+        for (const applicant of fullApplicantsData) {
           try {
-            // We can't stringify the whole profile, so we build a summary.
             const candidateProfileString = `
               Full Name: ${applicant.candidateName}
               Headline: ${applicant.candidateHeadline}
@@ -269,10 +278,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                                   <Badge className="capitalize">{applicant.status?.replace(/_/g, ' ')}</Badge>
                                </div>
                           </CardContent>
-                          <div className="p-6 pt-0 flex flex-col gap-2">
-                             <Button asChild variant="outline" size="sm">
-                                  <Link href={`/employer/jobs/${postId}/candidates/${applicant.candidateId}`}>View Full Profile</Link>
-                              </Button>
+                          <div className="p-6 pt-4 flex flex-col gap-2">
                               <div className="grid grid-cols-2 gap-2">
                                   <Button size="sm" variant="outline" className="hover:bg-destructive/10 hover:text-destructive" onClick={() => handleUpdateStatus(applicant.applicationId, 'Rejected')} disabled={applicant.status === 'Rejected'}>
                                       <ThumbsDown className="mr-2"/> Reject
