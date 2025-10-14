@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, FileText, Bot, Settings, LogOut, User, Search, BarChart2, Star, Menu, GraduationCap, Building } from 'lucide-react';
+import { Briefcase, FileText, Settings, LogOut, User, Search, Menu, GraduationCap, Building } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -25,32 +25,7 @@ const navigation = [
   { name: 'My Applications', href: '/candidate/applications', icon: FileText },
   { name: 'Find Jobs', href: '/candidate/jobs', icon: Search },
   { name: 'Find Internships', href: '/candidate/internships', icon: GraduationCap },
-  { name: 'Companies', href: '/candidate/companies', icon: Building },
-  { name: 'AI Interviews', href: '/candidate/ai-interviews', icon: Bot },
-  { name: 'Resume Builder', href: '/candidate/resume-builder', icon: FileText },
-  { name: 'Disha AI', href: '/candidate/disha', icon: Bot },
   { name: 'Settings', href: '/candidate/settings', icon: Settings },
-];
-
-const recommendedJobs = [
-  {
-    id: 'job1',
-    title: 'Frontend Developer',
-    company: 'Innovate Inc.',
-    match: 92,
-  },
-  {
-    id: 'job2',
-    title: 'Product Designer',
-    company: 'Creative Solutions',
-    match: 88,
-  },
-  {
-    id: 'job3',
-    title: 'Data Scientist',
-    company: 'Analytics Co.',
-    match: 85,
-  },
 ];
 
 const ongoingApplications = [
@@ -106,49 +81,6 @@ function DashboardContent() {
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
           <div className="flex items-center">
             <h1 className="font-semibold text-lg md:text-2xl">Welcome Back, Candidate!</h1>
-          </div>
-          
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Resume Completeness</CardTitle>
-                    <CardDescription>A complete resume attracts more recruiters.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                        <div className="bg-primary h-2.5 rounded-full w-[75%]"></div>
-                    </div>
-                    <p className="text-sm text-center mt-2 text-muted-foreground">75% Complete</p>
-                    <Button asChild size="sm" className="mt-4 w-full">
-                        <Link href="/candidate/resume-builder">Update Resume</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle>AI Recommended Jobs</CardTitle>
-                    <CardDescription>Jobs matched to your profile by our AI.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {recommendedJobs.map(job => (
-                             <div key={job.id} className="flex justify-between items-center">
-                                <div>
-                                    <p className="font-semibold">{job.title}</p>
-                                    <p className="text-sm text-muted-foreground">{job.company}</p>
-                                </div>
-                                <div className="text-right">
-                                     <p className="font-semibold text-primary">{job.match}% Match</p>
-                                     <Button asChild variant="outline" size="sm" className="mt-1">
-                                        <Link href={`/candidate/jobs/${job.id}`}>View</Link>
-                                     </Button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
           </div>
           
             <div className="grid md:grid-cols-2 gap-6">
