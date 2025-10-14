@@ -8,18 +8,12 @@ import EmployerDashboardPage from '../../dashboard/page';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, Star, ChevronsRight } from 'lucide-react';
+import { Loader2, ArrowLeft, Star, ChevronsRight, User } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 type Stage = {
   stage: string;
@@ -53,11 +47,72 @@ const getStageName = (stage: Stage): string => {
     return stageName;
 };
 
+
+const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, postId, postType }: {
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    stageName: string;
+    candidates: Applicant[];
+    postId: string;
+    postType: 'job' | 'internship';
+}) => {
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Candidates in "{stageName}"</DialogTitle>
+                    <DialogDescription>{candidates.length} candidate(s) in this stage.</DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto pr-4 space-y-4">
+                    {candidates.length > 0 ? (
+                        candidates.map(candidate => (
+                            <Card key={candidate.id} className="bg-background/50 shadow-md hover:shadow-lg transition-shadow">
+                                <CardContent className="p-4 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-3 group">
+                                            <Avatar className="w-11 h-11 border-2 border-primary/20">
+                                                <AvatarFallback>{candidate.avatar}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="font-semibold text-base">{candidate.fullName}</p>
+                                                <p className="text-xs text-muted-foreground">{candidate.headline}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-primary font-bold text-sm">
+                                            <Star className="w-4 h-4 fill-primary"/>
+                                            {candidate.matchScore}%
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center border-t pt-3">
+                                        <Button asChild variant="outline" size="sm">
+                                            <Link href={`/employer/${postType}s/${postId}/candidates/${candidate.id}`}>View Profile</Link>
+                                        </Button>
+                                        <Button size="sm">
+                                            Next Stage <ChevronsRight className="w-4 h-4 ml-2"/>
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))
+                    ) : (
+                        <div className="text-center py-8 text-sm text-muted-foreground">
+                            <p>No candidates in this stage.</p>
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+};
+
+
 export default function JobPipelinePage({ params }: { params: { id: string } }) {
   const { id: postId } = React.use(params);
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedStage, setSelectedStage] = useState<{ stageName: string; candidates: Applicant[] } | null>(null);
 
   useEffect(() => {
     if (!postId) return;
@@ -171,6 +226,13 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
     const rawStageName = stageNameFromPipelineConfig.split(' ')[0].toLowerCase().replace(/_/g, ' ');
      return applicants.filter(app => (app.currentStage || 'Applied').toLowerCase().replace(/_/g, ' ') === rawStageName);
   };
+  
+  const handleStageClick = (stageConfig: Stage) => {
+    const stageDisplayName = getStageName(stageConfig);
+    const stageCandidates = candidatesByStage(stageConfig.stage);
+    setSelectedStage({ stageName: stageDisplayName, candidates: stageCandidates });
+    setIsDialogOpen(true);
+  }
 
   const PageContent = (
       <div className="container mx-auto py-8 px-4">
@@ -200,72 +262,44 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             <Card>
                 <CardHeader>
                     <CardTitle>Pipeline Stages</CardTitle>
-                    <CardDescription>Click a stage to see the candidates within it.</CardDescription>
+                    <CardDescription>Click a stage to view the candidates within it.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <Accordion type="multiple" defaultValue={['item-0']} className="w-full space-y-2">
-                        {postDetails.pipeline.map((stageConfig, index) => {
-                            const stageDisplayName = getStageName(stageConfig);
-                            const stageApplicants = candidatesByStage(stageConfig.stage);
-                            return (
-                                <AccordionItem value={`item-${index}`} key={index} className="border rounded-lg">
-                                    <AccordionTrigger className="hover:no-underline p-4 text-lg font-semibold capitalize">
-                                        <div className="flex justify-between items-center w-full">
-                                            <span>{stageDisplayName}</span>
-                                            <Badge variant="secondary" className="text-base">{stageApplicants.length}</Badge>
-                                        </div>
-                                    </AccordionTrigger>
-                                    <AccordionContent className="p-4 pt-0">
-                                        <Separator className="mb-4"/>
-                                        {stageApplicants.length > 0 ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {stageApplicants.map(candidate => (
-                                                    <Card key={candidate.id} className="bg-background/50 shadow-md hover:shadow-lg transition-shadow">
-                                                        <CardContent className="p-4 space-y-3">
-                                                            <div className="flex justify-between items-start">
-                                                                <div className="flex items-center gap-3 group">
-                                                                    <Avatar className="w-11 h-11 border-2 border-primary/20">
-                                                                        <AvatarFallback>{candidate.avatar}</AvatarFallback>
-                                                                    </Avatar>
-                                                                    <div>
-                                                                        <p className="font-semibold text-base">{candidate.fullName}</p>
-                                                                        <p className="text-xs text-muted-foreground">{candidate.headline}</p>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex items-center gap-1 text-primary font-bold text-sm">
-                                                                    <Star className="w-4 h-4 fill-primary"/>
-                                                                    {candidate.matchScore}%
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex justify-between items-center border-t pt-3">
-                                                                <Button asChild variant="outline" size="sm">
-                                                                    <Link href={`/employer/jobs/${postId}/candidates/${candidate.id}`}>View Profile</Link>
-                                                                </Button>
-                                                                <Button size="sm">
-                                                                    Next Stage <ChevronsRight className="w-4 h-4 ml-2"/>
-                                                                </Button>
-                                                            </div>
-                                                        </CardContent>
-                                                    </Card>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-8 text-sm text-muted-foreground">
-                                                <p>No candidates in this stage.</p>
-                                            </div>
-                                        )}
-                                    </AccordionContent>
-                                </AccordionItem>
-                            )
-                        })}
-                    </Accordion>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {postDetails.pipeline.map((stageConfig, index) => {
+                        const stageDisplayName = getStageName(stageConfig);
+                        const stageApplicants = candidatesByStage(stageConfig.stage);
+                        return (
+                             <Card 
+                                key={index} 
+                                className="flex flex-col justify-between p-4 hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-pointer"
+                                onClick={() => handleStageClick(stageConfig)}
+                            >
+                                <CardTitle className="text-lg capitalize flex items-center justify-between">
+                                    {stageDisplayName}
+                                    <Badge variant="secondary" className="text-lg">{stageApplicants.length}</Badge>
+                                </CardTitle>
+                                <div className="flex items-center text-sm text-muted-foreground mt-2">
+                                    <User className="w-4 h-4 mr-2" />
+                                    <span>{stageApplicants.length} Candidates</span>
+                                </div>
+                            </Card>
+                        )
+                    })}
                 </CardContent>
             </Card>
+        )}
+        {selectedStage && (
+            <CandidateStageDialog
+                isOpen={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
+                stageName={selectedStage.stageName}
+                candidates={selectedStage.candidates}
+                postId={postId}
+                postType={postDetails?.type || 'job'}
+            />
         )}
       </div>
   );
 
   return <EmployerDashboardPage>{PageContent}</EmployerDashboardPage>;
 }
-
-    
