@@ -26,10 +26,11 @@ type Stage = {
   type?: string;
 };
 
-type JobDetails = DocumentData & {
+type PostDetails = DocumentData & {
   id: string;
   title: string;
   pipeline: Stage[];
+  type: 'job' | 'internship';
 };
 
 type Applicant = DocumentData & {
@@ -57,38 +58,42 @@ const getStageName = (stage: Stage): string => {
 };
 
 export default function JobPipelinePage(props: JobPipelinePageProps) {
-  const { id: jobId } = use(props.params);
-  const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
+  const { id: postId } = use(props.params);
+  const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!jobId) return;
+    if (!postId) return;
 
     const fetchPipelineData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch job details to get the pipeline
-        const jobRef = doc(db, 'jobs', jobId);
-        const jobSnap = await getDoc(jobRef).catch(error => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: jobRef.path, operation: 'get' }));
-            throw error;
-        });
+        // 1. Determine if it's a job or internship
+        const jobRef = doc(db, 'jobs', postId);
+        const internshipRef = doc(db, 'internships', postId);
 
-        if (!jobSnap.exists()) {
-          console.error("Job not found");
+        let postSnap = await getDoc(jobRef);
+        let postType: 'job' | 'internship' = 'job';
+
+        if (!postSnap.exists()) {
+            postSnap = await getDoc(internshipRef);
+            postType = 'internship';
+        }
+
+        if (!postSnap.exists()) {
+          console.error("Post not found");
           setLoading(false);
           return;
         }
-        const jobData = { id: jobSnap.id, ...jobSnap.data() } as JobDetails;
-        setJobDetails(jobData);
+        
+        const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
+        setPostDetails(postData);
 
-        // 2. Fetch all applicants for this job from the subcollection
-        const applicantsRef = collection(db, 'jobs', jobId, 'applicants');
-        const applicantsSnap = await getDocs(applicantsRef).catch(error => {
-             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: applicantsRef.path, operation: 'list' }));
-             throw error;
-        });
+        // 2. Fetch all applicants for this post from the subcollection
+        const collectionName = postType === 'job' ? 'jobs' : 'internships';
+        const applicantsRef = collection(db, collectionName, postId, 'applicants');
+        const applicantsSnap = await getDocs(applicantsRef);
         const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
 
         if (applicantsData.length === 0) {
@@ -119,30 +124,33 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
 
       } catch (error) {
         console.error("Error fetching pipeline data: ", error);
+        if (error instanceof Error && error.name.includes('Permission')) {
+           errorEmitter.emit('permission-error', error as FirestorePermissionError);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchPipelineData();
-  }, [jobId]);
+  }, [postId]);
 
-  const candidatesByStage = (stageNameFromPipelineConfig: string) => {
-    // FIX: Add a guard to prevent crash if stage name is undefined
+ const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
     // Normalize stage name by removing type info like (ai) and replacing underscores
     const rawStageName = stageNameFromPipelineConfig.split(' ')[0].toLowerCase().replace(/_/g, ' ');
      return applicants.filter(app => (app.currentStage || 'Applied').toLowerCase().replace(/_/g, ' ') === rawStageName);
   };
 
+
   const PageContent = (
       <div className="container mx-auto py-8 px-4">
         <div className="flex items-center gap-4 mb-6">
             <Button asChild variant="outline" size="sm">
-                <Link href="/employer/jobs"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Jobs</Link>
+                <Link href="/employer/jobs"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Posts</Link>
             </Button>
             <div>
-                <h1 className="text-xl font-bold">{jobDetails?.title || 'Loading...'}</h1>
+                <h1 className="text-xl font-bold">{postDetails?.title || 'Loading...'}</h1>
                 <p className="text-sm text-muted-foreground">Hiring Pipeline</p>
             </div>
         </div>
@@ -153,10 +161,10 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
                     <Loader2 className="w-12 h-12 animate-spin text-primary" />
                 </CardContent>
             </Card>
-        ) : !jobDetails || !jobDetails.pipeline || jobDetails.pipeline.length === 0 ? (
+        ) : !postDetails || !postDetails.pipeline || postDetails.pipeline.length === 0 ? (
              <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                    <p>No pipeline configured for this job.</p>
+                    <p>No pipeline configured for this post.</p>
                 </CardContent>
              </Card>
         ) : (
@@ -166,8 +174,8 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
                     <CardDescription>Click a stage to see the candidates within it.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Accordion type="multiple" className="w-full space-y-2">
-                        {jobDetails.pipeline.map((stageConfig, index) => {
+                    <Accordion type="multiple" defaultValue={['item-0']} className="w-full space-y-2">
+                        {postDetails.pipeline.map((stageConfig, index) => {
                             const stageDisplayName = getStageName(stageConfig);
                             const stageApplicants = candidatesByStage(stageConfig.stage);
                             return (
@@ -202,7 +210,7 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
                                                             </div>
                                                             <div className="flex justify-between items-center border-t pt-3">
                                                                 <Button asChild variant="outline" size="sm">
-                                                                    <Link href={`/employer/jobs/${jobId}/candidates/${candidate.id}`}>View Profile</Link>
+                                                                    <Link href={`/employer/jobs/${postId}/candidates/${candidate.id}`}>View Profile</Link>
                                                                 </Button>
                                                                 <Button size="sm">
                                                                     Next Stage <ChevronsRight className="w-4 h-4 ml-2"/>
@@ -230,3 +238,5 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
 
   return <EmployerDashboardPage>{PageContent}</EmployerDashboardPage>;
 }
+
+    
