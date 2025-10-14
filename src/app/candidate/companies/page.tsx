@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, getDocs, query, where } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -39,12 +39,10 @@ export default function CompaniesPage() {
       try {
         const jobsRef = collection(db, 'jobs');
         const internshipsRef = collection(db, 'internships');
-        const employersRef = collection(db, 'employers');
 
-        const [jobsSnap, internshipsSnap, employersSnap] = await Promise.all([
+        const [jobsSnap, internshipsSnap] = await Promise.all([
           getDocs(jobsRef),
-          getDocs(internshipsRef),
-          getDocs(employersRef)
+          getDocs(internshipsRef)
         ]);
 
         const allPostings = [
@@ -53,34 +51,47 @@ export default function CompaniesPage() {
         ];
 
         const employerJobMap = new Map<string, string[]>();
-
         allPostings.forEach(post => {
           if (post.employerId && post.title) {
             const roles = employerJobMap.get(post.employerId) || [];
-            employerJobMap.set(post.employerId, [...roles, post.title]);
+            if (!roles.includes(post.title)) {
+                employerJobMap.set(post.employerId, [...roles, post.title]);
+            }
           }
         });
 
         const activeEmployerIds = Array.from(employerJobMap.keys());
 
-        const employersData = employersSnap.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }))
-          .filter(employer => activeEmployerIds.includes(employer.id))
-          .map(employer => ({
-            ...employer,
-            roles: employerJobMap.get(employer.id) || []
-          })) as EmployerProfile[];
+        if (activeEmployerIds.length > 0) {
+            const employersRef = collection(db, 'employers');
+            const employersSnap = await getDocs(employersRef);
 
-        setCompanies(employersData);
-      } catch (error) {
+            const employersData = employersSnap.docs
+              .map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }))
+              .filter(employer => activeEmployerIds.includes(employer.id))
+              .map(employer => ({
+                ...employer,
+                roles: employerJobMap.get(employer.id) || []
+              })) as EmployerProfile[];
+            
+            setCompanies(employersData);
+        } else {
+            setCompanies([]);
+        }
+
+      } catch (error: any) {
         console.error("Failed to fetch companies and jobs", error);
-        // You could potentially still hit a permission error on 'jobs' or 'internships'
-        // Though less likely for read operations for candidates.
+        
+        let path = '/jobs or /internships';
+        if (error.message.includes('employers')) {
+            path = '/employers';
+        }
+
         const permissionError = new FirestorePermissionError({
-            path: '/jobs, /internships, or /employers',
+            path: path,
             operation: 'list',
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -169,7 +180,7 @@ export default function CompaniesPage() {
       {!loading && filteredCompanies.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            <p>No companies found matching your search. Try another term.</p>
+            <p>No active companies found. Check back later!</p>
           </CardContent>
         </Card>
       )}
