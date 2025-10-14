@@ -33,13 +33,7 @@ export async function applyToAction(
       }
   } catch (error) {
     console.error("Could not fetch candidate profile for application.", error);
-    const permissionError = new FirestorePermissionError({
-        path: `/candidates/${candidateId}`,
-        operation: 'get',
-    });
-    errorEmitter.emit('permission-error', permissionError);
-    // Do not proceed if we can't get the candidate's profile
-    return;
+    // Don't emit here, let the application creation fail and handle it there.
   }
   
   const applicationData = {
