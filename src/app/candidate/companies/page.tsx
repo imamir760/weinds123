@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, DocumentData } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2, Building, Briefcase, Tag, Users } from 'lucide-react';
+import { Search, Loader2, Building, Briefcase, Users } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -41,8 +41,14 @@ export default function CompaniesPage() {
         const internshipsRef = collection(db, 'internships');
 
         const [jobsSnap, internshipsSnap] = await Promise.all([
-          getDocs(jobsRef),
-          getDocs(internshipsRef)
+          getDocs(jobsRef).catch(error => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: jobsRef.path, operation: 'list' }));
+            throw error;
+          }),
+          getDocs(internshipsRef).catch(error => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: internshipsRef.path, operation: 'list' }));
+            throw error;
+          })
         ]);
 
         const allPostings = [
@@ -61,38 +67,45 @@ export default function CompaniesPage() {
         });
 
         const activeEmployerIds = Array.from(employerJobMap.keys());
-
+        
         if (activeEmployerIds.length > 0) {
-            const employersRef = collection(db, 'employers');
-            const employersSnap = await getDocs(employersRef);
+            const employerPromises = activeEmployerIds.map(id => 
+                getDoc(doc(db, 'employers', id)).catch(error => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' }));
+                    // Return null or some indicator of failure
+                    return null;
+                })
+            );
 
-            const employersData = employersSnap.docs
-              .map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              }))
-              .filter(employer => activeEmployerIds.includes(employer.id))
-              .map(employer => ({
-                ...employer,
-                roles: employerJobMap.get(employer.id) || []
-              })) as EmployerProfile[];
+            const employerDocs = await Promise.all(employerPromises);
             
+            const employersData = employerDocs
+              .filter(docSnap => docSnap && docSnap.exists())
+              .map(docSnap => {
+                  const data = docSnap!.data();
+                  const id = docSnap!.id;
+                  return {
+                    id,
+                    ...data,
+                    roles: employerJobMap.get(id) || []
+                  } as EmployerProfile;
+              });
+
             setCompanies(employersData);
         } else {
             setCompanies([]);
         }
 
       } catch (error: any) {
-        let path = '/jobs or /internships';
-        if (error.message.includes('employers')) {
-            path = '/employers';
+        console.error("Failed to fetch company data:", error);
+        // Error is already emitted in individual catch blocks,
+        // but we can have a generic one here just in case.
+        if (!error.name.includes('FirestorePermissionError')) {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: '/jobs, /internships, or /employers',
+                operation: 'list',
+            }));
         }
-        
-        const permissionError = new FirestorePermissionError({
-            path: path,
-            operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
       } finally {
         setLoading(false);
       }
