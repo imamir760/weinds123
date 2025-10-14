@@ -56,8 +56,12 @@ export default function JobsPage() {
       const unsubscribeApplied = onSnapshot(q, (snapshot) => {
         const appliedIds = snapshot.docs.map(doc => doc.data().postId);
         setAppliedJobs(appliedIds);
-      }, (error) => {
-        console.error("Failed to listen for applied jobs:", error);
+      }, async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: appliedJobsRef.path,
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
       return () => unsubscribeApplied();
     }
@@ -76,9 +80,13 @@ export default function JobsPage() {
       
       if (employerIds.length > 0) {
         try {
-          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)));
+          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(async (error) => {
+              const permissionError = new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' });
+              errorEmitter.emit('permission-error', permissionError);
+              return null;
+          }));
           const employerSnapshots = await Promise.all(employerPromises);
-          const employersMap = new Map(employerSnapshots.map(snap => [snap.id, snap.data()?.companyName || 'N/A']));
+          const employersMap = new Map(employerSnapshots.map(snap => snap ? [snap.id, snap.data()?.companyName || 'N/A'] : [null, null]));
           
           const jobsWithCompanyNames = jobsData.map(job => ({
             ...job,
@@ -96,7 +104,7 @@ export default function JobsPage() {
       }
       
       setLoading(false);
-    }, (serverError) => {
+    }, async (serverError) => {
       const permissionError = new FirestorePermissionError({
         path: jobsCollectionRef.path,
         operation: 'list',
@@ -116,7 +124,11 @@ export default function JobsPage() {
             let candidateProfile: string;
 
             try {
-                const candidateSnap = await getDoc(candidateDocRef);
+                const candidateSnap = await getDoc(candidateDocRef).catch(async (error) => {
+                    const permissionError = new FirestorePermissionError({ path: candidateDocRef.path, operation: 'get' });
+                    errorEmitter.emit('permission-error', permissionError);
+                    throw permissionError;
+                });
                 if (!candidateSnap.exists()) {
                     console.warn("Candidate profile not found. Skipping AI matching.");
                     setMatching(false);
