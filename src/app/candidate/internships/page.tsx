@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { collection, onSnapshot, doc, getDoc, DocumentData, query, where, getDocs } from 'firebase/firestore';
 import {
   Card,
@@ -28,7 +28,7 @@ interface Internship extends DocumentData {
   id: string;
   title: string;
   employerId: string;
-  companyName?: string; // Now optional as we will fetch it
+  companyName?: string;
   location: string;
   workMode: string;
   stipend: string;
@@ -81,9 +81,9 @@ export default function InternshipsPage() {
       if(employerIds.length > 0) {
         const employerProfiles = new Map<string, DocumentData>();
         try {
-          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(async (error) => {
-              const permissionError = new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' });
-              errorEmitter.emit('permission-error', permissionError);
+          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch((error) => {
+              console.error(`Failed to fetch employer profile for ID ${id}:`, error);
+              // Don't throw a permission error, just return null so the page can render.
               return null;
           }));
 
