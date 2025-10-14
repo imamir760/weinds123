@@ -108,7 +108,6 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
 
 
 export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  // Use React.use to correctly unwrap params on the client
   const { id: postId } = React.use(params);
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
@@ -118,20 +117,18 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
   const [selectedStage, setSelectedStage] = useState<{ stageName: string; candidates: Applicant[] } | null>(null);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
 
-  // Effect to fetch the main post details (public data)
   useEffect(() => {
     if (!postId) return;
-    
-    setLoading(true);
-    let cancelled = false;
 
-    const fetchPostDetails = async () => {
-        let postData: PostDetails | null = null;
-        let postType: 'job' | 'internship' | null = null;
-        
+    let isCancelled = false;
+
+    const fetchPostAndApplicants = async (user: FirebaseUser) => {
         try {
+            // Step 1: Fetch the main post document (job or internship)
+            let postSnap;
+            let postType: 'job' | 'internship' | null = null;
             const jobRef = doc(db, 'jobs', postId);
-            let postSnap = await getDoc(jobRef);
+            postSnap = await getDoc(jobRef);
             if (postSnap.exists()) {
                 postType = 'job';
             } else {
@@ -142,92 +139,107 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
                 }
             }
 
-            if (!postSnap.exists() || !postType) {
-                console.error("Post not found");
-                if (!cancelled) setPostDetails(null);
-            } else {
-                postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
-                if (!cancelled) setPostDetails(postData);
-            }
-        } catch (error) {
-            console.error("Error fetching post details:", error);
-        } finally {
-            if (!cancelled) setLoading(false);
-        }
-    };
-    
-    fetchPostDetails();
-
-    return () => {
-        cancelled = true;
-    };
-  }, [postId]);
-
-  // Effect to check ownership and fetch applicants (private data)
-  useEffect(() => {
-    if (!postDetails) return;
-
-    let cancelled = false;
-    
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (cancelled) return;
-
-        if (user && user.uid === postDetails.employerId) {
-            setIsOwner(true);
-            setLoading(true);
-
-            try {
-                const applicantsCollectionRef = collection(db, postDetails.type, postDetails.id, 'applicants');
-                const applicantsSnap = await getDocs(applicantsCollectionRef);
-
-                const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
-
-                if (applicantsData.length > 0) {
-                    const candidatePromises = applicantsData.map(applicant =>
-                        getDoc(doc(db, 'candidates', applicant.candidateId))
-                    );
-                    const candidateSnaps = await Promise.all(candidatePromises);
-
-                    const candidatesMap = new Map<string, DocumentData>();
-                    candidateSnaps.forEach(snap => {
-                        if (snap.exists()) candidatesMap.set(snap.id, snap.data());
-                    });
-
-                    const mergedApplicants = applicantsData.map(app => {
-                        const profile = candidatesMap.get(app.candidateId);
-                        return {
-                            ...app,
-                            fullName: profile?.fullName || 'Unknown Candidate',
-                            headline: profile?.headline || 'No headline available',
-                            avatar: profile?.fullName?.charAt(0) || 'U',
-                            matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75)
-                        } as Applicant;
-                    });
-                    if (!cancelled) setApplicants(mergedApplicants);
-                } else {
-                    if (!cancelled) setApplicants([]);
+            if (isCancelled || !postSnap.exists() || !postType) {
+                console.error("Post not found.");
+                if (!isCancelled) {
+                    setPostDetails(null);
+                    setIsOwner(false);
+                    setLoading(false);
                 }
-            } catch (serverError) {
-                const permissionError = new FirestorePermissionError({
-                    path: collection(db, postDetails.type, postDetails.id, 'applicants').path,
+                return;
+            }
+
+            const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
+             if (isCancelled) return;
+            setPostDetails(postData);
+
+            // Step 2: Check for ownership
+            if (user.uid !== postData.employerId) {
+                if (!isCancelled) {
+                    setIsOwner(false);
+                    setLoading(false);
+                }
+                return;
+            }
+             if (isCancelled) return;
+            setIsOwner(true);
+
+            // Step 3: Fetch applicants only if user is the owner
+            const applicantsCollectionRef = collection(db, postType, postId, 'applicants');
+            const applicantsSnap = await getDocs(applicantsCollectionRef).catch(serverError => {
+                 const permissionError = new FirestorePermissionError({
+                    path: applicantsCollectionRef.path,
                     operation: 'list',
                 });
                 errorEmitter.emit('permission-error', permissionError);
-            } finally {
-                if (!cancelled) setLoading(false);
+                throw permissionError;
+            });
+            
+            const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
+
+            if (applicantsData.length === 0) {
+                 if (isCancelled) return;
+                setApplicants([]);
+                setLoading(false);
+                return;
             }
-        } else {
-            setIsOwner(false);
-            setApplicants([]);
-            setLoading(false);
+
+            // Step 4: Fetch candidate profiles for the applicants
+            const candidatePromises = applicantsData.map(applicant =>
+                getDoc(doc(db, 'candidates', applicant.candidateId)).catch(serverError => {
+                    const permissionError = new FirestorePermissionError({ path: `/candidates/${applicant.candidateId}`, operation: 'get' });
+                    errorEmitter.emit('permission-error', permissionError);
+                    return null;
+                })
+            );
+
+            const candidateSnaps = await Promise.all(candidatePromises);
+
+            const candidatesMap = new Map<string, DocumentData>();
+            candidateSnaps.forEach(snap => {
+                if (snap && snap.exists()) candidatesMap.set(snap.id, snap.data());
+            });
+
+            const mergedApplicants = applicantsData.map(app => {
+                const profile = candidatesMap.get(app.candidateId);
+                return {
+                    ...app,
+                    fullName: profile?.fullName || 'Unknown Candidate',
+                    headline: profile?.headline || 'No headline available',
+                    avatar: profile?.fullName?.charAt(0) || 'U',
+                    matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75)
+                } as Applicant;
+            });
+            
+            if (!isCancelled) {
+              setApplicants(mergedApplicants);
+            }
+        } catch (error) {
+            console.error("An error occurred during data fetching:", error);
+            // Error is already emitted, but we can log a generic message here if needed.
+        } finally {
+            if (!isCancelled) {
+                setLoading(false);
+            }
         }
+    };
+    
+    // Use onAuthStateChanged to ensure Firebase Auth is initialized
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchPostAndApplicants(user);
+      } else {
+        // Not logged in, cannot be owner
+        setIsOwner(false);
+        setLoading(false);
+      }
     });
 
     return () => {
-        cancelled = true;
-        unsubscribe();
+      isCancelled = true;
+      unsubscribe();
     };
-  }, [postDetails]);
+  }, [postId]);
 
   const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
