@@ -70,8 +70,9 @@ export default function CompaniesPage() {
         
         if (activeEmployerIds.length > 0) {
             const employerPromises = activeEmployerIds.map(id => 
-                getDoc(doc(db, 'employers', id)).catch(error => {
-                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' }));
+                getDoc(doc(db, 'employers', id)).catch(async (error) => {
+                    const permissionError = new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' });
+                    errorEmitter.emit('permission-error', permissionError);
                     // Return null or some indicator of failure
                     return null;
                 })

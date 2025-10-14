@@ -57,7 +57,7 @@ export default function ApplicationsPage() {
         setJobApplications(apps);
         setLoading(false);
       },
-      (serverError) => {
+      async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: jobAppsRef.path,
             operation: 'list',
@@ -71,7 +71,7 @@ export default function ApplicationsPage() {
         setInternshipApplications(apps);
         setLoading(false);
       },
-      (serverError) => {
+      async (serverError) => {
           const permissionError = new FirestorePermissionError({
               path: internAppsRef.path,
               operation: 'list',
