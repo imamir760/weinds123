@@ -21,12 +21,14 @@ import { matchJobCandidate } from '@/ai/flows';
 import { Badge } from '@/components/ui/badge';
 import { applyToAction } from '@/lib/apply-action';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 interface Internship extends DocumentData {
   id: string;
   title: string;
   employerId: string;
-  companyName: string;
+  companyName?: string; // Now optional as we will fetch it
   location: string;
   workMode: string;
   stipend: string;
@@ -73,10 +75,44 @@ export default function InternshipsPage() {
         id: doc.id,
         ...doc.data()
       })) as Internship[];
-      setInternships(internshipsData);
+      
+      const employerIds = [...new Set(internshipsData.map(internship => internship.employerId).filter(Boolean))];
+
+      if(employerIds.length > 0) {
+        const employerProfiles = new Map<string, DocumentData>();
+        try {
+          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(async (error) => {
+              const permissionError = new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' });
+              errorEmitter.emit('permission-error', permissionError);
+              return null;
+          }));
+
+          const employerDocs = await Promise.all(employerPromises);
+
+          employerDocs.forEach(docSnap => {
+            if (docSnap && docSnap.exists()) {
+              employerProfiles.set(docSnap.id, docSnap.data());
+            }
+          });
+
+          const enrichedInternships = internshipsData.map(internship => ({
+            ...internship,
+            companyName: employerProfiles.get(internship.employerId)?.companyName || 'Company Name N/A'
+          }));
+          setInternships(enrichedInternships);
+
+        } catch (error) {
+          console.error("Failed to fetch some employer profiles for internships.", error);
+          setInternships(internshipsData.map(internship => ({...internship, companyName: 'Company Name N/A'})));
+        }
+      } else {
+          setInternships(internshipsData);
+      }
+      
       setLoading(false);
     }, (error) => {
       console.error("Error fetching internships:", error);
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: internshipsCollectionRef.path, operation: 'list' }));
       setLoading(false);
     });
 
@@ -130,7 +166,7 @@ export default function InternshipsPage() {
         };
         runMatching();
     }
-  }, [user, internships.length, matching]);
+  }, [user, internships, matching]);
 
   const getPipelineStageName = (stage: { stage: string, type?: string }) => {
     const stageName = stage.stage.replace(/_/g, ' ');
@@ -142,7 +178,7 @@ export default function InternshipsPage() {
   };
   
   const handleApply = (internship: Internship) => {
-    if (user) {
+    if (user && internship.companyName) {
       applyToAction('internship', internship.id, internship.employerId, internship.title, internship.companyName, user.uid);
       setAppliedInternships(prev => [...prev, internship.id]);
       toast({

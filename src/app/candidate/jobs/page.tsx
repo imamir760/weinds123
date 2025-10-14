@@ -21,12 +21,14 @@ import { matchJobCandidate } from '@/ai/flows';
 import { Badge } from '@/components/ui/badge';
 import { applyToAction } from '@/lib/apply-action';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 interface Job extends DocumentData {
   id: string;
   title: string;
   employerId: string;
-  companyName: string;
+  companyName?: string; // Now optional as we will fetch it
   location: string;
   workMode: string;
   salary: string;
@@ -72,10 +74,48 @@ export default function JobsPage() {
         id: doc.id,
         ...doc.data()
       })) as Job[];
-      setJobs(jobsData);
+
+      // Get unique employer IDs
+      const employerIds = [...new Set(jobsData.map(job => job.employerId).filter(Boolean))];
+
+      if (employerIds.length > 0) {
+        // Fetch employer profiles
+        const employerProfiles = new Map<string, DocumentData>();
+        try {
+          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(async (error) => {
+              const permissionError = new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' });
+              errorEmitter.emit('permission-error', permissionError);
+              return null;
+          }));
+
+          const employerDocs = await Promise.all(employerPromises);
+          
+          employerDocs.forEach(docSnap => {
+            if (docSnap && docSnap.exists()) {
+              employerProfiles.set(docSnap.id, docSnap.data());
+            }
+          });
+
+          // Merge company names into jobs data
+          const enrichedJobs = jobsData.map(job => ({
+            ...job,
+            companyName: employerProfiles.get(job.employerId)?.companyName || 'Company Name N/A'
+          }));
+          setJobs(enrichedJobs);
+
+        } catch (error) {
+          console.error("Failed to fetch some employer profiles.", error);
+          // Still set jobs, but some might not have company name
+          setJobs(jobsData.map(job => ({...job, companyName: 'Company Name N/A'})));
+        }
+      } else {
+        setJobs(jobsData);
+      }
+      
       setLoading(false);
     }, (error) => {
       console.error("Error fetching jobs:", error);
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: jobsCollectionRef.path, operation: 'list' }));
       setLoading(false);
     });
 
@@ -129,7 +169,7 @@ export default function JobsPage() {
         };
         runMatching();
     }
-  }, [user, jobs.length, matching]);
+  }, [user, jobs, matching]);
 
   const getPipelineStageName = (stage: { stage: string, type?: string }) => {
     const stageName = stage.stage.replace(/_/g, ' ');
@@ -141,7 +181,7 @@ export default function JobsPage() {
   };
   
   const handleApply = (job: Job) => {
-    if (user) {
+    if (user && job.companyName) {
       applyToAction('job', job.id, job.employerId, job.title, job.companyName, user.uid);
       setAppliedJobs(prev => [...prev, job.id]);
       toast({
