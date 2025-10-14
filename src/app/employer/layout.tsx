@@ -9,6 +9,7 @@ import {
   User,
   Menu,
   Bell,
+  TestTube2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
@@ -48,6 +49,7 @@ const navigation = [
   { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase },
   { name: 'My Postings', href: '/employer/jobs', icon: Briefcase },
   { name: 'All Applicants', href: '/employer/all-candidates', icon: Users },
+  { name: 'Skill Tests', href: '/employer/skill-tests', icon: TestTube2 },
   { name: 'Company Profile', href: '/employer/profile', icon: User },
 ];
 
