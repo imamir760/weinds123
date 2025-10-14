@@ -1,7 +1,7 @@
 
 'use client';
 
-import { doc, setDoc, serverTimestamp, collection, addDoc, getDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, collection, addDoc, getDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { db } from '@/lib/firebase';
@@ -28,8 +28,8 @@ export async function applyToAction(
       const candidateRef = doc(db, 'candidates', candidateId);
       const candidateSnap = await getDoc(candidateRef);
       if (candidateSnap.exists()) {
-          candidateName = candidateSnap.data().fullName || 'Unknown';
-          candidateEmail = candidateSnap.data().email || 'N/A';
+          candidateName = candidateSnap.data().fullName || 'Unknown Candidate';
+          candidateEmail = candidateSnap.data().email || 'No email';
       }
   } catch (error) {
     console.error("Could not fetch candidate profile for application.", error);
