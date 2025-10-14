@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -30,13 +29,8 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
-    { name: 'My Postings', href: '/employer/jobs', icon: Briefcase, count: 8 },
+    { name: 'My Postings', href: '/employer/jobs', icon: Briefcase },
     { name: 'All Applicants', href: '/employer/all-candidates', icon: Users },
-    { name: 'Shortlisted', href: '/employer/shortlisted', icon: Star },
-    { name: 'Final Interviews', href: '/employer/final-interview', icon: Bot },
-    { name: 'Campus Pool', href: '/employer/campus', icon: Building },
-    { name: 'AI Skill Tests', href: '/employer/skill-tests', icon: TestTube2 },
-    { name: 'AI Interviews', href: '/employer/interviews', icon: Bot },
     { name: 'Company Profile', href: '/employer/profile', icon: User },
 ];
 
