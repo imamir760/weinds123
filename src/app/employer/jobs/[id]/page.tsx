@@ -1,14 +1,14 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, collection, getDocs, DocumentData, collectionGroup, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, DocumentData, query, where } from 'firebase/firestore';
 import EmployerDashboardPage from '../../dashboard/page';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, Star, ChevronsRight, User } from 'lucide-react';
+import { Loader2, ArrowLeft, Star, User } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -68,32 +68,19 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
                     {candidates.length > 0 ? (
                         candidates.map(candidate => (
                             <Card key={`${postId}-${candidate.id}`} className="bg-background/50 shadow-md hover:shadow-lg transition-shadow">
-                                <CardContent className="p-4 space-y-3">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-3 group">
-                                            <Avatar className="w-11 h-11 border-2 border-primary/20">
-                                                <AvatarFallback>{candidate.avatar}</AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <p className="font-semibold text-base">{candidate.fullName}</p>
-                                                <p className="text-xs text-muted-foreground">{candidate.headline}</p>
-                                            </div>
+                               <CardContent className="p-4 flex justify-between items-center">
+                                    <div className="flex items-center gap-3 group">
+                                        <Avatar className="w-11 h-11 border-2 border-primary/20">
+                                            <AvatarFallback>{candidate.avatar}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-semibold text-base">{candidate.fullName}</p>
+                                            <p className="text-xs text-muted-foreground">{candidate.headline}</p>
                                         </div>
-                                        {candidate.matchScore && (
-                                            <div className="flex items-center gap-1 text-primary font-bold text-sm">
-                                                <Star className="w-4 h-4 fill-primary"/>
-                                                {candidate.matchScore}% Match
-                                            </div>
-                                        )}
                                     </div>
-                                    <div className="flex justify-between items-center border-t pt-3">
-                                        <Button asChild variant="outline" size="sm">
-                                            <Link href={`/employer/${postType}s/${postId}/candidates/${candidate.id}`}>View Profile</Link>
-                                        </Button>
-                                        <Button size="sm">
-                                            Next Stage <ChevronsRight className="w-4 h-4 ml-2"/>
-                                        </Button>
-                                    </div>
+                                    <Button asChild variant="outline" size="sm">
+                                        <Link href={`/employer/${postType}s/${postId}/candidates/${candidate.id}`}>View Profile</Link>
+                                    </Button>
                                 </CardContent>
                             </Card>
                         ))
@@ -110,8 +97,7 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
 
 
 export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  const paramsData = React.use(params);
-  const postId = paramsData.id;
+  const postId = params.id;
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
@@ -120,98 +106,105 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
   const [selectedStage, setSelectedStage] = useState<{ stageName: string; candidates: Applicant[] } | null>(null);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    if (!postId) return;
+  const fetchPostAndApplicants = useCallback(async (user: FirebaseUser) => {
+    setLoading(true);
 
-    const fetchPostAndApplicants = async (user: FirebaseUser) => {
-        setLoading(true);
-
-        try {
-            // Step 1: Determine post type and fetch post details
-            let postSnap;
-            let postType: 'job' | 'internship' | null = null;
-            const jobRef = doc(db, 'jobs', postId);
-            postSnap = await getDoc(jobRef);
-            if (postSnap.exists()) {
-                postType = 'job';
-            } else {
-                const internshipRef = doc(db, 'internships', postId);
-                postSnap = await getDoc(internshipRef);
-                if (postSnap.exists()) postType = 'internship';
-            }
-
-            if (!postSnap.exists() || !postType) {
-                setPostDetails(null);
-                setLoading(false);
-                return;
-            }
-
-            const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
-            setPostDetails(postData);
-
-            // Step 2: Verify ownership
-            const owner = user.uid === postData.employerId;
-            setIsOwner(owner);
-            if (!owner) {
-                setLoading(false);
-                return;
-            }
-
-            // Step 3: Fetch all applications for this post
-            const applicationsRef = collection(db, 'applications');
-            const q = query(applicationsRef, where('postId', '==', postId));
-            const applicationsSnap = await getDocs(q).catch(serverError => {
-                 const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list' });
-                 errorEmitter.emit('permission-error', permissionError);
-                 throw permissionError;
-            });
-
-            const applicationsData = applicationsSnap.docs.map(doc => doc.data());
-            
-            if(applicationsData.length === 0) {
-                setApplicants([]);
-                setLoading(false);
-                return;
-            }
-            
-            const candidateIds = applicationsData.map(app => app.candidateId);
-            if(candidateIds.length === 0) {
-                 setApplicants([]);
-                 setLoading(false);
-                 return;
-            }
-            
-            // Step 4: Fetch profiles for the candidates
-            const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)).catch(serverError => {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' }));
-                return null;
-            }));
-
-            const candidateSnaps = await Promise.all(candidatePromises);
-
-            const mergedApplicants = candidateSnaps.map((snap, index) => {
-                const profile = snap?.exists() ? snap.data() : {};
-                const appData = applicationsData[index];
-                return {
-                    id: snap?.id || candidateIds[index],
-                    candidateId: snap?.id || candidateIds[index],
-                    fullName: profile.fullName || 'Unknown Candidate',
-                    headline: profile.headline || 'No headline',
-                    avatar: profile.fullName?.charAt(0) || 'U',
-                    status: appData.status || 'Applied',
-                    matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75), // Placeholder
-                } as Applicant;
-            });
-            
-            setApplicants(mergedApplicants);
-
-        } catch (error) {
-            console.error("An error occurred during data fetching:", error);
-        } finally {
-            setLoading(false);
+    try {
+        // Step 1: Determine post type and fetch post details
+        let postSnap;
+        let postType: 'job' | 'internship' | null = null;
+        const jobRef = doc(db, 'jobs', postId);
+        postSnap = await getDoc(jobRef);
+        if (postSnap.exists()) {
+            postType = 'job';
+        } else {
+            const internshipRef = doc(db, 'internships', postId);
+            postSnap = await getDoc(internshipRef);
+            if (postSnap.exists()) postType = 'internship';
         }
-    };
-    
+
+        if (!postSnap.exists() || !postType) {
+            setPostDetails(null);
+            setIsOwner(false);
+            setLoading(false);
+            console.error("Post not found.");
+            return;
+        }
+
+        const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
+        setPostDetails(postData);
+
+        // Step 2: Verify ownership
+        const owner = user.uid === postData.employerId;
+        setIsOwner(owner);
+        if (!owner) {
+            setLoading(false);
+            return;
+        }
+
+        // Step 3: Fetch all applications for this post using the correct employerId filter
+        const applicationsRef = collection(db, 'applications');
+        const q = query(applicationsRef, where('postId', '==', postId), where('employerId', '==', user.uid));
+        const applicationsSnap = await getDocs(q).catch(serverError => {
+             const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list', requestResourceData: {postId, employerId: user.uid} });
+             errorEmitter.emit('permission-error', permissionError);
+             throw permissionError;
+        });
+
+        const applicationsData = applicationsSnap.docs.map(doc => doc.data());
+        
+        if (applicationsData.length === 0) {
+            setApplicants([]);
+            setLoading(false);
+            return;
+        }
+        
+        const candidateIds = applicationsData.map(app => app.candidateId).filter(Boolean);
+        if (candidateIds.length === 0) {
+             setApplicants([]);
+             setLoading(false);
+             return;
+        }
+        
+        // Step 4: Fetch profiles for the candidates
+        const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)).catch(serverError => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' }));
+            return null; // Return null on error to not break Promise.all
+        }));
+
+        const candidateSnaps = await Promise.all(candidatePromises);
+
+        const mergedApplicants = candidateSnaps.map((snap, index) => {
+            const profile = snap?.exists() ? snap.data() : {};
+            const appData = applicationsData.find(app => app.candidateId === snap?.id);
+            return {
+                id: snap?.id || candidateIds[index],
+                candidateId: snap?.id || candidateIds[index],
+                fullName: profile.fullName || 'Unknown Candidate',
+                headline: profile.headline || 'No headline',
+                avatar: profile.fullName?.charAt(0) || 'U',
+                status: appData?.status || 'Applied',
+                matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75), // Placeholder
+            } as Applicant;
+        });
+        
+        setApplicants(mergedApplicants);
+
+    } catch (error) {
+        console.error("An error occurred during data fetching:", error);
+        // Error is already emitted in catch blocks, but we can have a generic one.
+        if (!(error instanceof FirestorePermissionError)) {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'jobs or applications',
+                operation: 'list',
+             }));
+        }
+    } finally {
+        setLoading(false);
+    }
+  }, [postId]);
+  
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         fetchPostAndApplicants(user);
@@ -221,10 +214,8 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
       }
     });
 
-    return () => {
-      unsubscribe();
-    };
-  }, [postId]);
+    return () => unsubscribe();
+  }, [fetchPostAndApplicants]);
 
   const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
@@ -260,15 +251,18 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             </Card>
         ) : isOwner === false ? (
             <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
+                <CardContent className="py-12 text-center">
                     <p className="font-semibold text-lg text-destructive">Access Denied</p>
-                    <p>You do not have permission to view the applicants for this post.</p>
+                    <p className="text-muted-foreground mt-2">You do not have permission to view the pipeline for this post.</p>
                 </CardContent>
             </Card>
         ) : !postDetails || !postDetails.pipeline || postDetails.pipeline.length === 0 ? (
              <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
-                    <p>No pipeline configured for this post. Please edit the post to add a hiring pipeline.</p>
+                    <p>No pipeline configured for this post.</p>
+                     <Button asChild variant="link">
+                        <Link href={`/employer/jobs/edit/${postDetails?.id}`}>Edit post to add pipeline</Link>
+                    </Button>
                 </CardContent>
              </Card>
         ) : (
