@@ -8,7 +8,7 @@ import EmployerDashboardPage from '../../dashboard/page';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, Star } from 'lucide-react';
+import { Loader2, ArrowLeft, Star, ChevronsRight } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -19,9 +19,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Separator } from '@/components/ui/separator';
 
 type Stage = {
-  name: string;
+  stage: string;
   type?: string;
 };
 
@@ -46,8 +47,8 @@ type JobPipelinePageProps = {
 };
 
 const getStageName = (stage: Stage): string => {
-    if (!stage || !stage.name) return '';
-    const stageName = stage.name.replace(/_/g, ' ');
+    if (!stage || !stage.stage) return '';
+    const stageName = stage.stage.replace(/_/g, ' ');
     if (stage.type) {
       const typeName = stage.type.replace(/_/g, ' ');
       return `${stageName} (${typeName})`;
@@ -56,9 +57,7 @@ const getStageName = (stage: Stage): string => {
 };
 
 export default function JobPipelinePage(props: JobPipelinePageProps) {
-  const params = use(props.params);
-  const jobId = params.id;
-
+  const { id: jobId } = use(props.params);
   const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,6 +128,8 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
   }, [jobId]);
 
   const candidatesByStage = (stageNameFromPipelineConfig: string) => {
+    // FIX: Add a guard to prevent crash if stage name is undefined
+    if (!stageNameFromPipelineConfig) return [];
     // Normalize stage name by removing type info like (ai) and replacing underscores
     const rawStageName = stageNameFromPipelineConfig.split(' ')[0].toLowerCase().replace(/_/g, ' ');
      return applicants.filter(app => (app.currentStage || 'Applied').toLowerCase().replace(/_/g, ' ') === rawStageName);
@@ -147,9 +148,11 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
         </div>
 
         {loading ? (
-            <div className="flex justify-center items-center h-64">
-                <Loader2 className="w-12 h-12 animate-spin text-primary" />
-            </div>
+            <Card>
+                <CardContent className="flex justify-center items-center h-64">
+                    <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                </CardContent>
+            </Card>
         ) : !jobDetails || !jobDetails.pipeline || jobDetails.pipeline.length === 0 ? (
              <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
@@ -163,27 +166,28 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
                     <CardDescription>Click a stage to see the candidates within it.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Accordion type="multiple" className="w-full">
+                    <Accordion type="multiple" className="w-full space-y-2">
                         {jobDetails.pipeline.map((stageConfig, index) => {
                             const stageDisplayName = getStageName(stageConfig);
-                            const stageApplicants = candidatesByStage(stageConfig.name);
+                            const stageApplicants = candidatesByStage(stageConfig.stage);
                             return (
-                                <AccordionItem value={`item-${index}`} key={index}>
-                                    <AccordionTrigger className="hover:no-underline">
-                                        <div className="flex justify-between items-center w-full pr-4">
-                                            <span className="text-lg font-semibold capitalize">{stageDisplayName}</span>
-                                            <Badge variant="secondary">{stageApplicants.length}</Badge>
+                                <AccordionItem value={`item-${index}`} key={index} className="border rounded-lg">
+                                    <AccordionTrigger className="hover:no-underline p-4 text-lg font-semibold capitalize">
+                                        <div className="flex justify-between items-center w-full">
+                                            <span>{stageDisplayName}</span>
+                                            <Badge variant="secondary" className="text-base">{stageApplicants.length}</Badge>
                                         </div>
                                     </AccordionTrigger>
-                                    <AccordionContent>
+                                    <AccordionContent className="p-4 pt-0">
+                                        <Separator className="mb-4"/>
                                         {stageApplicants.length > 0 ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 {stageApplicants.map(candidate => (
-                                                    <Card key={candidate.id} className="bg-background/50">
+                                                    <Card key={candidate.id} className="bg-background/50 shadow-md hover:shadow-lg transition-shadow">
                                                         <CardContent className="p-4 space-y-3">
                                                             <div className="flex justify-between items-start">
                                                                 <div className="flex items-center gap-3 group">
-                                                                    <Avatar className="w-11 h-11 border-2 border-transparent">
+                                                                    <Avatar className="w-11 h-11 border-2 border-primary/20">
                                                                         <AvatarFallback>{candidate.avatar}</AvatarFallback>
                                                                     </Avatar>
                                                                     <div>
@@ -200,7 +204,9 @@ export default function JobPipelinePage(props: JobPipelinePageProps) {
                                                                 <Button asChild variant="outline" size="sm">
                                                                     <Link href={`/employer/jobs/${jobId}/candidates/${candidate.id}`}>View Profile</Link>
                                                                 </Button>
-                                                                <Button size="sm">Next Stage</Button>
+                                                                <Button size="sm">
+                                                                    Next Stage <ChevronsRight className="w-4 h-4 ml-2"/>
+                                                                </Button>
                                                             </div>
                                                         </CardContent>
                                                     </Card>
