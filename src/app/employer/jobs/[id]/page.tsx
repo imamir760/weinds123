@@ -215,5 +215,3 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
   return <EmployerDashboardPage>{PageContent}</EmployerDashboardPage>
 }
-
-    
