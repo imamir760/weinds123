@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import EmployerDashboardPage from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, DocumentData, Timestamp, getDoc, doc } from 'firebase/firestore';
 import { Loader2, Briefcase, GraduationCap } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -52,11 +51,44 @@ export default function AllCandidatesPage() {
         setLoading(true);
         const applicationsQuery = query(collection(db, 'applications'), where("employerId", "==", user.uid));
         
-        const unsubscribe = onSnapshot(applicationsQuery, (snapshot) => {
-            const applicantsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Applicant)
-                .sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
+        const unsubscribe = onSnapshot(applicationsQuery, async (snapshot) => {
+            const applications = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as DocumentData));
 
-            setAllApplicants(applicantsData);
+            const candidateIds = [...new Set(applications.map(app => app.candidateId).filter(Boolean))];
+
+            let candidatesData: Record<string, { fullName: string, email: string }> = {};
+
+            if (candidateIds.length > 0) {
+                 const candidatePromises = candidateIds.map(id => 
+                    getDoc(doc(db, 'candidates', id)).catch(serverError => {
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' }));
+                        return null;
+                    })
+                );
+
+                const candidateSnaps = await Promise.all(candidatePromises);
+
+                candidateSnaps.forEach(snap => {
+                    if (snap && snap.exists()) {
+                        const data = snap.data();
+                        candidatesData[snap.id] = {
+                            fullName: data.fullName || 'Unknown Candidate',
+                            email: data.email || 'No email'
+                        };
+                    }
+                });
+            }
+
+            const mergedApplicants = applications.map(app => {
+                 const candidateInfo = candidatesData[app.candidateId] || { fullName: 'Unknown Candidate', email: 'No email' };
+                 return {
+                     ...app,
+                     candidateName: candidateInfo.fullName,
+                     candidateEmail: candidateInfo.email,
+                 } as Applicant;
+            }).sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
+
+            setAllApplicants(mergedApplicants);
             setLoading(false);
         }, (serverError) => {
             const permissionError = new FirestorePermissionError({
@@ -135,8 +167,8 @@ export default function AllCandidatesPage() {
                                                 <AvatarFallback>{app.candidateName?.charAt(0) || 'U'}</AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <p>{app.candidateName || 'Unknown Candidate'}</p>
-                                                <p className="text-xs text-muted-foreground">{app.candidateEmail || 'No email'}</p>
+                                                <p>{app.candidateName}</p>
+                                                <p className="text-xs text-muted-foreground">{app.candidateEmail}</p>
                                             </div>
                                         </div>
                                     </TableCell>
