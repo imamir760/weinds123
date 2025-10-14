@@ -21,6 +21,8 @@ import { collection, getDocs, query, where, DocumentData, Timestamp } from 'fire
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 type Post = DocumentData & { id: string, type: 'Job' | 'Internship', applicantCount: number, status: string };
 
@@ -44,14 +46,44 @@ export default function EmployerJobsPage() {
         const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
         
         const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
-          getDocs(jobsQuery),
-          getDocs(internshipsQuery)
+          getDocs(jobsQuery).catch(e => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list' }));
+            return null;
+          }),
+          getDocs(internshipsQuery).catch(e => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list' }));
+            return null;
+          })
         ]);
 
-        const jobsData = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
-        const internshipsData = internshipsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post));
+        const jobsData = jobsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post)) || [];
+        const internshipsData = internshipsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post)) || [];
         
-        setPosts([...jobsData, ...internshipsData]);
+        let allPosts = [...jobsData, ...internshipsData];
+
+        if (allPosts.length > 0) {
+            const postIds = allPosts.map(p => p.id);
+            const applicationsQuery = query(collection(db, 'applications'), where('postId', 'in', postIds));
+            const applicationsSnapshot = await getDocs(applicationsQuery).catch(e => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list' }));
+                return null;
+            });
+            
+            if (applicationsSnapshot) {
+                const applicantCounts = new Map<string, number>();
+                applicationsSnapshot.docs.forEach(doc => {
+                    const postId = doc.data().postId;
+                    applicantCounts.set(postId, (applicantCounts.get(postId) || 0) + 1);
+                });
+
+                allPosts = allPosts.map(post => ({
+                    ...post,
+                    applicantCount: applicantCounts.get(post.id) || 0
+                }));
+            }
+        }
+        
+        setPosts(allPosts);
 
       } catch (error) {
         console.error("Error fetching posts:", error);
