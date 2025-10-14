@@ -127,14 +127,21 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
   }, []);
 
   useEffect(() => {
-    if (!postId) return;
+    if (!postId || !authUser) {
+      if (!auth.currentUser) {
+          setLoading(false);
+      }
+      return;
+    };
     let cancelled = false;
 
-    const fetchPost = async () => {
+    const fetchPostAndApplicants = async () => {
         setLoading(true);
         let postSnap: DocumentData | null = null;
         let postType: 'job' | 'internship' | null = null;
+        let postData: PostDetails | null = null;
 
+        // 1. Fetch public post data
         try {
             const jobRef = doc(db, 'jobs', postId);
             postSnap = await getDoc(jobRef);
@@ -163,45 +170,28 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
             return;
         }
         
-        const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
+        postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
         if (!cancelled) {
             setPostDetails(postData);
         }
-    };
 
-    fetchPost();
+        // 2. Check ownership
+        const isUserOwner = authUser.uid === postData.employerId;
+        if (!cancelled) {
+          setIsOwner(isUserOwner);
+        }
 
-    return () => {
-        cancelled = true;
-    };
-  }, [postId]);
+        if (!isUserOwner) {
+            if (!cancelled) {
+                setApplicants([]);
+                setLoading(false);
+            }
+            return;
+        }
 
-  useEffect(() => {
-    // Wait until we have both the authenticated user and the post details
-    if (!postDetails || authUser === null) {
-      // If auth is loaded but no user, we know they're not the owner.
-      if (!loading && authUser === null) {
-          setIsOwner(false);
-          setLoading(false);
-      }
-      return;
-    }
-    
-    const employerId = postDetails.employerId as string | undefined;
-    const isUserOwner = authUser?.uid === employerId;
-    setIsOwner(isUserOwner);
-
-    if (!isUserOwner) {
-        setApplicants([]);
-        setLoading(false);
-        return;
-    }
-
-    let cancelled = false;
-    const fetchApplicantsIfOwner = async () => {
-        setLoading(true);
+        // 3. Fetch applicants only if owner
         try {
-            const applicantsCollectionRef = collection(db, postDetails.type, postDetails.id, 'applicants');
+            const applicantsCollectionRef = collection(db, postData.type, postData.id, 'applicants');
             const applicantsSnap = await getDocs(applicantsCollectionRef);
 
             if (applicantsSnap.empty) {
@@ -240,27 +230,31 @@ export default function JobPipelinePage({ params }: { params: Promise<{ id: stri
 
             if (!cancelled) {
               setApplicants(mergedApplicants);
-              setLoading(false);
             }
         } catch (serverError) {
-            const permissionError = new FirestorePermissionError({
-                path: collection(db, postDetails.type, postDetails.id, 'applicants').path,
-                operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            if (postData) {
+                const permissionError = new FirestorePermissionError({
+                    path: collection(db, postData.type, postData.id, 'applicants').path,
+                    operation: 'list',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            }
             if (!cancelled) {
               setApplicants([]);
-              setLoading(false);
+            }
+        } finally {
+            if (!cancelled) {
+                setLoading(false);
             }
         }
     };
 
-    fetchApplicantsIfOwner();
+    fetchPostAndApplicants();
 
     return () => {
       cancelled = true;
     };
-  }, [postDetails, authUser]);
+  }, [postId, authUser]);
 
   const candidatesByStage = (stageNameFromPipelineConfig: string) => {
     if (!stageNameFromPipelineConfig) return [];
