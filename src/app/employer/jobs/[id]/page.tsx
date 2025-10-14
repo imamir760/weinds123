@@ -81,7 +81,7 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
                                         </div>
                                         <div className="flex items-center gap-1 text-primary font-bold text-sm">
                                             <Star className="w-4 h-4 fill-primary"/>
-                                            {candidate.matchScore}%
+                                            {candidate.matchScore}% Match
                                         </div>
                                     </div>
                                     <div className="flex justify-between items-center border-t pt-3">
@@ -234,8 +234,8 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
   const handleStageClick = (stageConfig: Stage) => {
     if(!isOwner) return;
     const stageDisplayName = getStageName(stageConfig);
-    const stageCandidates = candidatesByStage(stageConfig.stage);
-    setSelectedStage({ stageName: stageDisplayName, candidates: stageCandidates });
+    const stageApplicants = candidatesByStage(stageConfig.stage);
+    setSelectedStage({ stageName: stageDisplayName, candidates: stageApplicants });
     setIsDialogOpen(true);
   }
 
