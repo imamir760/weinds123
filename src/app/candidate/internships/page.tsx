@@ -28,7 +28,7 @@ interface Internship extends DocumentData {
   id: string;
   title: string;
   employerId: string;
-  companyName?: string;
+  companyName: string;
   location: string;
   workMode: string;
   stipend: string;
@@ -81,28 +81,7 @@ export default function InternshipsPage() {
         ...doc.data()
       })) as Internship[];
       
-      const employerIds = [...new Set(internshipsData.map(internship => internship.employerId).filter(Boolean))];
-      
-      if (employerIds.length > 0) {
-          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(err => null));
-          const employerSnapshots = await Promise.all(employerPromises);
-          
-          const employerMap = new Map<string, string>();
-          employerSnapshots.forEach(snap => {
-              if (snap && snap.exists()) {
-                  employerMap.set(snap.id, snap.data().companyName || 'Unknown Company');
-              }
-          });
-
-          const internshipsWithCompanyNames = internshipsData.map(internship => ({
-              ...internship,
-              companyName: employerMap.get(internship.employerId)
-          }));
-          setInternships(internshipsWithCompanyNames);
-      } else {
-          setInternships(internshipsData);
-      }
-      
+      setInternships(internshipsData);
       setLoading(false);
 
     }, (error) => {
@@ -131,6 +110,11 @@ export default function InternshipsPage() {
                 candidateProfile = JSON.stringify(candidateSnap.data());
             } catch (error) {
                 console.error("Failed to fetch candidate profile:", error);
+                 const permissionError = new FirestorePermissionError({
+                    path: candidateDocRef.path,
+                    operation: 'get',
+                });
+                errorEmitter.emit('permission-error', permissionError);
                 setMatching(false);
                 return;
             }
@@ -191,8 +175,8 @@ export default function InternshipsPage() {
       });
     } else {
        toast({
-        title: "Please log in",
-        description: `You need to be logged in to apply.`,
+        title: "Could not apply",
+        description: `Company details are missing or you are not logged in.`,
         variant: "destructive",
       });
     }
@@ -233,7 +217,7 @@ export default function InternshipsPage() {
                           <div className="flex justify-between items-start gap-4">
                               <div>
                                   <CardTitle className="text-xl font-headline">{internship.title}</CardTitle>
-                                  <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {internship.companyName || 'Loading...'}</CardDescription>
+                                  <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {internship.companyName || 'Company Name N/A'}</CardDescription>
                               </div>
                               <div className="text-right flex items-center gap-3 bg-secondary p-2 rounded-lg">
                                   {internship.matchScore === undefined ? (
@@ -326,5 +310,3 @@ export default function InternshipsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
-
-    

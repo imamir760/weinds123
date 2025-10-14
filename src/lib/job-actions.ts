@@ -27,9 +27,15 @@ export async function createJobWithPipeline(
       companyName = employerSnap.data().companyName || companyName;
     }
   } catch (error) {
-     console.error("Could not fetch employer profile, using default company name.", error);
-     // Not emitting a permission error here as it might be a transient issue,
-     // and we can proceed with a default name.
+     // If this fails, we can't proceed with a correct company name.
+     // It's better to throw an error than to post incomplete data.
+     console.error("Could not fetch employer profile to get company name.", error);
+     const permissionError = new FirestorePermissionError({
+        path: employerRef.path,
+        operation: 'get',
+     });
+     errorEmitter.emit('permission-error', permissionError);
+     throw permissionError;
   }
 
   const collectionName = postType === 'job' ? 'jobs' : 'internships';
