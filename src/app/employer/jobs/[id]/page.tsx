@@ -54,8 +54,7 @@ const getStageName = (stage: Stage) => {
     return stageName;
 };
 
-export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  const jobId = params.id;
+export default function JobPipelinePage({ params: { id: jobId } }: { params: { id: string } }) {
   const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
