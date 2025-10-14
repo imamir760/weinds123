@@ -6,7 +6,7 @@ import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData, query, where, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Loader2, ArrowLeft, Star, Mail, ThumbsUp, ThumbsDown, Undo2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Star, Mail, ThumbsUp, ThumbsDown, Undo2, TestTube2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -24,6 +24,7 @@ type PostDetails = DocumentData & {
   employerId?: string;
   responsibilities: string;
   skills: string;
+  pipeline: { stage: string, type?: string }[];
 };
 
 type Applicant = DocumentData & {
@@ -51,7 +52,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [matching, setMatching] = useState(false);
-  const [filter, setFilter] = useState<'Applied' | 'Shortlisted' | 'Rejected'>('Applied');
+  const [filter, setFilter] = useState<'Applied' | 'Shortlisted' | 'Skill Test' | 'Rejected'>('Applied');
 
   const fetchPostAndApplicants = useCallback(async (currentUser: FirebaseUser) => {
     setLoading(true);
@@ -180,7 +181,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
   }, [applicants, filter]);
 
 
-  const handleUpdateStatus = async (applicationId: string, newStatus: 'Shortlisted' | 'Rejected' | 'Applied') => {
+  const handleUpdateStatus = async (applicationId: string, newStatus: 'Shortlisted' | 'Rejected' | 'Applied' | 'Skill Test') => {
       const appRef = doc(db, 'applications', applicationId);
       try {
           await updateDoc(appRef, { status: newStatus });
@@ -203,6 +204,15 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
            }));
       }
   }
+  
+  const getSkillTestType = () => {
+    if (!postDetails || !postDetails.pipeline) return null;
+    const skillTestStage = postDetails.pipeline.find(p => p.stage === 'skill_test');
+    if (!skillTestStage) return null;
+    return skillTestStage.type === 'ai' ? 'AI Skill Test' : 'Traditional Skill Test';
+  }
+
+  const skillTestType = getSkillTestType();
 
   const PageContent = (
       <div className="container mx-auto py-8 px-4">
@@ -218,9 +228,10 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
 
         <Card className="mb-6">
             <CardContent className="p-3">
-                 <div className="flex gap-2">
+                 <div className="flex gap-2 flex-wrap">
                     <Button variant={filter === 'Applied' ? 'default' : 'ghost'} onClick={() => setFilter('Applied')}>Applied</Button>
                     <Button variant={filter === 'Shortlisted' ? 'default' : 'ghost'} onClick={() => setFilter('Shortlisted')}>Shortlisted</Button>
+                    <Button variant={filter === 'Skill Test' ? 'default' : 'ghost'} onClick={() => setFilter('Skill Test')}>Skill Test</Button>
                     <Button variant={filter === 'Rejected' ? 'destructive' : 'ghost'} onClick={() => setFilter('Rejected')}>Rejected</Button>
                  </div>
             </CardContent>
@@ -247,7 +258,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
              </Card>
         ) : (
             <TooltipProvider>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                   {filteredApplicants.map(applicant => (
                       <Card key={applicant.id} className="flex flex-col text-sm">
                           <CardHeader className="flex flex-row items-start gap-3 p-4">
@@ -262,6 +273,12 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                                   <a href={`mailto:${applicant.candidateEmail}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-0.5">
                                       <Mail className="w-3 h-3"/> {applicant.candidateEmail}
                                   </a>
+                                  {filter === 'Skill Test' && skillTestType && (
+                                    <Badge className="mt-2" variant="secondary">
+                                      <TestTube2 className="w-3 h-3 mr-1.5" />
+                                      {skillTestType}
+                                    </Badge>
+                                  )}
                               </div>
                                {applicant.matchScore !== undefined ? (
                                     applicant.matchScore === -1 ? <Badge variant="destructive" className="text-xs">Error</Badge> :
@@ -301,9 +318,14 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                                 </>
                              )}
                              {filter === 'Shortlisted' && (
-                                <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Rejected')}>
-                                    <ThumbsDown className="mr-1.5 w-3.5 h-3.5"/> Reject
-                                </Button>
+                                <>
+                                    <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Rejected')}>
+                                        <ThumbsDown className="mr-1.5 w-3.5 h-3.5"/> Reject
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Skill Test')}>
+                                        <TestTube2 className="mr-1.5 w-3.5 h-3.5"/> Send Test
+                                    </Button>
+                                </>
                              )}
                               {filter === 'Rejected' && (
                                 <Button size="sm" variant="ghost" className="h-8" onClick={() => handleUpdateStatus(applicant.applicationId, 'Applied')}>
@@ -321,5 +343,3 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
 
   return <>{PageContent}</>;
 }
-
-    
