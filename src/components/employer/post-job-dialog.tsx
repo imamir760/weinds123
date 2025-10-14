@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -22,6 +23,7 @@ import { Separator } from '../ui/separator';
 import { Combobox } from '../ui/combobox';
 import { cities } from '@/lib/cities';
 import { cn } from '@/lib/utils';
+import { useAuth } from '../auth/auth-provider';
 
 type PostType = 'job' | 'internship';
 type JobDetails = {
@@ -42,6 +44,7 @@ type InternshipDetails = JobDetails & {
 }
 
 export function PostJobDialog({ open, onOpenChange, onPipelineOpen }: { open: boolean, onOpenChange: (open: boolean) => void, onPipelineOpen: (details: any, postType: PostType) => void }) {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [postType, setPostType] = useState<PostType>('job');
   const [unstructuredText, setUnstructuredText] = useState('');
@@ -107,7 +110,7 @@ export function PostJobDialog({ open, onOpenChange, onPipelineOpen }: { open: bo
         <div className="p-4 border rounded-lg bg-secondary/50 space-y-6">
             <h3 className="text-xl font-bold text-foreground">{details.title}</h3>
             <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1.5"><Building className="w-4 h-4"/> Your Company Name</div>
+                <div className="flex items-center gap-1.5"><Building className="w-4 h-4"/> {user?.displayName || 'Your Company'}</div>
                 <div className="flex items-center gap-1.5"><MapPin className="h-4 h-4"/> {details.location}</div>
                 { isInternship ? <div className="flex items-center gap-1.5"><DollarSign className="h-4 h-4"/> {details.stipend} (Stipend)</div> : <div className="flex items-center gap-1.5"><DollarSign className="h-4 h-4"/> {details.salary}</div> }
                 { isInternship && <div className="flex items-center gap-1.5"><Clock className="h-4 h-4"/> {details.duration}</div>}

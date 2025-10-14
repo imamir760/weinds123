@@ -1,6 +1,7 @@
+
 'use client';
 
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { db } from '@/lib/firebase';
@@ -17,14 +18,29 @@ export async function createJobWithPipeline(
     throw new Error('User ID is missing. Cannot create post.');
   }
 
+  // Fetch employer's company name
+  const employerRef = doc(db, 'employers', userId);
+  let companyName = 'Unknown Company';
+  try {
+    const employerSnap = await getDoc(employerRef);
+    if (employerSnap.exists()) {
+      companyName = employerSnap.data().companyName || companyName;
+    }
+  } catch (error) {
+     console.error("Could not fetch employer profile, using default company name.", error);
+     // Not emitting a permission error here as it might be a transient issue,
+     // and we can proceed with a default name.
+  }
+
   const collectionName = postType === 'job' ? 'jobs' : 'internships';
   
   const postData = {
     ...jobDetails,
     employerId: userId,
+    companyName: companyName, // Add denormalized company name
     createdAt: serverTimestamp(),
     pipeline: pipeline,
-    applicantCount: 0, // Initialize applicant count
+    applicantCount: 0,
   };
 
   const collectionRef = collection(db, collectionName);
@@ -38,7 +54,7 @@ export async function createJobWithPipeline(
         requestResourceData: postData,
     });
     errorEmitter.emit('permission-error', permissionError);
-    // Re-throw to allow for local error handling if needed, though the listener will catch it
+    // Re-throw to allow for local error handling if needed
     throw permissionError;
   }
 }

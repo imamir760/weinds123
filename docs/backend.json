@@ -132,6 +132,7 @@
       "type": "object",
       "properties": {
         "title": { "type": "string" },
+        "companyName": { "type": "string", "description": "The name of the company posting the job." },
         "responsibilities": { "type": "string" },
         "skills": { "type": "string" },
         "experience": { "type": "string" },
@@ -153,7 +154,7 @@
             }
         }
       },
-      "required": ["title", "responsibilities", "skills", "employerId", "createdAt"]
+      "required": ["title", "companyName", "responsibilities", "skills", "employerId", "createdAt"]
     },
     "Internship": {
       "title": "Internship",
@@ -161,6 +162,7 @@
       "type": "object",
       "properties": {
         "title": { "type": "string" },
+        "companyName": { "type": "string", "description": "The name of the company posting the internship." },
         "responsibilities": { "type": "string" },
         "skills": { "type": "string" },
         "experience": { "type": "string" },
@@ -183,7 +185,7 @@
             }
         }
       },
-      "required": ["title", "responsibilities", "skills", "employerId", "createdAt"]
+      "required": ["title", "companyName", "responsibilities", "skills", "employerId", "createdAt"]
     },
     "Application": {
         "title": "Application",

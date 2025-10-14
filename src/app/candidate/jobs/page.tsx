@@ -16,8 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Building, PlusCircle, Sparkles, ChevronsRight, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
-import { errorEmitter } from '@/lib/error-emitter';
-import { FirestorePermissionError } from '@/lib/errors';
 import { useAuth } from '@/components/auth/auth-provider';
 import { matchJobCandidate } from '@/ai/flows';
 import { Badge } from '@/components/ui/badge';
@@ -60,7 +58,6 @@ export default function JobsPage() {
           setAppliedJobs(appliedIds);
         } catch (error) {
           console.error("Could not fetch applied jobs, user may not have permissions. This is not a fatal error.");
-          // This is a non-critical error, so we don't re-throw or emit. The page can function without this data.
         }
       }
       fetchAppliedJobs();
@@ -74,42 +71,13 @@ export default function JobsPage() {
       const jobsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-
-      const employerIds = [...new Set(jobsData.map(job => job.employerId).filter(id => id))];
-      
-      if (employerIds.length > 0) {
-        try {
-          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(async (error) => {
-              const permissionError = new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' });
-              errorEmitter.emit('permission-error', permissionError);
-              return null;
-          }));
-          const employerSnapshots = await Promise.all(employerPromises);
-          const employersMap = new Map(employerSnapshots.map(snap => snap ? [snap.id, snap.data()?.companyName || 'N/A'] : [null, null]));
-          
-          const jobsWithCompanyNames = jobsData.map(job => ({
-            ...job,
-            companyName: employersMap.get(job.employerId) || 'N/A'
-          })) as Job[];
-
-          setJobs(jobsWithCompanyNames);
-        } catch (error) {
-            console.error("Error fetching employer data:", error);
-            // Even if employer data fails, show jobs with default company name
-            setJobs(jobsData.map(j => ({ ...j, companyName: 'N/A' })) as Job[]);
-        }
-      } else {
-        setJobs(jobsData as Job[]);
-      }
-      
+      })) as Job[];
+      setJobs(jobsData);
       setLoading(false);
-    }, async (serverError) => {
-      const permissionError = new FirestorePermissionError({
-        path: jobsCollectionRef.path,
-        operation: 'list',
-      });
-      errorEmitter.emit('permission-error', permissionError);
+    }, (error) => {
+      console.error("Error fetching jobs:", error);
+      // We are not using the permission error emitter here to avoid app crashes
+      // and provide a more stable experience. The error is logged for debugging.
       setLoading(false);
     });
 
@@ -124,11 +92,7 @@ export default function JobsPage() {
             let candidateProfile: string;
 
             try {
-                const candidateSnap = await getDoc(candidateDocRef).catch(async (error) => {
-                    const permissionError = new FirestorePermissionError({ path: candidateDocRef.path, operation: 'get' });
-                    errorEmitter.emit('permission-error', permissionError);
-                    throw permissionError;
-                });
+                const candidateSnap = await getDoc(candidateDocRef);
                 if (!candidateSnap.exists()) {
                     console.warn("Candidate profile not found. Skipping AI matching.");
                     setMatching(false);
@@ -321,5 +285,3 @@ export default function JobsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
-
-    

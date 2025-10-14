@@ -16,8 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Search, MapPin, Briefcase, Filter, Loader2, DollarSign, Star, Clock, Building, PlusCircle, Sparkles, ChevronsRight, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
-import { errorEmitter } from '@/lib/error-emitter';
-import { FirestorePermissionError } from '@/lib/errors';
 import { useAuth } from '@/components/auth/auth-provider';
 import { matchJobCandidate } from '@/ai/flows';
 import { Badge } from '@/components/ui/badge';
@@ -74,41 +72,11 @@ export default function InternshipsPage() {
       const internshipsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-
-      const employerIds = [...new Set(internshipsData.map(internship => internship.employerId).filter(id => id))];
-
-      if (employerIds.length > 0) {
-        try {
-            const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(async (error) => {
-              const permissionError = new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' });
-              errorEmitter.emit('permission-error', permissionError);
-              return null;
-            }));
-            const employerSnapshots = await Promise.all(employerPromises);
-            const employersMap = new Map(employerSnapshots.map(snap => snap ? [snap.id, snap.data()?.companyName || 'N/A'] : [null, null]));
-
-            const internshipsWithCompanyNames = internshipsData.map(internship => ({
-              ...internship,
-              companyName: employersMap.get(internship.employerId) || 'N/A'
-            })) as Internship[];
-            
-            setInternships(internshipsWithCompanyNames);
-        } catch(error) {
-            console.error("Error fetching employer data for internships:", error);
-            setInternships(internshipsData.map(i => ({...i, companyName: 'N/A'})) as Internship[]);
-        }
-      } else {
-        setInternships(internshipsData as Internship[]);
-      }
-
+      })) as Internship[];
+      setInternships(internshipsData);
       setLoading(false);
-    }, async (serverError) => {
-      const permissionError = new FirestorePermissionError({
-        path: internshipsCollectionRef.path,
-        operation: 'list',
-      });
-      errorEmitter.emit('permission-error', permissionError);
+    }, (error) => {
+      console.error("Error fetching internships:", error);
       setLoading(false);
     });
 
@@ -123,11 +91,7 @@ export default function InternshipsPage() {
             let candidateProfile: string;
 
             try {
-                const candidateSnap = await getDoc(candidateDocRef).catch(async (error) => {
-                    const permissionError = new FirestorePermissionError({ path: candidateDocRef.path, operation: 'get' });
-                    errorEmitter.emit('permission-error', permissionError);
-                    throw permissionError;
-                });
+                const candidateSnap = await getDoc(candidateDocRef);
                 if (!candidateSnap.exists()) {
                     console.warn("Candidate profile not found. Skipping AI matching.");
                     setMatching(false);
@@ -321,5 +285,3 @@ export default function InternshipsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
-
-    
