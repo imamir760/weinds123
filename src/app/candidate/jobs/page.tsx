@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, DocumentData } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -39,11 +39,26 @@ export default function JobsPage() {
     const unsubscribe = onSnapshot(jobsCollectionRef, async (snapshot) => {
       const jobsData = snapshot.docs.map(doc => ({
         id: doc.id,
-        companyName: doc.data().companyName || 'N/A', // Default to N/A
         ...doc.data()
-      })) as Job[];
+      }));
+
+      const employerIds = [...new Set(jobsData.map(job => job.employerId).filter(id => id))];
       
-      setJobs(jobsData);
+      if (employerIds.length > 0) {
+        const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)));
+        const employerSnapshots = await Promise.all(employerPromises);
+        const employersMap = new Map(employerSnapshots.map(snap => [snap.id, snap.data()?.companyName || 'N/A']));
+        
+        const jobsWithCompanyNames = jobsData.map(job => ({
+          ...job,
+          companyName: employersMap.get(job.employerId) || 'N/A'
+        })) as Job[];
+
+        setJobs(jobsWithCompanyNames);
+      } else {
+        setJobs(jobsData as Job[]);
+      }
+      
       setLoading(false);
     }, (serverError) => {
       const permissionError = new FirestorePermissionError({

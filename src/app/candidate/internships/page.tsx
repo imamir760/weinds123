@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, DocumentData } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -40,11 +40,26 @@ export default function InternshipsPage() {
     const unsubscribe = onSnapshot(internshipsCollectionRef, async (snapshot) => {
       const internshipsData = snapshot.docs.map(doc => ({
         id: doc.id,
-        companyName: doc.data().companyName || 'N/A', // Default to N/A
         ...doc.data()
-      })) as Internship[];
+      }));
 
-      setInternships(internshipsData);
+      const employerIds = [...new Set(internshipsData.map(internship => internship.employerId).filter(id => id))];
+
+      if (employerIds.length > 0) {
+        const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)));
+        const employerSnapshots = await Promise.all(employerPromises);
+        const employersMap = new Map(employerSnapshots.map(snap => [snap.id, snap.data()?.companyName || 'N/A']));
+
+        const internshipsWithCompanyNames = internshipsData.map(internship => ({
+          ...internship,
+          companyName: employersMap.get(internship.employerId) || 'N/A'
+        })) as Internship[];
+        
+        setInternships(internshipsWithCompanyNames);
+      } else {
+        setInternships(internshipsData as Internship[]);
+      }
+
       setLoading(false);
     }, (serverError) => {
       const permissionError = new FirestorePermissionError({
