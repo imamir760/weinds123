@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -130,7 +131,7 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
                 <div className="max-h-[60vh] overflow-y-auto pr-4 space-y-4">
                     {candidates.length > 0 ? (
                         candidates.map(candidate => (
-                            <Card key={candidate.id} className="bg-background/50 shadow-sm">
+                            <Card key={`${candidate.postId}-${candidate.id}`} className="bg-background/50 shadow-sm">
                                 <CardContent className="p-4 flex justify-between items-center">
                                     <div className="flex items-center gap-3 group">
                                         <Avatar className="w-11 h-11 border-2 border-primary/20">
