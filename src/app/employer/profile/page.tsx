@@ -14,7 +14,6 @@ import { Loader2 } from 'lucide-react';
 import { saveUserProfile } from '@/lib/user-actions';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
-import EmployerDashboardPage from '../dashboard/page';
 
 type ProfileData = {
   companyName: string;
@@ -26,7 +25,7 @@ type ProfileData = {
   companySize: string;
 };
 
-function CompanyProfileContent() {
+export default function CompanyProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<ProfileData>({
@@ -163,12 +162,4 @@ function CompanyProfileContent() {
       </Card>
     </div>
   );
-}
-
-export default function CompanyProfilePage() {
-    return (
-        <EmployerDashboardPage>
-            <CompanyProfileContent />
-        </EmployerDashboardPage>
-    )
 }

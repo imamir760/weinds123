@@ -7,16 +7,6 @@ export function ConditionalHeader() {
   const pathname = usePathname();
   
   const noHeaderPaths = [
-      '/employer/dashboard',
-      '/employer/jobs',
-      '/employer/all-candidates',
-      '/employer/shortlisted',
-      '/employer/final-interview',
-      '/employer/campus',
-      '/employer/skill-tests',
-      '/employer/interviews',
-      '/employer/profile',
-      '/employer/settings',
       '/candidate/dashboard',
       '/candidate/profile',
       '/candidate/applications',
@@ -38,7 +28,9 @@ export function ConditionalHeader() {
   ];
 
   // Hide header if the current path starts with any of the paths in noHeaderPaths
-  const shouldShowHeader = !noHeaderPaths.some(path => pathname.startsWith(path));
+  // or if it's an employer path
+  const shouldShowHeader = !noHeaderPaths.some(path => pathname.startsWith(path)) && !pathname.startsWith('/employer');
+
 
   if (pathname === '/employer' || pathname === '/tpo' || pathname === '/candidate') {
       return null;

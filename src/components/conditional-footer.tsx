@@ -7,16 +7,6 @@ export function ConditionalFooter() {
   const pathname = usePathname();
   
   const noFooterPaths = [
-      '/employer/dashboard',
-      '/employer/jobs',
-      '/employer/all-candidates',
-      '/employer/shortlisted',
-      '/employer/final-interview',
-      '/employer/campus',
-      '/employer/skill-tests',
-      '/employer/interviews',
-      '/employer/profile',
-      '/employer/settings',
       '/candidate/dashboard',
       '/candidate/profile',
       '/candidate/applications',
@@ -37,7 +27,8 @@ export function ConditionalFooter() {
   ];
 
   // Hide footer if the current path starts with any of the paths in noFooterPaths
-  const shouldShowFooter = !noFooterPaths.some(path => pathname.startsWith(path));
+  // or if it's an employer path
+  const shouldShowFooter = !noFooterPaths.some(path => pathname.startsWith(path)) && !pathname.startsWith('/employer');
 
   if (pathname === '/employer' || pathname === '/tpo' || pathname === '/candidate') {
       return null;

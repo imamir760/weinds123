@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import EmployerDashboardPage from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
@@ -87,7 +86,7 @@ export default function AllCandidatesPage() {
         return format(date, 'MMM d, yyyy');
     }
 
-    const PageContent = (
+    return (
         <div className="container mx-auto py-8 px-4">
             <Card>
                 <CardHeader>
@@ -167,11 +166,5 @@ export default function AllCandidatesPage() {
                 </CardContent>
             </Card>
         </div>
-    );
-
-    return (
-        <EmployerDashboardPage>
-            {PageContent}
-        </EmployerDashboardPage>
     );
 }

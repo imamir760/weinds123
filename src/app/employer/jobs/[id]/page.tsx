@@ -4,10 +4,9 @@
 import React, { useState, useEffect, useCallback, use, useMemo } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData, query, where, updateDoc } from 'firebase/firestore';
-import EmployerDashboardPage from '../../dashboard/page';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Loader2, ArrowLeft, Star, User, Mail, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Loader2, ArrowLeft, Star, Mail, ThumbsUp, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -306,7 +305,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
       </div>
   );
 
-  return <EmployerDashboardPage>{PageContent}</EmployerDashboardPage>;
+  return <>{PageContent}</>;
 }
 
     

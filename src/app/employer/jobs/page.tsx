@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Briefcase, Loader2, GraduationCap, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import EmployerDashboardPage, { useEmployerLayout } from '../dashboard/page';
+import { useEmployerLayout } from '../layout';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/components/auth/auth-provider';
@@ -114,7 +114,7 @@ export default function EmployerJobsPage() {
     return format(date, 'MMM d, yyyy');
   }
 
-  const PageContent = (
+  return (
     <div className="container mx-auto py-8 px-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-8">
           <div>
@@ -191,11 +191,5 @@ export default function EmployerJobsPage() {
         </CardContent>
       </Card>
     </div>
-  );
-
-  return (
-    <EmployerDashboardPage>
-        {PageContent}
-    </EmployerDashboardPage>
   );
 }
