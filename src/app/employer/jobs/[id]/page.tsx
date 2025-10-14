@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, ArrowLeft, Star } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 type Stage = {
   name: string;
@@ -45,8 +47,7 @@ const getStageName = (stage: Stage) => {
 };
 
 
-export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  const { id: jobId } = params;
+export default function JobPipelinePage({ params: { id: jobId } }: { params: { id: string } }) {
   const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,10 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
       try {
         // 1. Fetch job details to get the pipeline
         const jobRef = doc(db, 'jobs', jobId);
-        const jobSnap = await getDoc(jobRef);
+        const jobSnap = await getDoc(jobRef).catch(error => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: jobRef.path, operation: 'get' }));
+            throw error;
+        });
 
         if (!jobSnap.exists()) {
           console.error("Job not found");
@@ -71,7 +75,10 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
         // 2. Fetch all applicants for this job
         const applicantsRef = collection(db, 'jobs', jobId, 'applicants');
-        const applicantsSnap = await getDocs(applicantsRef);
+        const applicantsSnap = await getDocs(applicantsRef).catch(error => {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: applicantsRef.path, operation: 'list' }));
+             throw error;
+        });
         const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
 
         if (applicantsData.length === 0) {
