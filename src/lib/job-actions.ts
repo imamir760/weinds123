@@ -24,6 +24,7 @@ export async function createJobWithPipeline(
     employerId: userId,
     createdAt: serverTimestamp(),
     pipeline: pipeline,
+    applicantCount: 0, // Initialize applicant count
   };
 
   const collectionRef = collection(db, collectionName);

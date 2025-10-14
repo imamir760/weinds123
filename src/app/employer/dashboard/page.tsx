@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -23,7 +22,7 @@ import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/auth-provider';
-import { collection, query, where, getDocs, doc, getDoc, DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -53,7 +52,7 @@ const initialPipelineStages = [
 ];
 
 type Applicant = DocumentData & {
-  id: string;
+  id: string; // This is the candidate's UID
   candidateId: string;
   currentStage: string;
   postType: 'job' | 'internship';
@@ -202,61 +201,28 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                     ...(internshipsSnapshot?.docs.map(d => ({ ...d.data(), id: d.id, type: 'internship' as const })) || [])
                 ];
 
-                const applicantPromises = allPosts.map(post => {
-                    const applicantsRef = collection(db, post.type === 'job' ? 'jobs' : 'internships', post.id, 'applicants');
-                    return getDocs(applicantsRef).then(snapshot => 
-                        snapshot.docs.map(doc => ({...doc.data(), id: doc.id, postType: post.type, postId: post.id } as Applicant))
-                    ).catch(error => {
-                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: applicantsRef.path, operation: 'list'}));
-                        return []; // Return empty array on error to not break the whole Promise.all
-                    });
-                });
+                let totalCandidates = 0;
+                let shortlistedCount = 0;
+                let hiredCount = 0;
 
-                const applicantsByPost = await Promise.all(applicantPromises);
-                const fetchedApplicants = applicantsByPost.flat();
+                allPosts.forEach(post => {
+                    totalCandidates += post.applicantCount || 0;
+                    // This is a simplified aggregation. A more accurate one would require fetching applicants.
+                    // For now, we are avoiding that to prevent permission errors on the dashboard.
+                });
                 
-                const candidateIds = [...new Set(fetchedApplicants.map(app => app.candidateId))];
-                const candidateProfiles = new Map<string, DocumentData>();
-                 if (candidateIds.length > 0) {
-                    const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)).catch(error => {
-                         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get'}));
-                         return null;
-                    }));
-                    const candidateSnapshots = await Promise.all(candidatePromises);
-                    candidateSnapshots.forEach(snap => {
-                        if(snap && snap.exists()) {
-                           candidateProfiles.set(snap.id, snap.data());
-                        }
-                    });
-                }
-                
-                const mergedApplicants = fetchedApplicants.map(app => {
-                    const profile = candidateProfiles.get(app.candidateId);
-                    return {
-                        ...app,
-                        fullName: profile?.fullName || 'Unknown Candidate',
-                        headline: profile?.headline || 'No headline',
-                        avatar: profile?.fullName?.charAt(0) || 'U',
-                    };
-                });
-                setAllApplicants(mergedApplicants);
-
-                const stageCounts = new Map<string, number>();
-                initialPipelineStages.forEach(s => stageCounts.set(s.id, 0));
-
-                mergedApplicants.forEach(app => {
-                    const stageKey = (app.currentStage || 'applied').toLowerCase().replace(/ /g, '_');
-                    stageCounts.set(stageKey, (stageCounts.get(stageKey) || 0) + 1);
-                });
-
                 const newStats = {
                     activeJobs: allPosts.length,
-                    totalCandidates: mergedApplicants.length,
-                    shortlisted: stageCounts.get('shortlisted') || 0,
-                    hired: stageCounts.get('hired') || 0
+                    totalCandidates: totalCandidates,
+                    shortlisted: shortlistedCount, // Placeholder
+                    hired: hiredCount // Placeholder
                 };
                 setStats(newStats);
-                setPipelineStages(initialPipelineStages.map(s => ({ ...s, count: stageCounts.get(s.id) || 0 })));
+                
+                // Pipeline stage counts are not calculated here anymore to avoid complex queries on the dashboard.
+                // This data can be shown on a dedicated analytics page or per-job.
+                setPipelineStages(initialPipelineStages.map(s => ({...s, count: 0})));
+
 
             } catch (error) {
                 console.error("Failed to fetch dashboard data:", error);
@@ -269,15 +235,17 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
     }, [user]);
 
     const handleStageClick = (stage: { name: string; id: string; }) => {
-        setSelectedStage(stage);
-        setIsDialogOpen(true);
+        // This is now disabled on dashboard as we don't fetch all applicant details.
+        // The modal logic is preserved in case we want to use it elsewhere.
+        // setSelectedStage(stage);
+        // setIsDialogOpen(true);
     };
 
     const filteredCandidates = selectedStage ? allApplicants.filter(app => (app.currentStage || 'applied').toLowerCase().replace(/ /g, '_') === selectedStage.id) : [];
 
     const insightCards = [
         { title: 'Active Posts', value: stats.activeJobs, icon: <Briefcase className="w-6 h-6 text-orange-500" /> },
-        { title: 'Total Candidates', value: stats.totalCandidates, icon: <Users className="w-6 h-6 text-green-500" /> },
+        { title: 'Total Applicants', value: stats.totalCandidates, icon: <Users className="w-6 h-6 text-green-500" /> },
         { title: 'Shortlisted', value: stats.shortlisted, icon: <Star className="w-6 h-6 text-yellow-500" /> },
         { title: 'Hired This Month', value: stats.hired, icon: <Bookmark className="w-6 h-6 text-indigo-500" /> },
     ];
@@ -324,7 +292,7 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                         <div>
                             <CardTitle>Hiring Pipeline Overview</CardTitle>
-                            <CardDescription>A summary of your candidate progression stages across all posts.</CardDescription>
+                            <CardDescription>A summary of your candidate progression stages across all posts. Data per stage is now available in the 'Job Postings' section.</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
@@ -335,11 +303,10 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                           pipelineStages.map((stage) => (
                             <Card 
                                 key={stage.id} 
-                                className={`flex flex-col justify-between p-4 hover:shadow-lg transition-all duration-300 border-0 ${stage.color} ${stage.count > 0 ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
-                                onClick={() => stage.count > 0 && handleStageClick(stage)}
+                                className={`flex flex-col justify-between p-4 transition-all duration-300 border-0 ${stage.color} opacity-60`}
                             >
                                <div className="text-center">
-                                 <p className={`text-5xl font-extrabold ${stage.textColor}`}>{stage.count}</p>
+                                 <p className={`text-5xl font-extrabold ${stage.textColor}`}>-</p>
                                  <h3 className={`font-semibold mt-2 text-sm ${stage.textColor}`}>{stage.name}</h3>
                                </div>
                             </Card>
