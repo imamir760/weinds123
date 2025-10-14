@@ -80,9 +80,9 @@ export default function JobsPage() {
       if (employerIds.length > 0) {
         const employerProfiles = new Map<string, DocumentData>();
         try {
-          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch((error) => {
-              console.error(`Failed to fetch employer profile for ID ${id}:`, error);
-              // Don't throw a permission error, just return null so the page can render.
+          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(async (error) => {
+              const permissionError = new FirestorePermissionError({ path: `/employers/${id}`, operation: 'get' });
+              errorEmitter.emit('permission-error', permissionError);
               return null;
           }));
 
