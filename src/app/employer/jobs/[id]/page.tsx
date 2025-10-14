@@ -42,7 +42,7 @@ type Applicant = DocumentData & {
 };
 
 export default function ViewApplicantsPage({ params }: { params: { id: string } }) {
-  const { id: postId } = use(params);
+  const postId = use(params);
   const { toast } = useToast();
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
@@ -58,12 +58,12 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
     try {
         let postSnap;
         let postType: 'job' | 'internship' | null = null;
-        const jobRef = doc(db, 'jobs', postId);
+        const jobRef = doc(db, 'jobs', postId.id);
         postSnap = await getDoc(jobRef);
         if (postSnap.exists()) {
             postType = 'job';
         } else {
-            const internshipRef = doc(db, 'internships', postId);
+            const internshipRef = doc(db, 'internships', postId.id);
             postSnap = await getDoc(internshipRef);
             if (postSnap.exists()) postType = 'internship';
         }
@@ -86,13 +86,13 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
         }
 
         const applicationsRef = collection(db, 'applications');
-        const q = query(applicationsRef, where('postId', '==', postId), where('employerId', '==', currentUser.uid));
+        const q = query(applicationsRef, where('postId', '==', postId.id), where('employerId', '==', currentUser.uid));
         
         let applicationsSnap;
         try {
             applicationsSnap = await getDocs(q);
         } catch (serverError) {
-             const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list', requestResourceData: {postId, employerId: currentUser.uid} });
+             const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list', requestResourceData: {postId: postId.id, employerId: currentUser.uid} });
              errorEmitter.emit('permission-error', permissionError);
              throw permissionError;
         }
@@ -175,32 +175,6 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
     return () => unsubscribe();
   }, [fetchPostAndApplicants]);
 
-  const handleUpdateStatus = (applicationId: string, newStatus: string) => {
-    const appRef = doc(db, 'applications', applicationId);
-    updateDoc(appRef, { status: newStatus })
-      .then(() => {
-        setApplicants(prev => prev.map(app => app.applicationId === applicationId ? {...app, status: newStatus} : app));
-        toast({
-          title: "Status Updated",
-          description: `Candidate has been moved to ${newStatus}.`,
-        });
-      })
-      .catch(serverError => {
-         const permissionError = new FirestorePermissionError({
-            path: appRef.path,
-            operation: 'update',
-            requestResourceData: { status: newStatus }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        toast({
-            title: "Update Failed",
-            description: "You may not have permission to change the status.",
-            variant: "destructive"
-        });
-      });
-  }
-
-
   const PageContent = (
       <div className="container mx-auto py-8 px-4">
         <div className="flex items-center gap-4 mb-6">
@@ -242,7 +216,9 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                                   <AvatarFallback>{applicant.avatar}</AvatarFallback>
                               </Avatar>
                               <div className="flex-1">
-                                  <CardTitle className="text-lg">{applicant.candidateName}</CardTitle>
+                                  <Link href={`/employer/jobs/${postDetails?.id}/candidates/${applicant.id}`}>
+                                    <CardTitle className="text-lg hover:underline">{applicant.candidateName}</CardTitle>
+                                  </Link>
                                   <CardDescription>{applicant.candidateHeadline}</CardDescription>
                                   <a href={`mailto:${applicant.candidateEmail}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1">
                                       <Mail className="w-3 h-3"/> {applicant.candidateEmail}
@@ -273,21 +249,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                                       {(applicant.candidateSkills?.length || 0) > 5 && <Badge variant="outline">+{ (applicant.candidateSkills?.length || 0) - 5} more</Badge>}
                                   </div>
                               </div>
-                               <div>
-                                  <h4 className="text-sm font-semibold mb-2">Status</h4>
-                                  <Badge className="capitalize">{applicant.status?.replace(/_/g, ' ')}</Badge>
-                               </div>
                           </CardContent>
-                          <div className="p-6 pt-4 flex flex-col gap-2">
-                              <div className="grid grid-cols-2 gap-2">
-                                  <Button size="sm" variant="outline" className="hover:bg-destructive/10 hover:text-destructive" onClick={() => handleUpdateStatus(applicant.applicationId, 'Rejected')} disabled={applicant.status === 'Rejected'}>
-                                      <ThumbsDown className="mr-2"/> Reject
-                                  </Button>
-                                  <Button size="sm" onClick={() => handleUpdateStatus(applicant.applicationId, 'Shortlisted')} disabled={applicant.status === 'Shortlisted'}>
-                                      <ThumbsUp className="mr-2"/> Shortlist
-                                  </Button>
-                              </div>
-                          </div>
                       </Card>
                   ))}
               </div>

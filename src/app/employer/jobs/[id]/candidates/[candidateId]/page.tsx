@@ -13,7 +13,6 @@ import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
 type CandidateProfile = DocumentData & {
   fullName: string;
@@ -181,5 +180,3 @@ export default function CandidateDetailsPage({ params }: { params: { id: string;
 
   return <EmployerDashboardPage>{PageContent}</EmployerDashboardPage>;
 }
-
-    
