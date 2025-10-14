@@ -17,47 +17,42 @@
  * This structure enhances code readability, maintainability, and
  * developer experience when working with AI features.
  */
-import {
-  generateLearningRoadmap,
+import { generateLearningRoadmap } from './flows/generate-learning-roadmap';
+import { reformatResume } from './flows/reformat-resume';
+import { generateJobDescription } from './flows/generate-job-description';
+import { generateSpecializations } from './flows/generate-specializations';
+import { conductAiInterview } from './flows/conduct-ai-interview';
+import { matchJobCandidate } from './flows/match-job-candidate';
+import { diagnoseError } from './flows/diagnose-error';
+
+import type {
   GenerateLearningRoadmapInput,
   GenerateLearningRoadmapOutput,
-} from './generate-learning-roadmap';
-
-import {
-  reformatResume,
+} from './schemas/generate-learning-roadmap-schema';
+import type {
   ReformatResumeInput,
   ReformatResumeOutput,
-} from './reformat-resume';
-
-import {
-  generateJobDescription,
+} from './schemas/reformat-resume-schema';
+import type {
   GenerateJobDescriptionInput,
   GenerateJobDescriptionOutput,
-} from './generate-job-description';
-
-import {
-  generateSpecializations,
+} from './schemas/generate-job-description-schema';
+import type {
   GenerateSpecializationsInput,
   GenerateSpecializationsOutput,
-} from './generate-specializations';
-
-import {
-  conductAiInterview,
+} from './schemas/generate-specializations-schema';
+import type {
   ConductAiInterviewInput,
   ConductAiInterviewOutput,
-} from './conduct-ai-interview';
-
-import {
-  matchJobCandidate,
+} from './schemas/conduct-ai-interview-schema';
+import type {
   MatchJobCandidateInput,
   MatchJobCandidateOutput,
-} from './match-job-candidate';
-
-import {
-  diagnoseError,
+} from './schemas/match-job-candidate-schema';
+import type {
   DiagnoseErrorInput,
   DiagnoseErrorOutput,
-} from './flows/diagnose-error';
+} from './schemas/diagnose-error-schema';
 
 export {
   generateLearningRoadmap,

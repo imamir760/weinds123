@@ -9,24 +9,13 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {
+  ReformatResumeInputSchema,
+  ReformatResumeOutputSchema,
+  type ReformatResumeInput,
+  type ReformatResumeOutput,
+} from '@/ai/schemas/reformat-resume-schema';
 
-const ReformatResumeInputSchema = z.object({
-  rawText: z
-    .string()
-    .describe('The raw text content of the resume to be reformatted.'),
-  templateName: z
-    .string()
-    .describe('The name of the template to use for reformatting the resume.'),
-});
-export type ReformatResumeInput = z.infer<typeof ReformatResumeInputSchema>;
-
-const ReformatResumeOutputSchema = z.object({
-  formattedResume: z
-    .string()
-    .describe('The reformatted resume content in the specified template.'),
-});
-export type ReformatResumeOutput = z.infer<typeof ReformatResumeOutputSchema>;
 
 export async function reformatResume(input: ReformatResumeInput): Promise<ReformatResumeOutput> {
   return reformatResumeFlow(input);
@@ -36,7 +25,7 @@ const prompt = ai.definePrompt({
   name: 'reformatResumePrompt',
   input: {schema: ReformatResumeInputSchema},
   output: {schema: ReformatResumeOutputSchema},
-  prompt: `You are an AI resume expert. Please reformat the following resume text into a professional format using the {{templateName}} template.\n\nResume Text:\n{{{rawText}}}`,
+  prompt: `You are an AI resume expert. Please reformat the following resume text into a professional format using the {{templateName}} template.\\n\\nResume Text:\\n{{{rawText}}}`,
 });
 
 const reformatResumeFlow = ai.defineFlow(
