@@ -20,22 +20,22 @@ export async function createJobWithPipeline(
 
   // Fetch employer's company name
   const employerRef = doc(db, 'employers', userId);
-  let companyName = 'Unknown Company';
+  let companyName = 'Company Name N/A'; // Default value
   try {
     const employerSnap = await getDoc(employerRef);
     if (employerSnap.exists()) {
       companyName = employerSnap.data().companyName || companyName;
+    } else {
+        console.warn(`Employer profile not found for uid: ${userId}. Using default company name.`);
     }
   } catch (error) {
-     // If this fails, we can't proceed with a correct company name.
-     // It's better to throw an error than to post incomplete data.
      console.error("Could not fetch employer profile to get company name.", error);
      const permissionError = new FirestorePermissionError({
         path: employerRef.path,
         operation: 'get',
      });
      errorEmitter.emit('permission-error', permissionError);
-     throw permissionError;
+     // We can proceed with the default company name but applying will be disabled.
   }
 
   const collectionName = postType === 'job' ? 'jobs' : 'internships';
@@ -51,16 +51,13 @@ export async function createJobWithPipeline(
 
   const collectionRef = collection(db, collectionName);
   
-  try {
-    await addDoc(collectionRef, postData);
-  } catch (serverError) {
+  // Post the job/internship, but catch permission errors
+  addDoc(collectionRef, postData).catch(serverError => {
     const permissionError = new FirestorePermissionError({
         path: `/${collectionName}`,
         operation: 'create',
         requestResourceData: postData,
     });
     errorEmitter.emit('permission-error', permissionError);
-    // Re-throw to allow for local error handling if needed
-    throw permissionError;
-  }
+  });
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -59,7 +60,12 @@ export default function JobsPage() {
           const appliedIds = snapshot.docs.map(doc => doc.data().postId);
           setAppliedJobs(appliedIds);
         } catch (serverError) {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list'}));
+          const permissionError = new FirestorePermissionError({
+            path: 'applications',
+            operation: 'list',
+            requestResourceData: { candidateId: user.uid, postType: 'job' }
+          });
+          errorEmitter.emit('permission-error', permissionError);
           console.error("Could not fetch applied jobs. This may be due to permissions and is not a fatal error.");
         }
       }
@@ -68,38 +74,19 @@ export default function JobsPage() {
   }, [user]);
 
   useEffect(() => {
+    setLoading(true);
     const jobsCollectionRef = collection(db, 'jobs');
-    const unsubscribe = onSnapshot(jobsCollectionRef, async (snapshot) => {
-      setLoading(true);
+    const unsubscribe = onSnapshot(jobsCollectionRef, (snapshot) => {
       const jobsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Job[];
-
-      const employerIds = [...new Set(jobsData.map(j => j.employerId).filter(Boolean))];
-      if (employerIds.length > 0) {
-          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(() => null));
-          const employerSnapshots = await Promise.all(employerPromises);
-          const employerMap = new Map<string, string>();
-          employerSnapshots.forEach(snap => {
-              if (snap && snap.exists()) {
-                  employerMap.set(snap.id, snap.data().companyName);
-              }
-          });
-
-          jobsData.forEach(job => {
-              if (job.employerId && employerMap.has(job.employerId)) {
-                  job.companyName = employerMap.get(job.employerId)!;
-              }
-          });
-      }
-
       setJobs(jobsData);
       setLoading(false);
-
     }, (error) => {
       console.error("Error fetching jobs:", error);
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: jobsCollectionRef.path, operation: 'list' }));
+      const permissionError = new FirestorePermissionError({ path: jobsCollectionRef.path, operation: 'list' });
+      errorEmitter.emit('permission-error', permissionError);
       setLoading(false);
     });
 

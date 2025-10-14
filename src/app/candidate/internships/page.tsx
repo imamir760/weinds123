@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -60,7 +61,12 @@ export default function InternshipsPage() {
           const appliedIds = snapshot.docs.map(doc => doc.data().postId);
           setAppliedInternships(appliedIds);
         } catch (serverError) {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list' }));
+          const permissionError = new FirestorePermissionError({ 
+            path: 'applications', 
+            operation: 'list',
+            requestResourceData: { candidateId: user.uid, postType: 'internship' }
+          });
+          errorEmitter.emit('permission-error', permissionError);
           console.error("Could not fetch applied internships. This may be due to permissions and is not a fatal error.");
         }
       }
@@ -69,38 +75,20 @@ export default function InternshipsPage() {
   }, [user]);
 
   useEffect(() => {
+    setLoading(true);
     const internshipsCollectionRef = collection(db, 'internships');
-    const unsubscribe = onSnapshot(internshipsCollectionRef, async (snapshot) => {
-      setLoading(true);
+    const unsubscribe = onSnapshot(internshipsCollectionRef, (snapshot) => {
       const internshipsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Internship[];
-      
-      const employerIds = [...new Set(internshipsData.map(i => i.employerId).filter(Boolean))];
-      if (employerIds.length > 0) {
-          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(() => null));
-          const employerSnapshots = await Promise.all(employerPromises);
-          const employerMap = new Map<string, string>();
-          employerSnapshots.forEach(snap => {
-              if (snap && snap.exists()) {
-                  employerMap.set(snap.id, snap.data().companyName);
-              }
-          });
-
-          internshipsData.forEach(internship => {
-              if (internship.employerId && employerMap.has(internship.employerId)) {
-                  internship.companyName = employerMap.get(internship.employerId)!;
-              }
-          });
-      }
-      
       setInternships(internshipsData);
       setLoading(false);
 
     }, (error) => {
       console.error("Error fetching internships:", error);
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: internshipsCollectionRef.path, operation: 'list' }));
+      const permissionError = new FirestorePermissionError({ path: internshipsCollectionRef.path, operation: 'list' });
+      errorEmitter.emit('permission-error', permissionError);
       setLoading(false);
     });
 
