@@ -5,12 +5,11 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData } from 'firebase/firestore';
-import { useAuth } from '@/components/auth/auth-provider';
 import EmployerDashboardPage from '../../dashboard/page';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, Star, GripVertical } from 'lucide-react';
+import { Loader2, ArrowLeft, Star } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -46,8 +45,7 @@ const getStageName = (stage: Stage) => {
 };
 
 
-export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  const jobId = params.id;
+export default function JobPipelinePage({ params: { id: jobId } }: { params: { id: string } }) {
   const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,7 +111,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
   const candidatesByStage = (stageName: string) => {
     const rawStageName = stageName.split(' ')[0].toLowerCase();
-    return applicants.filter(app => app.currentStage.toLowerCase() === rawStageName);
+    return applicants.filter(app => (app.currentStage || 'applied').toLowerCase() === rawStageName);
   };
 
   const PageContent = (
@@ -139,7 +137,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             <div className="flex-1 flex justify-center items-center">
                 <Loader2 className="w-12 h-12 animate-spin text-primary" />
             </div>
-        ) : !jobDetails || jobDetails.pipeline.length === 0 ? (
+        ) : !jobDetails || !jobDetails.pipeline || jobDetails.pipeline.length === 0 ? (
              <div className="flex-1 flex justify-center items-center text-muted-foreground">
                 <p>No pipeline configured for this job.</p>
             </div>
