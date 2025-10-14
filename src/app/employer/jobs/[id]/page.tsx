@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData, query, where } from 'firebase/firestore';
 import EmployerDashboardPage from '../../dashboard/page';
@@ -96,8 +96,9 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
 };
 
 
-export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  const postId = params.id;
+export default function JobPipelinePage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const postId = resolvedParams.id;
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
