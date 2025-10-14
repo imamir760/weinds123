@@ -1,7 +1,7 @@
 
 'use client';
 
-import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { db } from '@/lib/firebase';
@@ -20,34 +20,40 @@ export function applyToAction(
     return;
   }
   
-  const batch = writeBatch(db);
-
   // 1. Create application document in candidate's subcollection
   const applicationCollectionName = postType === 'job' ? 'jobApplications' : 'internshipApplications';
+  const applicationData = {
+    postId: postId,
+    postTitle: postTitle,
+    companyName: companyName,
+    appliedOn: serverTimestamp(),
+    status: 'Applied'
+  };
   const applicationRef = doc(db, 'candidates', candidateId, applicationCollectionName, postId);
-  batch.set(applicationRef, {
-      postId: postId,
-      postTitle: postTitle,
-      companyName: companyName,
-      appliedOn: serverTimestamp(),
-      status: 'Applied'
+  
+  setDoc(applicationRef, applicationData).catch(async (serverError) => {
+    const permissionError = new FirestorePermissionError({
+      path: applicationRef.path,
+      operation: 'create',
+      requestResourceData: applicationData,
+    });
+    errorEmitter.emit('permission-error', permissionError);
   });
 
   // 2. Create applicant document in post's subcollection
   const postCollectionName = postType === 'job' ? 'jobs' : 'internships';
-  const applicantRef = doc(db, postCollectionName, postId, 'applicants', candidateId);
-  batch.set(applicantRef, {
+  const applicantData = {
       candidateId: candidateId,
       appliedOn: serverTimestamp(),
       currentStage: 'Applied'
-  });
+  };
+  const applicantRef = doc(db, postCollectionName, postId, 'applicants', candidateId);
 
-  // Commit the batch
-  batch.commit().catch(async (serverError) => {
+  setDoc(applicantRef, applicantData).catch(async (serverError) => {
     const permissionError = new FirestorePermissionError({
-      path: `/${applicationCollectionName} or /${postCollectionName}/${postId}/applicants`,
-      operation: 'write',
-      requestResourceData: { postId, candidateId },
+      path: applicantRef.path,
+      operation: 'create',
+      requestResourceData: applicantData,
     });
     errorEmitter.emit('permission-error', permissionError);
   });
