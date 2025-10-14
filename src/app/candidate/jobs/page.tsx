@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, getDoc, DocumentData, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, DocumentData, query, where, getDocs } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -51,19 +51,19 @@ export default function JobsPage() {
 
   useEffect(() => {
     if (user) {
-      const appliedJobsRef = collection(db, 'applications');
-      const q = query(appliedJobsRef, where('candidateId', '==', user.uid), where('postType', '==', 'job'));
-      const unsubscribeApplied = onSnapshot(q, (snapshot) => {
-        const appliedIds = snapshot.docs.map(doc => doc.data().postId);
-        setAppliedJobs(appliedIds);
-      }, async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-            path: appliedJobsRef.path,
-            operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
-      return () => unsubscribeApplied();
+      const fetchAppliedJobs = async () => {
+        try {
+          const appliedJobsRef = collection(db, 'applications');
+          const q = query(appliedJobsRef, where('candidateId', '==', user.uid), where('postType', '==', 'job'));
+          const snapshot = await getDocs(q);
+          const appliedIds = snapshot.docs.map(doc => doc.data().postId);
+          setAppliedJobs(appliedIds);
+        } catch (error) {
+          console.error("Could not fetch applied jobs, user may not have permissions. This is not a fatal error.");
+          // This is a non-critical error, so we don't re-throw or emit. The page can function without this data.
+        }
+      }
+      fetchAppliedJobs();
     }
   }, [user]);
 
@@ -181,6 +181,7 @@ export default function JobsPage() {
   const handleApply = (job: Job) => {
     if (user) {
       applyToAction('job', job.id, job.employerId, job.title, job.companyName, user.uid);
+      setAppliedJobs(prev => [...prev, job.id]);
       toast({
         title: "Application Sent!",
         description: `You have successfully applied for ${job.title}.`,

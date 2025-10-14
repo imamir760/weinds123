@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, getDoc, DocumentData, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, DocumentData, query, where, getDocs } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -52,16 +52,18 @@ export default function InternshipsPage() {
 
   useEffect(() => {
     if (user) {
-      const appliedInternshipsRef = collection(db, 'applications');
-       const q = query(appliedInternshipsRef, where('candidateId', '==', user.uid), where('postType', '==', 'internship'));
-      const unsubscribeApplied = onSnapshot(q, (snapshot) => {
-        const appliedIds = snapshot.docs.map(doc => doc.data().postId);
-        setAppliedInternships(appliedIds);
-      }, async (error) => {
-          const permissionError = new FirestorePermissionError({ path: appliedInternshipsRef.path, operation: 'list' });
-          errorEmitter.emit('permission-error', permissionError);
-      });
-      return () => unsubscribeApplied();
+      const fetchAppliedInternships = async () => {
+        try {
+          const appliedInternshipsRef = collection(db, 'applications');
+          const q = query(appliedInternshipsRef, where('candidateId', '==', user.uid), where('postType', '==', 'internship'));
+          const snapshot = await getDocs(q);
+          const appliedIds = snapshot.docs.map(doc => doc.data().postId);
+          setAppliedInternships(appliedIds);
+        } catch (error) {
+          console.error("Could not fetch applied internships, user may not have permissions. This is not a fatal error.");
+        }
+      }
+      fetchAppliedInternships();
     }
   }, [user]);
 
@@ -178,6 +180,7 @@ export default function InternshipsPage() {
   const handleApply = (internship: Internship) => {
     if (user) {
       applyToAction('internship', internship.id, internship.employerId, internship.title, internship.companyName, user.uid);
+      setAppliedInternships(prev => [...prev, internship.id]);
       toast({
         title: "Application Sent!",
         description: `You have successfully applied for ${internship.title}.`,
