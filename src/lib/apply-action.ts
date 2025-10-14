@@ -21,20 +21,25 @@ export async function applyToAction(
     return;
   }
 
-  let candidateName = 'Unknown';
-  let candidateEmail = 'N/A';
+  let candidateName = 'Unknown Candidate';
+  let candidateEmail = 'No email provided';
   
   try {
       const candidateRef = doc(db, 'candidates', candidateId);
       const candidateSnap = await getDoc(candidateRef);
       if (candidateSnap.exists()) {
-          candidateName = candidateSnap.data().fullName || 'Unknown Candidate';
-          candidateEmail = candidateSnap.data().email || 'No email';
+          candidateName = candidateSnap.data().fullName || candidateName;
+          candidateEmail = candidateSnap.data().email || candidateEmail;
       }
   } catch (error) {
     console.error("Could not fetch candidate profile for application.", error);
-    // Don't emit a fatal error, but we could log this for debugging.
-    // The application can proceed with default values.
+    const permissionError = new FirestorePermissionError({
+        path: `/candidates/${candidateId}`,
+        operation: 'get',
+    });
+    errorEmitter.emit('permission-error', permissionError);
+    // Do not proceed if we can't get the candidate's profile
+    return;
   }
   
   const applicationData = {
@@ -52,12 +57,14 @@ export async function applyToAction(
   
   const applicationsCollectionRef = collection(db, 'applications');
   
-  addDoc(applicationsCollectionRef, applicationData).catch(async (serverError) => {
+  try {
+    await addDoc(applicationsCollectionRef, applicationData);
+  } catch (serverError) {
     const permissionError = new FirestorePermissionError({
       path: '/applications',
       operation: 'create',
       requestResourceData: applicationData,
     });
     errorEmitter.emit('permission-error', permissionError);
-  });
+  }
 }
