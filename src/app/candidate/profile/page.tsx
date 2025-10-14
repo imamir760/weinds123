@@ -70,417 +70,7 @@ type ProfileData = {
   portfolioUrl?: string;
 };
 
-function CandidateProfilePage() {
-  const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
-  const [profile, setProfile] = useState<ProfileData>({
-    fullName: '',
-    email: '',
-    headline: '',
-    skills: [],
-    experience: [],
-    education: [],
-    location: '',
-    employmentStatus: 'Fresher',
-    preference: 'Both',
-    achievements: [],
-    projects: [],
-    phone: '',
-    githubUrl: '',
-    linkedinUrl: '',
-    portfolioUrl: '',
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [profileCompleteness, setProfileCompleteness] = useState(0);
-
-  useEffect(() => {
-    if (user) {
-      const fetchProfile = async () => {
-        const docRef = doc(db, 'candidates', user.uid);
-        try {
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-              const data = docSnap.data() as ProfileData;
-              setProfile(prev => ({
-                ...prev,
-                ...data,
-                skills: Array.isArray(data.skills) ? data.skills : [],
-                experience: Array.isArray(data.experience) ? data.experience : [],
-                education: Array.isArray(data.education) ? data.education : [],
-                projects: Array.isArray(data.projects) ? data.projects : [],
-                achievements: Array.isArray(data.achievements) ? data.achievements : [],
-              }));
-            } else {
-              setProfile(prev => ({
-                ...prev, 
-                fullName: user.displayName || '',
-                email: user.email || ''
-              }));
-            }
-        } catch(serverError) {
-             const permissionError = new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        } finally {
-            setLoading(false);
-        }
-      };
-      fetchProfile();
-    } else if (!authLoading) {
-      setLoading(false);
-    }
-  }, [user, authLoading]);
-
-  useEffect(() => {
-      const calculateCompleteness = () => {
-          const fields = [
-              profile.fullName,
-              profile.headline,
-              profile.location,
-              profile.phone,
-              profile.githubUrl,
-              profile.linkedinUrl,
-          ];
-          const totalFields = fields.length + 5; // +5 for skills, exp, edu, projects, achievements
-          let filledFields = fields.filter(Boolean).length;
-          if (profile.skills.length > 0) filledFields++;
-          if (profile.experience.length > 0) filledFields++;
-          if (profile.education.length > 0) filledFields++;
-          if (profile.projects.length > 0) filledFields++;
-          if (profile.achievements.length > 0) filledFields++;
-          
-          const completeness = Math.round((filledFields / totalFields) * 100);
-          setProfileCompleteness(completeness);
-      };
-      calculateCompleteness();
-  }, [profile]);
-
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target;
-    setProfile(prev => ({ ...prev, [id]: value }));
-  };
-  
-  const handleSelectChange = (id: keyof ProfileData, value: string | string[]) => {
-    setProfile(prev => ({...prev, [id]: value}));
-  }
-
-  const updateExperience = (index: number, field: keyof Experience, value: string) => {
-    setProfile(prev => {
-        const newExperience = [...prev.experience];
-        newExperience[index] = { ...newExperience[index], [field]: value };
-        return { ...prev, experience: newExperience };
-    });
-  };
-
-  const addExperience = () => {
-    setProfile(prev => ({
-        ...prev,
-        experience: [...prev.experience, { jobTitle: '', company: '', duration: '' }]
-    }));
-  };
-
-  const removeExperience = (index: number) => {
-    setProfile(prev => ({
-        ...prev,
-        experience: prev.experience.filter((_, i) => i !== index)
-    }));
-  };
-
-  const updateEducation = (index: number, field: keyof Education, value: string) => {
-     setProfile(prev => {
-        const newEducation = [...prev.education];
-        newEducation[index] = { ...newEducation[index], [field]: value };
-        return { ...prev, education: newEducation };
-    });
-  };
-
-  const addEducation = () => {
-    setProfile(prev => ({
-        ...prev,
-        education: [...prev.education, { institution: '', degree: '', year: '' }]
-    }));
-  };
-
-  const removeEducation = (index: number) => {
-    setProfile(prev => ({
-        ...prev,
-        education: prev.education.filter((_, i) => i !== index)
-    }));
-  };
-  
-  const updateProject = (index: number, field: keyof Project, value: string) => {
-    setProfile(prev => {
-        const newProjects = [...prev.projects];
-        newProjects[index] = { ...newProjects[index], [field]: value };
-        return { ...prev, projects: newProjects };
-    });
-  };
-
-  const addProject = () => {
-    setProfile(prev => ({
-        ...prev,
-        projects: [...prev.projects, { title: '', url: '', description: '' }]
-    }));
-  };
-
-  const removeProject = (index: number) => {
-    setProfile(prev => ({
-        ...prev,
-        projects: prev.projects.filter((_, i) => i !== index)
-    }));
-  };
-
-  const updateAchievement = (index: number, field: keyof Achievement, value: string) => {
-    setProfile(prev => {
-        const newAchievements = [...prev.achievements];
-        newAchievements[index] = { ...newAchievements[index], [field]: value };
-        return { ...prev, achievements: newAchievements };
-    });
-  };
-
-  const addAchievement = () => {
-    setProfile(prev => ({
-        ...prev,
-        achievements: [...prev.achievements, { description: '' }]
-    }));
-  };
-
-  const removeAchievement = (index: number) => {
-    setProfile(prev => ({
-        ...prev,
-        achievements: prev.achievements.filter((_, i) => i !== index)
-    }));
-  };
-
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
-      return;
-    }
-    setSaving(true);
-    
-    saveUserProfile('candidates', user.uid, profile);
-
-    toast({
-      title: "Profile Saving...",
-      description: "Your information is being updated.",
-    });
-
-    setTimeout(() => {
-      setSaving(false);
-      setIsEditing(false);
-      toast({
-        title: "Update Sent",
-        description: "Your profile changes have been sent to the server.",
-      });
-    }, 1500);
-  };
-  
-
-  const ProfileForm = () => (
-    <form className="space-y-6" onSubmit={handleSave}>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><UserCircle className="w-5 h-5 text-primary" /> Contact Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" value={profile.fullName} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="headline">Headline</Label>
-              <Input id="headline" placeholder="e.g., Aspiring Software Engineer" value={profile.headline} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={profile.email} disabled />
-            </div>
-             <div className="space-y-1">
-              <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" type="tel" value={profile.phone} onChange={handleInputChange} />
-            </div>
-             <div className="space-y-1">
-              <Label htmlFor="githubUrl">GitHub URL</Label>
-              <Input id="githubUrl" type="url" placeholder="https://github.com/username" value={profile.githubUrl} onChange={handleInputChange} />
-            </div>
-             <div className="space-y-1">
-              <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
-              <Input id="linkedinUrl" type="url" placeholder="https://linkedin.com/in/username" value={profile.linkedinUrl} onChange={handleInputChange} />
-            </div>
-          </div>
-           <div className="space-y-1">
-              <Label htmlFor="location">Location</Label>
-              <Combobox
-                  items={cities}
-                  value={profile.location}
-                  onChange={(value) => handleSelectChange('location', value)}
-                  placeholder="Select location..."
-                  searchPlaceholder="Search cities..."
-                  notFoundText="No city found."
-              />
-          </div>
-        </CardContent>
-      </Card>
-      
-       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Settings className="w-5 h-5 text-primary" /> Preference</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-           <div className="space-y-2">
-                <Label>I am a</Label>
-                 <Select value={profile.employmentStatus} onValueChange={(value) => handleSelectChange('employmentStatus', value)}>
-                    <SelectTrigger id="employmentStatus">
-                        <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Fresher">Fresher</SelectItem>
-                        <SelectItem value="Working">Working Professional</SelectItem>
-                        <SelectItem value="Studying">Currently Studying</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="space-y-2">
-                <Label>I'm looking for</Label>
-                 <RadioGroup value={profile.preference} onValueChange={(value) => handleSelectChange('preference', value as any)} className="flex gap-4 pt-2">
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Job" id="pref-job" />
-                        <Label htmlFor="pref-job">Job</Label>
-                    </div>
-                     <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Internship" id="pref-internship" />
-                        <Label htmlFor="pref-internship">Internship</Label>
-                    </div>
-                     <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Both" id="pref-both" />
-                        <Label htmlFor="pref-both">Both</Label>
-                    </div>
-                </RadioGroup>
-            </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Star className="w-5 h-5 text-primary" /> Skills</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SkillsInput
-            allSkills={allSkills}
-            selectedSkills={profile.skills}
-            onSkillsChange={(skills) => handleSelectChange('skills', skills as any)}
-          />
-          <p className="text-xs text-muted-foreground mt-2">Type a skill and press Enter to add it. Previously added custom skills will appear in suggestions.</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Work Experience</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            {profile.experience.map((exp, index) => (
-                <ExperienceCard 
-                    key={index}
-                    index={index}
-                    experience={exp}
-                    updateExperience={updateExperience}
-                    removeExperience={removeExperience}
-                />
-            ))}
-            <Button variant="outline" onClick={addExperience} type="button" className="w-full">
-                <PlusCircle className="mr-2"/>
-                Add Experience
-            </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-          <CardHeader>
-              <CardTitle className="flex items-center gap-2"><GraduationCap className="w-5 h-5 text-primary" /> Education</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-             {profile.education.map((edu, index) => (
-                <EducationCard 
-                    key={index}
-                    index={index}
-                    education={edu}
-                    updateEducation={updateEducation}
-                    removeEducation={removeEducation}
-                />
-            ))}
-            <Button variant="outline" onClick={addEducation} type="button" className="w-full">
-                <PlusCircle className="mr-2"/>
-                Add Education
-            </Button>
-          </CardContent>
-      </Card>
-
-      <Card>
-           <CardHeader>
-              <CardTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Projects</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className='space-y-1'>
-                <Label htmlFor="portfolioUrl">Main Portfolio URL</Label>
-                <Input id="portfolioUrl" type="url" placeholder="https://your-portfolio.com" value={profile.portfolioUrl} onChange={handleInputChange} />
-            </div>
-             {profile.projects.map((proj, index) => (
-                <ProjectCard 
-                    key={index}
-                    index={index}
-                    project={proj}
-                    updateProject={updateProject}
-                    removeProject={removeProject}
-                />
-            ))}
-            <Button variant="outline" onClick={addProject} type="button" className="w-full">
-                <PlusCircle className="mr-2"/>
-                Add Project
-            </Button>
-          </CardContent>
-      </Card>
-      
-      <Card>
-           <CardHeader>
-              <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Achievements</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-             {profile.achievements.map((ach, index) => (
-                <AchievementCard 
-                    key={index}
-                    index={index}
-                    achievement={ach}
-                    updateAchievement={updateAchievement}
-                    removeAchievement={removeAchievement}
-                />
-            ))}
-            <Button variant="outline" onClick={addAchievement} type="button" className="w-full">
-                <PlusCircle className="mr-2"/>
-                Add Achievement
-            </Button>
-          </CardContent>
-      </Card>
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" type="button" onClick={() => setIsEditing(false)}>Cancel</Button>
-        <Button type="submit" disabled={saving}>
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2" />}
-          Save Profile
-        </Button>
-      </div>
-    </form>
-  );
-
-  const ProfileView = () => (
+const ProfileView = ({ profile, profileCompleteness, setIsEditing }: { profile: ProfileData, profileCompleteness: number, setIsEditing: (isEditing: boolean) => void }) => (
     <div className="space-y-8">
         <Card className="shadow-lg">
             <CardHeader className="bg-secondary rounded-t-lg p-6">
@@ -595,14 +185,432 @@ function CandidateProfilePage() {
     </div>
   );
 
+const ProfileForm = ({ profile, setProfile, handleSave, saving, setIsEditing }: {
+    profile: ProfileData;
+    setProfile: React.Dispatch<React.SetStateAction<ProfileData>>;
+    handleSave: (e: React.FormEvent) => void;
+    saving: boolean;
+    setIsEditing: (isEditing: boolean) => void;
+}) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { id, value } = e.target;
+        setProfile(prev => ({ ...prev, [id]: value }));
+    };
+    
+    const handleSelectChange = (id: keyof ProfileData, value: string | string[]) => {
+        setProfile(prev => ({...prev, [id]: value}));
+    }
+
+    const updateExperience = (index: number, field: keyof Experience, value: string) => {
+        const newExperience = [...profile.experience];
+        newExperience[index] = { ...newExperience[index], [field]: value };
+        setProfile(prev => ({ ...prev, experience: newExperience }));
+    };
+
+    const addExperience = () => {
+        setProfile(prev => ({
+            ...prev,
+            experience: [...prev.experience, { jobTitle: '', company: '', duration: '' }]
+        }));
+    };
+
+    const removeExperience = (index: number) => {
+        setProfile(prev => ({
+            ...prev,
+            experience: prev.experience.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateEducation = (index: number, field: keyof Education, value: string) => {
+        const newEducation = [...profile.education];
+        newEducation[index] = { ...newEducation[index], [field]: value };
+        setProfile(prev => ({ ...prev, education: newEducation }));
+    };
+
+    const addEducation = () => {
+        setProfile(prev => ({
+            ...prev,
+            education: [...prev.education, { institution: '', degree: '', year: '' }]
+        }));
+    };
+
+    const removeEducation = (index: number) => {
+        setProfile(prev => ({
+            ...prev,
+            education: prev.education.filter((_, i) => i !== index)
+        }));
+    };
+    
+    const updateProject = (index: number, field: keyof Project, value: string) => {
+        const newProjects = [...profile.projects];
+        newProjects[index] = { ...newProjects[index], [field]: value };
+        setProfile(prev => ({ ...prev, projects: newProjects }));
+    };
+
+    const addProject = () => {
+        setProfile(prev => ({
+            ...prev,
+            projects: [...prev.projects, { title: '', url: '', description: '' }]
+        }));
+    };
+
+    const removeProject = (index: number) => {
+        setProfile(prev => ({
+            ...prev,
+            projects: prev.projects.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateAchievement = (index: number, field: keyof Achievement, value: string) => {
+        const newAchievements = [...profile.achievements];
+        newAchievements[index] = { ...newAchievements[index], [field]: value };
+        setProfile(prev => ({ ...prev, achievements: newAchievements }));
+    };
+
+    const addAchievement = () => {
+        setProfile(prev => ({
+            ...prev,
+            achievements: [...prev.achievements, { description: '' }]
+        }));
+    };
+
+    const removeAchievement = (index: number) => {
+        setProfile(prev => ({
+            ...prev,
+            achievements: prev.achievements.filter((_, i) => i !== index)
+        }));
+    };
+
+    return (
+        <form className="space-y-6" onSubmit={handleSave}>
+            <Card>
+                <CardHeader>
+                <CardTitle className="flex items-center gap-2"><UserCircle className="w-5 h-5 text-primary" /> Contact Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input id="fullName" value={profile.fullName} onChange={handleInputChange} />
+                    </div>
+                    <div className="space-y-1">
+                    <Label htmlFor="headline">Headline</Label>
+                    <Input id="headline" placeholder="e.g., Aspiring Software Engineer" value={profile.headline} onChange={handleInputChange} />
+                    </div>
+                    <div className="space-y-1">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" value={profile.email} disabled />
+                    </div>
+                    <div className="space-y-1">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input id="phone" type="tel" value={profile.phone} onChange={handleInputChange} />
+                    </div>
+                    <div className="space-y-1">
+                    <Label htmlFor="githubUrl">GitHub URL</Label>
+                    <Input id="githubUrl" type="url" placeholder="https://github.com/username" value={profile.githubUrl} onChange={handleInputChange} />
+                    </div>
+                    <div className="space-y-1">
+                    <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
+                    <Input id="linkedinUrl" type="url" placeholder="https://linkedin.com/in/username" value={profile.linkedinUrl} onChange={handleInputChange} />
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <Label htmlFor="location">Location</Label>
+                    <Combobox
+                        items={cities}
+                        value={profile.location}
+                        onChange={(value) => handleSelectChange('location', value)}
+                        placeholder="Select location..."
+                        searchPlaceholder="Search cities..."
+                        notFoundText="No city found."
+                    />
+                </div>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Settings className="w-5 h-5 text-primary" /> Preference</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                <div className="space-y-2">
+                        <Label>I am a</Label>
+                        <Select value={profile.employmentStatus} onValueChange={(value) => handleSelectChange('employmentStatus', value)}>
+                            <SelectTrigger id="employmentStatus">
+                                <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Fresher">Fresher</SelectItem>
+                                <SelectItem value="Working">Working Professional</SelectItem>
+                                <SelectItem value="Studying">Currently Studying</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>I'm looking for</Label>
+                        <RadioGroup value={profile.preference} onValueChange={(value) => handleSelectChange('preference', value as any)} className="flex gap-4 pt-2">
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Job" id="pref-job" />
+                                <Label htmlFor="pref-job">Job</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Internship" id="pref-internship" />
+                                <Label htmlFor="pref-internship">Internship</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Both" id="pref-both" />
+                                <Label htmlFor="pref-both">Both</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Star className="w-5 h-5 text-primary" /> Skills</CardTitle>
+                </CardHeader>
+                <CardContent>
+                <SkillsInput
+                    allSkills={allSkills}
+                    selectedSkills={profile.skills}
+                    onSkillsChange={(skills) => handleSelectChange('skills', skills as any)}
+                />
+                <p className="text-xs text-muted-foreground mt-2">Type a skill and press Enter to add it. Previously added custom skills will appear in suggestions.</p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Work Experience</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {profile.experience.map((exp, index) => (
+                        <ExperienceCard 
+                            key={index}
+                            index={index}
+                            experience={exp}
+                            updateExperience={updateExperience}
+                            removeExperience={removeExperience}
+                        />
+                    ))}
+                    <Button variant="outline" onClick={addExperience} type="button" className="w-full">
+                        <PlusCircle className="mr-2"/>
+                        Add Experience
+                    </Button>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><GraduationCap className="w-5 h-5 text-primary" /> Education</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {profile.education.map((edu, index) => (
+                        <EducationCard 
+                            key={index}
+                            index={index}
+                            education={edu}
+                            updateEducation={updateEducation}
+                            removeEducation={removeEducation}
+                        />
+                    ))}
+                    <Button variant="outline" onClick={addEducation} type="button" className="w-full">
+                        <PlusCircle className="mr-2"/>
+                        Add Education
+                    </Button>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Projects</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className='space-y-1'>
+                        <Label htmlFor="portfolioUrl">Main Portfolio URL</Label>
+                        <Input id="portfolioUrl" type="url" placeholder="https://your-portfolio.com" value={profile.portfolioUrl} onChange={handleInputChange} />
+                    </div>
+                    {profile.projects.map((proj, index) => (
+                        <ProjectCard 
+                            key={index}
+                            index={index}
+                            project={proj}
+                            updateProject={updateProject}
+                            removeProject={removeProject}
+                        />
+                    ))}
+                    <Button variant="outline" onClick={addProject} type="button" className="w-full">
+                        <PlusCircle className="mr-2"/>
+                        Add Project
+                    </Button>
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Achievements</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {profile.achievements.map((ach, index) => (
+                        <AchievementCard 
+                            key={index}
+                            index={index}
+                            achievement={ach}
+                            updateAchievement={updateAchievement}
+                            removeAchievement={removeAchievement}
+                        />
+                    ))}
+                    <Button variant="outline" onClick={addAchievement} type="button" className="w-full">
+                        <PlusCircle className="mr-2"/>
+                        Add Achievement
+                    </Button>
+                </CardContent>
+            </Card>
+            <div className="flex justify-end gap-2">
+                <Button variant="outline" type="button" onClick={() => setIsEditing(false)}>Cancel</Button>
+                <Button type="submit" disabled={saving}>
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2" />}
+                Save Profile
+                </Button>
+            </div>
+        </form>
+    );
+};
+
+function CandidateProfilePage() {
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<ProfileData>({
+    fullName: '',
+    email: '',
+    headline: '',
+    skills: [],
+    experience: [],
+    education: [],
+    location: '',
+    employmentStatus: 'Fresher',
+    preference: 'Both',
+    achievements: [],
+    projects: [],
+    phone: '',
+    githubUrl: '',
+    linkedinUrl: '',
+    portfolioUrl: '',
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileCompleteness, setProfileCompleteness] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      const fetchProfile = async () => {
+        const docRef = doc(db, 'candidates', user.uid);
+        try {
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              const data = docSnap.data() as ProfileData;
+              setProfile(prev => ({
+                ...prev,
+                ...data,
+                skills: Array.isArray(data.skills) ? data.skills : [],
+                experience: Array.isArray(data.experience) ? data.experience : [],
+                education: Array.isArray(data.education) ? data.education : [],
+                projects: Array.isArray(data.projects) ? data.projects : [],
+                achievements: Array.isArray(data.achievements) ? data.achievements : [],
+              }));
+            } else {
+              setProfile(prev => ({
+                ...prev, 
+                fullName: user.displayName || '',
+                email: user.email || ''
+              }));
+            }
+        } catch(serverError) {
+             const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } finally {
+            setLoading(false);
+        }
+      };
+      fetchProfile();
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  }, [user, authLoading]);
+
+  useEffect(() => {
+      const calculateCompleteness = () => {
+          const fields = [
+              profile.fullName,
+              profile.headline,
+              profile.location,
+              profile.phone,
+              profile.githubUrl,
+              profile.linkedinUrl,
+          ];
+          const totalFields = fields.length + 5; // +5 for skills, exp, edu, projects, achievements
+          let filledFields = fields.filter(Boolean).length;
+          if (profile.skills.length > 0) filledFields++;
+          if (profile.experience.length > 0) filledFields++;
+          if (profile.education.length > 0) filledFields++;
+          if (profile.projects.length > 0) filledFields++;
+          if (profile.achievements.length > 0) filledFields++;
+          
+          const completeness = Math.round((filledFields / totalFields) * 100);
+          setProfileCompleteness(completeness);
+      };
+      calculateCompleteness();
+  }, [profile]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    
+    saveUserProfile('candidates', user.uid, profile);
+
+    toast({
+      title: "Profile Saving...",
+      description: "Your information is being updated.",
+    });
+
+    setTimeout(() => {
+      setSaving(false);
+      setIsEditing(false);
+      toast({
+        title: "Update Sent",
+        description: "Your profile changes have been sent to the server.",
+      });
+    }, 1500);
+  };
+  
+
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
         {authLoading || loading ? (
              <div className="container flex justify-center items-center py-8"><Loader2 className="w-8 h-8 animate-spin" /></div>
         ) : isEditing ? (
-            <ProfileForm />
+            <ProfileForm 
+                profile={profile} 
+                setProfile={setProfile}
+                handleSave={handleSave}
+                saving={saving}
+                setIsEditing={setIsEditing}
+            />
         ) : (
-            <ProfileView />
+            <ProfileView 
+                profile={profile}
+                profileCompleteness={profileCompleteness}
+                setIsEditing={setIsEditing}
+            />
         )}
     </div>
   );
