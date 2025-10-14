@@ -34,8 +34,6 @@ import {
   generateJobDescription,
   GenerateJobDescriptionInput,
   GenerateJobDescriptionOutput,
-  Job,
-  Internship
 } from './generate-job-description';
 
 import {
@@ -50,14 +48,20 @@ import {
   ConductAiInterviewOutput,
 } from './conduct-ai-interview';
 
+import {
+  matchJobCandidate,
+  MatchJobCandidateInput,
+  MatchJobCandidateOutput,
+} from './match-job-candidate';
+
+
 export {
   generateLearningRoadmap,
   reformatResume,
   generateJobDescription,
   generateSpecializations,
   conductAiInterview,
-  Job,
-  Internship
+  matchJobCandidate,
 };
 export type {
   GenerateLearningRoadmapInput,
@@ -70,4 +74,6 @@ export type {
   GenerateSpecializationsOutput,
   ConductAiInterviewInput,
   ConductAiInterviewOutput,
+  MatchJobCandidateInput,
+  MatchJobCandidateOutput,
 };
