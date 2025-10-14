@@ -38,11 +38,13 @@ interface Application extends DocumentData {
   companyName: string;
   appliedOn: Timestamp;
   status: string;
+  postType: 'job' | 'internship';
 }
 
 export default function ApplicationsPage() {
   const { user } = useAuth();
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [jobApplications, setJobApplications] = useState<Application[]>([]);
+  const [internshipApplications, setInternshipApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
 
@@ -50,16 +52,33 @@ export default function ApplicationsPage() {
     if (user) {
       setLoading(true);
       const appsRef = collection(db, 'applications');
-      const q = query(appsRef, where('candidateId', '==', user.uid));
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      
+      // Query for job applications
+      const jobsQuery = query(appsRef, where('candidateId', '==', user.uid), where('postType', '==', 'job'));
+      const unsubscribeJobs = onSnapshot(jobsQuery, (snapshot) => {
         const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Application));
-        setApplications(apps);
+        setJobApplications(apps);
+        setLoading(false); // Set loading to false after first query resolves
+      },
+      async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: 'applications (jobs)',
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setLoading(false);
+      });
+
+      // Query for internship applications
+      const internshipsQuery = query(appsRef, where('candidateId', '==', user.uid), where('postType', '==', 'internship'));
+      const unsubscribeInternships = onSnapshot(internshipsQuery, (snapshot) => {
+        const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Application));
+        setInternshipApplications(apps);
         setLoading(false);
       },
       async (serverError) => {
         const permissionError = new FirestorePermissionError({
-            path: 'applications',
+            path: 'applications (internships)',
             operation: 'list',
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -68,14 +87,15 @@ export default function ApplicationsPage() {
 
 
       return () => {
-        unsubscribe();
+        unsubscribeJobs();
+        unsubscribeInternships();
       };
     } else {
       setLoading(false);
     }
   }, [user]);
 
-  const displayedApplications = showInternships ? applications.filter(app => app.postType === 'internship') : applications.filter(app => app.postType === 'job');
+  const displayedApplications = showInternships ? internshipApplications : jobApplications;
   
   const formatDate = (timestamp: Timestamp | Date | undefined) => {
     if (!timestamp) return 'N/A';
@@ -95,7 +115,7 @@ export default function ApplicationsPage() {
              <div className="flex items-center space-x-2">
                 <Label htmlFor="app-type-toggle" className="flex items-center gap-2 cursor-pointer">
                   <Briefcase className={!showInternships ? 'text-primary' : 'text-muted-foreground'}/>
-                  <span className={!showInternships ? 'text-primary' : 'text-muted-foreground'}>Jobs</span>
+                  <span className={!showInternships ? 'text-primary font-semibold' : 'text-muted-foreground'}>Jobs</span>
                 </Label>
                 <Switch 
                   id="app-type-toggle"
@@ -104,7 +124,7 @@ export default function ApplicationsPage() {
                 />
                  <Label htmlFor="app-type-toggle" className="flex items-center gap-2 cursor-pointer">
                    <GraduationCap className={showInternships ? 'text-primary' : 'text-muted-foreground'}/>
-                   <span className={showInternships ? 'text-primary' : 'text-muted-foreground'}>Internships</span>
+                   <span className={showInternships ? 'text-primary font-semibold' : 'text-muted-foreground'}>Internships</span>
                 </Label>
               </div>
           </div>
