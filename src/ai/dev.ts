@@ -53,6 +53,12 @@ import {
   MatchJobCandidateOutput,
 } from './match-job-candidate';
 
+import {
+  diagnoseError,
+  DiagnoseErrorInput,
+  DiagnoseErrorOutput,
+} from './flows/diagnose-error';
+
 export {
   generateLearningRoadmap,
   reformatResume,
@@ -60,6 +66,7 @@ export {
   generateSpecializations,
   conductAiInterview,
   matchJobCandidate,
+  diagnoseError,
 };
 export type {
   GenerateLearningRoadmapInput,
@@ -74,4 +81,6 @@ export type {
   ConductAiInterviewOutput,
   MatchJobCandidateInput,
   MatchJobCandidateOutput,
+  DiagnoseErrorInput,
+  DiagnoseErrorOutput,
 };

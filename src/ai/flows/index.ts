@@ -54,6 +54,12 @@ import {
   MatchJobCandidateOutput,
 } from './match-job-candidate';
 
+import {
+  diagnoseError,
+  DiagnoseErrorInput,
+  DiagnoseErrorOutput,
+} from './diagnose-error';
+
 
 export {
   generateLearningRoadmap,
@@ -62,6 +68,7 @@ export {
   generateSpecializations,
   conductAiInterview,
   matchJobCandidate,
+  diagnoseError,
 };
 export type {
   GenerateLearningRoadmapInput,
@@ -76,4 +83,6 @@ export type {
   ConductAiInterviewOutput,
   MatchJobCandidateInput,
   MatchJobCandidateOutput,
+  DiagnoseErrorInput,
+  DiagnoseErrorOutput,
 };
