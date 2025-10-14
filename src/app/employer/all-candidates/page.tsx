@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -55,7 +56,7 @@ export default function AllCandidatesPage() {
 
                 const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
                     getDocs(jobsQuery),
-                    getDocs(internshipsSnapshot)
+                    getDocs(internshipsQuery)
                 ]);
 
                 const posts = [
