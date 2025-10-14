@@ -36,7 +36,8 @@ export function LoginForm({ role }: { role: 'candidate' | 'employer' | 'tpo' }) 
       const user = userCredential.user;
 
       // Check if a profile exists for this role
-      const profileDocRef = doc(db, `${role}s`, user.uid);
+      const profileCollection = `${role}s` as 'candidates' | 'employers' | 'institutes';
+      const profileDocRef = doc(db, profileCollection, user.uid);
       const profileDoc = await getDoc(profileDocRef);
       
       if (profileDoc.exists()) {
@@ -48,14 +49,14 @@ export function LoginForm({ role }: { role: 'candidate' | 'employer' | 'tpo' }) 
           router.push(`/${role}/dashboard`);
       } else {
         await auth.signOut();
-        throw new Error(`You are not registered as a ${role}.`);
+        throw new Error(`No '${role}' account found for this email. Please check the role or sign up.`);
       }
     } catch (error: any) {
       console.error("Login error:", error);
       let errorMessage = "An unexpected error occurred. Please try again.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         errorMessage = "Invalid email or password. Please check your credentials and try again.";
-      } else if (error.message.includes("not registered as a")) {
+      } else if (error.message) {
         errorMessage = error.message;
       }
       
