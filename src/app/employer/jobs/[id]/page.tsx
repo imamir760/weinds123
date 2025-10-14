@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, use } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData, query, where, updateDoc } from 'firebase/firestore';
 import EmployerDashboardPage from '../../dashboard/page';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Loader2, ArrowLeft, Star, User, Mail, ThumbsUp, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
@@ -42,7 +42,8 @@ type Applicant = DocumentData & {
 };
 
 export default function ViewApplicantsPage({ params }: { params: { id: string } }) {
-  const postId = use(params);
+  const resolvedParams = use(params);
+  const postId = resolvedParams.id;
   const { toast } = useToast();
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
@@ -58,12 +59,12 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
     try {
         let postSnap;
         let postType: 'job' | 'internship' | null = null;
-        const jobRef = doc(db, 'jobs', postId.id);
+        const jobRef = doc(db, 'jobs', postId);
         postSnap = await getDoc(jobRef);
         if (postSnap.exists()) {
             postType = 'job';
         } else {
-            const internshipRef = doc(db, 'internships', postId.id);
+            const internshipRef = doc(db, 'internships', postId);
             postSnap = await getDoc(internshipRef);
             if (postSnap.exists()) postType = 'internship';
         }
@@ -86,13 +87,13 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
         }
 
         const applicationsRef = collection(db, 'applications');
-        const q = query(applicationsRef, where('postId', '==', postId.id), where('employerId', '==', currentUser.uid));
+        const q = query(applicationsRef, where('postId', '==', postId), where('employerId', '==', currentUser.uid));
         
         let applicationsSnap;
         try {
             applicationsSnap = await getDocs(q);
         } catch (serverError) {
-             const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list', requestResourceData: {postId: postId.id, employerId: currentUser.uid} });
+             const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list', requestResourceData: {postId: postId, employerId: currentUser.uid} });
              errorEmitter.emit('permission-error', permissionError);
              throw permissionError;
         }
@@ -175,6 +176,30 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
     return () => unsubscribe();
   }, [fetchPostAndApplicants]);
 
+  const handleUpdateStatus = async (applicationId: string, newStatus: 'Shortlisted' | 'Rejected') => {
+      const appRef = doc(db, 'applications', applicationId);
+      try {
+          await updateDoc(appRef, { status: newStatus });
+          setApplicants(prev => prev.map(app => app.applicationId === applicationId ? {...app, status: newStatus} : app));
+          toast({
+              title: "Status Updated",
+              description: `Candidate has been ${newStatus.toLowerCase()}.`
+          });
+      } catch (error) {
+          console.error("Failed to update status", error);
+          toast({
+              title: "Update Failed",
+              description: "Could not update candidate status.",
+              variant: "destructive"
+          });
+           errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: appRef.path,
+                operation: 'update',
+                requestResourceData: { status: newStatus }
+           }));
+      }
+  }
+
   const PageContent = (
       <div className="container mx-auto py-8 px-4">
         <div className="flex items-center gap-4 mb-6">
@@ -249,7 +274,21 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                                       {(applicant.candidateSkills?.length || 0) > 5 && <Badge variant="outline">+{ (applicant.candidateSkills?.length || 0) - 5} more</Badge>}
                                   </div>
                               </div>
+                              <div>
+                                  <h4 className="text-sm font-semibold mb-2">Status</h4>
+                                   <Badge variant={applicant.status === 'Shortlisted' ? 'default' : applicant.status === 'Rejected' ? 'destructive' : 'secondary'}>
+                                        {applicant.status}
+                                   </Badge>
+                              </div>
                           </CardContent>
+                          <CardFooter className="bg-secondary/50 p-3 flex justify-end gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(applicant.applicationId, 'Rejected')} disabled={applicant.status === 'Rejected'}>
+                                <ThumbsDown className="mr-2"/> Reject
+                            </Button>
+                             <Button size="sm" onClick={() => handleUpdateStatus(applicant.applicationId, 'Shortlisted')} disabled={applicant.status === 'Shortlisted'}>
+                                <ThumbsUp className="mr-2"/> Shortlist
+                            </Button>
+                          </CardFooter>
                       </Card>
                   ))}
               </div>
@@ -260,3 +299,5 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
 
   return <EmployerDashboardPage>{PageContent}</EmployerDashboardPage>;
 }
+
+    
