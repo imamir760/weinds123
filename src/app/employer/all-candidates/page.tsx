@@ -14,11 +14,13 @@ import EmployerDashboardPage from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, DocumentData, Timestamp } from 'firebase/firestore';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Briefcase, GraduationCap } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface Applicant {
     candidateId: string;
@@ -29,13 +31,67 @@ interface Applicant {
     postType: 'job' | 'internship';
     candidateName?: string;
     candidateEmail?: string;
-    candidateSkills?: string[];
 }
+
+async function fetchApplicantsForPosts(postType: 'job' | 'internship', employerId: string): Promise<Applicant[]> {
+    const postCollectionName = postType === 'job' ? 'jobs' : 'internships';
+    const postsQuery = query(collection(db, postCollectionName), where("employerId", "==", employerId));
+    const postsSnapshot = await getDocs(postsQuery);
+
+    if (postsSnapshot.empty) {
+        return [];
+    }
+
+    const applicantPromises = postsSnapshot.docs.map(postDoc => {
+        const applicantsCollectionRef = collection(db, postCollectionName, postDoc.id, 'applicants');
+        return getDocs(applicantsCollectionRef).then(snapshot => 
+            snapshot.docs.map(applicantDoc => ({
+                ...applicantDoc.data(),
+                candidateId: applicantDoc.id,
+                postId: postDoc.id,
+                postTitle: postDoc.data().title,
+                postType: postType,
+            } as Applicant))
+        );
+    });
+
+    const applicantsByPost = await Promise.all(applicantPromises);
+    const allApplicantsFlat = applicantsByPost.flat();
+
+    if (allApplicantsFlat.length === 0) {
+        return [];
+    }
+
+    const candidateIds = [...new Set(allApplicantsFlat.map(app => app.candidateId))];
+    const candidateProfiles = new Map<string, DocumentData>();
+    
+    if (candidateIds.length > 0) {
+        const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)));
+        const candidateSnapshots = await Promise.all(candidatePromises);
+        candidateSnapshots.forEach(snap => {
+            if(snap.exists()) {
+               candidateProfiles.set(snap.id, snap.data());
+            }
+        });
+    }
+
+    return allApplicantsFlat.map(app => {
+        const profile = candidateProfiles.get(app.candidateId);
+        return {
+            ...app,
+            candidateName: profile?.fullName || 'Unknown Candidate',
+            candidateEmail: profile?.email || 'No email',
+        };
+    }).sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
+}
+
 
 export default function AllCandidatesPage() {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [allApplicants, setAllApplicants] = useState<Applicant[]>([]);
+    const [jobApplicants, setJobApplicants] = useState<Applicant[]>([]);
+    const [internshipApplicants, setInternshipApplicants] = useState<Applicant[]>([]);
+    const [showInternships, setShowInternships] = useState(false);
 
     useEffect(() => {
         if (!user) {
@@ -43,91 +99,29 @@ export default function AllCandidatesPage() {
             return;
         }
 
-        const fetchAllApplicants = async () => {
+        const fetchAllData = async () => {
             setLoading(true);
             try {
-                // Step 1: Fetch all jobs and internships for the employer
-                const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
-                const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-
-                const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
-                    getDocs(jobsQuery),
-                    getDocs(internshipsQuery)
+                const [jobApps, internApps] = await Promise.all([
+                    fetchApplicantsForPosts('job', user.uid),
+                    fetchApplicantsForPosts('internship', user.uid)
                 ]);
-
-                const posts = [
-                    ...jobsSnapshot.docs.map(d => ({ id: d.id, type: 'job' as const, ...d.data() })),
-                    ...internshipsSnapshot.docs.map(d => ({ id: d.id, type: 'internship' as const, ...d.data() }))
-                ];
-                
-                if (posts.length === 0) {
-                    setAllApplicants([]);
-                    setLoading(false);
-                    return;
-                }
-
-                // Step 2: For each post, create a promise to fetch its applicants
-                const applicantPromises = posts.map(post => {
-                    const applicantsCollectionRef = collection(db, post.type === 'job' ? 'jobs' : 'internships', post.id, 'applicants');
-                    return getDocs(applicantsCollectionRef).then(snapshot => 
-                        snapshot.docs.map(d => ({
-                            ...d.data(),
-                            candidateId: d.id, // The applicant doc ID is the candidate's UID
-                            postId: post.id,
-                            postTitle: post.title,
-                            postType: post.type,
-                        } as Applicant))
-                    );
-                });
-
-                const applicantsByPost = await Promise.all(applicantPromises);
-                const allApplicantsFlat = applicantsByPost.flat();
-                
-                if (allApplicantsFlat.length === 0) {
-                    setAllApplicants([]);
-                    setLoading(false);
-                    return;
-                }
-                
-                // Step 3: Gather unique candidate IDs
-                const candidateIds = [...new Set(allApplicantsFlat.map(app => app.candidateId))];
-
-                // Step 4: Fetch unique candidate profiles
-                const candidateProfiles = new Map<string, DocumentData>();
-                 if (candidateIds.length > 0) {
-                     const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)));
-                     const candidateSnapshots = await Promise.all(candidatePromises);
-                     candidateSnapshots.forEach(snap => {
-                         if(snap.exists()) {
-                            candidateProfiles.set(snap.id, snap.data());
-                         }
-                     });
-                }
-            
-                // Step 5: Combine data
-                const combinedApplicants = allApplicantsFlat.map(app => {
-                    const profile = candidateProfiles.get(app.candidateId);
-                    return {
-                        ...app,
-                        candidateName: profile?.fullName || 'Unknown Candidate',
-                        candidateEmail: profile?.email || 'No email',
-                        candidateSkills: profile?.skills || [],
-                    }
-                });
-
-                setAllApplicants(combinedApplicants.sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis()));
-
+                setJobApplicants(jobApps);
+                setInternshipApplicants(internApps);
             } catch (error) {
-                console.error("Failed to fetch all applicants:", error);
-                setAllApplicants([]); // Set to empty on error to reflect failure
+                console.error("Failed to fetch applicants:", error);
+                setJobApplicants([]);
+                setInternshipApplicants([]);
             } finally {
                 setLoading(false);
             }
         }
 
-        fetchAllApplicants();
+        fetchAllData();
 
     }, [user]);
+
+    const displayedApplicants = showInternships ? internshipApplicants : jobApplicants;
 
     const formatDate = (timestamp: Timestamp | Date | undefined) => {
         if (!timestamp) return 'N/A';
@@ -139,9 +133,26 @@ export default function AllCandidatesPage() {
         <div className="container mx-auto py-8 px-4">
             <Card>
                 <CardHeader>
-                    <div>
-                        <CardTitle>All Applicants</CardTitle>
-                        <CardDescription>Browse all candidates who have applied to your jobs and internships.</CardDescription>
+                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                        <div>
+                            <CardTitle>All Applicants</CardTitle>
+                            <CardDescription>Browse all candidates who have applied to your posts.</CardDescription>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                           <Label htmlFor="app-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                                <Briefcase className={!showInternships ? 'text-primary' : 'text-muted-foreground'}/>
+                                <span className={!showInternships ? 'text-primary font-semibold' : 'text-muted-foreground'}>Job Applicants</span>
+                            </Label>
+                            <Switch 
+                                id="app-type-toggle"
+                                checked={showInternships}
+                                onCheckedChange={setShowInternships}
+                            />
+                            <Label htmlFor="app-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                                <GraduationCap className={showInternships ? 'text-primary' : 'text-muted-foreground'}/>
+                                <span className={showInternships ? 'text-primary font-semibold' : 'text-muted-foreground'}>Internship Applicants</span>
+                            </Label>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -149,9 +160,9 @@ export default function AllCandidatesPage() {
                     <div className="flex justify-center items-center h-64">
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     </div>
-                ) : allApplicants.length === 0 ? (
+                ) : displayedApplicants.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
-                        <p>No applicants found.</p>
+                        <p>No applicants found for {showInternships ? 'internships' : 'jobs'}.</p>
                     </div>
                 ) : (
                     <Table>
@@ -165,7 +176,7 @@ export default function AllCandidatesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {allApplicants.map((app) => (
+                            {displayedApplicants.map((app) => (
                                 <TableRow key={`${app.postId}-${app.candidateId}`}>
                                     <TableCell className="font-medium">
                                          <div className="flex items-center gap-3">
@@ -180,7 +191,6 @@ export default function AllCandidatesPage() {
                                     </TableCell>
                                     <TableCell>
                                         <p>{app.postTitle}</p>
-                                        <Badge variant="outline" className="mt-1 capitalize">{app.postType}</Badge>
                                     </TableCell>
                                     <TableCell>{formatDate(app.appliedOn)}</TableCell>
                                     <TableCell>
