@@ -10,9 +10,9 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import EmployerDashboardPage from '../dashboard/page';
+import EmployerDashboardPage, { useEmployerLayout } from '../dashboard/page';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/components/auth/auth-provider';
@@ -28,6 +28,7 @@ type Post = DocumentData & { id: string; type: 'Job' | 'Internship'; applicantCo
 
 export default function EmployerJobsPage() {
   const { user } = useAuth();
+  const { setIsPostJobOpen } = useEmployerLayout();
   const [showInternships, setShowInternships] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,25 +116,30 @@ export default function EmployerJobsPage() {
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-8">
           <div>
               <h1 className="text-3xl font-bold font-headline">My Postings</h1>
               <CardDescription>Manage your active and inactive job listings.</CardDescription>
           </div>
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
-              <Briefcase className={!showInternships ? 'text-primary' : ''}/>
-              <span>Jobs</span>
-            </Label>
-            <Switch 
-              id="post-type-toggle"
-              checked={showInternships}
-              onCheckedChange={setShowInternships}
-            />
-             <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
-               <GraduationCap className={showInternships ? 'text-primary' : ''}/>
-              <span>Internships</span>
-            </Label>
+          <div className='flex gap-4 items-center'>
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                <Briefcase className={!showInternships ? 'text-primary' : ''}/>
+                <span>Jobs</span>
+              </Label>
+              <Switch 
+                id="post-type-toggle"
+                checked={showInternships}
+                onCheckedChange={setShowInternships}
+              />
+              <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                <GraduationCap className={showInternships ? 'text-primary' : ''}/>
+                <span>Internships</span>
+              </Label>
+            </div>
+             <Button onClick={() => setIsPostJobOpen(true)}>
+                <PlusCircle className="mr-2 h-4 w-4"/>Post New
+            </Button>
           </div>
       </div>
       <Card>

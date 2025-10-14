@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { PostJobDialog } from '@/components/employer/post-job-dialog';
 import { CreatePipelineDialog } from '@/components/employer/create-pipeline-dialog';
 import { signOut } from 'firebase/auth';
@@ -27,6 +27,20 @@ import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
+
+type EmployerLayoutContextType = {
+  setIsPostJobOpen: (isOpen: boolean) => void;
+};
+
+const EmployerLayoutContext = createContext<EmployerLayoutContextType | undefined>(undefined);
+
+export const useEmployerLayout = () => {
+    const context = useContext(EmployerLayoutContext);
+    if (!context) {
+        throw new Error('useEmployerLayout must be used within a EmployerDashboardPage provider');
+    }
+    return context;
+};
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
@@ -154,8 +168,9 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
 };
 
 
-function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
+function DashboardContent() {
     const { user } = useAuth();
+    const { setIsPostJobOpen } = useEmployerLayout();
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ activeJobs: 0, totalCandidates: 0, shortlisted: 0, hired: 0 });
     const [pipelineStages, setPipelineStages] = useState(initialPipelineStages);
@@ -237,10 +252,10 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                  <h1 className="font-semibold text-2xl md:text-3xl">Welcome, {user?.displayName || 'Employer'}!</h1>
+                  <h1 className="text-2xl font-semibold md:text-3xl">Welcome, {user?.displayName || 'Employer'}!</h1>
                   <p className="text-muted-foreground">Your command center for smart hiring. Let's find your next great hire.</p>
                 </div>
-                <Button onClick={onPostJobOpen}>
+                <Button onClick={() => setIsPostJobOpen(true)}>
                     <PlusCircle className="mr-2 h-4 w-4"/>Post
                 </Button>
               </div>
@@ -248,7 +263,7 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
               <section id="quick-insights">
                  {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                       {[...Array(4)].map((_, i) => <Card key={i}><CardHeader><CardTitle className="text-sm font-medium h-5 bg-muted rounded"></CardTitle></CardHeader><CardContent><div className="h-10 bg-muted rounded"></div></CardContent></Card>)}
+                       {[...Array(4)].map((_, i) => <Card key={i}><CardHeader><CardTitle className="h-5 rounded bg-muted text-sm font-medium"></CardTitle></CardHeader><CardContent><div className="h-10 rounded bg-muted"></div></CardContent></Card>)}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -281,7 +296,7 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                     </CardHeader>
                      <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
                       {loading ? (
-                          [...Array(8)].map((_, i) => <Card key={i} className="p-4 h-28 bg-muted animate-pulse"></Card>)
+                          [...Array(8)].map((_, i) => <Card key={i} className="h-28 animate-pulse bg-muted p-4"></Card>)
                       ) : (
                           pipelineStages.map((stage) => (
                             <Card 
@@ -290,7 +305,7 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                             >
                                <div className="text-center">
                                  <p className={`text-5xl font-extrabold ${stage.textColor}`}>-</p>
-                                 <h3 className={`font-semibold mt-2 text-sm ${stage.textColor}`}>{stage.name}</h3>
+                                 <h3 className={`mt-2 text-sm font-semibold ${stage.textColor}`}>{stage.name}</h3>
                                </div>
                             </Card>
                           ))
@@ -299,21 +314,21 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                   </Card>
                     <div className="grid md:grid-cols-2 gap-6">
                         <Card className="flex flex-col items-center justify-center p-8 bg-blue-50 dark:bg-blue-900/20 border-dashed border-blue-200 dark:border-blue-900">
-                            <div className="bg-blue-100 dark:bg-blue-900/50 p-4 rounded-full mb-4">
-                                <Users className="w-8 h-8 text-blue-600 dark:text-blue-400"/>
+                            <div className="mb-4 rounded-full bg-blue-100 p-4 dark:bg-blue-900/50">
+                                <Users className="h-8 w-8 text-blue-600 dark:text-blue-400"/>
                             </div>
-                            <h3 className="text-xl font-bold mb-2">Explore Campus Talent</h3>
-                            <p className="text-muted-foreground text-center mb-4 text-sm">Discover promising new talent from top colleges across the country.</p>
+                            <h3 className="mb-2 text-xl font-bold">Explore Campus Talent</h3>
+                            <p className="mb-4 text-center text-sm text-muted-foreground">Discover promising new talent from top colleges across the country.</p>
                             <Button variant="outline" asChild>
                                 <Link href="#">View Campus Pool</Link>
                             </Button>
                         </Card>
                          <Card className="flex flex-col items-center justify-center p-8 bg-green-50 dark:bg-green-900/20 border-dashed border-green-200 dark:border-green-900">
-                            <div className="bg-green-100 dark:bg-green-900/50 p-4 rounded-full mb-4">
-                                <TestTube2 className="w-8 h-8 text-green-600 dark:text-green-400"/>
+                            <div className="mb-4 rounded-full bg-green-100 p-4 dark:bg-green-900/50">
+                                <TestTube2 className="h-8 w-8 text-green-600 dark:text-green-400"/>
                             </div>
-                            <h3 className="text-xl font-bold mb-2">Manage AI Skill Tests</h3>
-                            <p className="text-muted-foreground text-center mb-4 text-sm">Create, assign, and review AI-powered skill assessments for your candidates.</p>
+                            <h3 className="mb-2 text-xl font-bold">Manage AI Skill Tests</h3>
+                            <p className="mb-4 text-center text-sm text-muted-foreground">Create, assign, and review AI-powered skill assessments for your candidates.</p>
                             <Button variant="outline" asChild>
                                 <Link href="#">Go to Skill Tests</Link>
                             </Button>
@@ -333,7 +348,7 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
     )
 }
 
-export default function EmployerDashboardPage({ children }: { children?: React.ReactNode }) {
+export default function EmployerDashboardPage({ children }: { children?: ReactNode }) {
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
   const [isCreatePipelineOpen, setIsCreatePipelineOpen] = useState(false);
   const [jobDetailsForPipeline, setJobDetailsForPipeline] = useState<any>(null);
@@ -348,39 +363,39 @@ export default function EmployerDashboardPage({ children }: { children?: React.R
   }
 
   return (
-    <>
-    <div className="min-h-screen w-full bg-gray-100/40 dark:bg-gray-800/40 overflow-x-hidden">
-        <aside className="hidden lg:block fixed inset-y-0 left-0 z-10 w-[280px] border-r bg-background dark:bg-gray-950">
-             <SidebarNav />
-        </aside>
-        <div className="lg:pl-[280px]">
-            <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-background px-4 md:px-6 sticky top-0 z-30">
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button variant="outline" size="icon" className="lg:hidden h-10 w-10 shrink-0">
-                            <Menu className="h-6 w-6" />
-                            <span className="sr-only">Toggle navigation menu</span>
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left" className="w-[280px] p-0">
-                        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                        <SidebarNav />
-                    </SheetContent>
-                </Sheet>
-                 <div className="w-full flex-1 lg:hidden">
-                    <Logo />
-                </div>
-                <div className="ml-auto flex items-center gap-2">
-                    <Avatar className="h-9 w-9">
-                        <AvatarFallback>E</AvatarFallback>
-                    </Avatar>
-                </div>
-            </header>
-            {children ? children : <DashboardContent onPostJobOpen={() => setIsPostJobOpen(true)} />}
-        </div>
-    </div>
-    <PostJobDialog open={isPostJobOpen} onOpenChange={setIsPostJobOpen} onPipelineOpen={handlePipelineOpen} />
-    <CreatePipelineDialog open={isCreatePipelineOpen} onOpenChange={setIsCreatePipelineOpen} jobDetails={jobDetailsForPipeline} postType={postTypeForPipeline} />
-    </>
+    <EmployerLayoutContext.Provider value={{ setIsPostJobOpen }}>
+      <div className="min-h-screen w-full bg-gray-100/40 dark:bg-gray-800/40 overflow-x-hidden">
+          <aside className="hidden lg:block fixed inset-y-0 left-0 z-10 w-[280px] border-r bg-background dark:bg-gray-950">
+              <SidebarNav />
+          </aside>
+          <div className="lg:pl-[280px]">
+              <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-background px-4 md:px-6 sticky top-0 z-30">
+                  <Sheet>
+                      <SheetTrigger asChild>
+                          <Button variant="outline" size="icon" className="lg:hidden h-10 w-10 shrink-0">
+                              <Menu className="h-6 w-6" />
+                              <span className="sr-only">Toggle navigation menu</span>
+                          </Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="w-[280px] p-0">
+                          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                          <SidebarNav />
+                      </SheetContent>
+                  </Sheet>
+                  <div className="w-full flex-1 lg:hidden">
+                      <Logo />
+                  </div>
+                  <div className="ml-auto flex items-center gap-2">
+                      <Avatar className="h-9 w-9">
+                          <AvatarFallback>E</AvatarFallback>
+                      </Avatar>
+                  </div>
+              </header>
+              {children ? children : <DashboardContent />}
+          </div>
+      </div>
+      <PostJobDialog open={isPostJobOpen} onOpenChange={setIsPostJobOpen} onPipelineOpen={handlePipelineOpen} />
+      <CreatePipelineDialog open={isCreatePipelineOpen} onOpenChange={setIsCreatePipelineOpen} jobDetails={jobDetailsForPipeline} postType={postTypeForPipeline} />
+    </EmployerLayoutContext.Provider>
   );
 }
