@@ -48,7 +48,6 @@ export default function AllCandidatesPage() {
 
         const fetchAllApplicants = async () => {
             setLoading(true);
-
             try {
                 // 1. Fetch all jobs and internships for the employer
                 const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
