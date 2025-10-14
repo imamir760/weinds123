@@ -30,7 +30,7 @@ type PostDetails = DocumentData & {
 };
 
 type Applicant = DocumentData & {
-  id: string; // This is the candidate's UID
+  id: string; 
   candidateId: string;
   currentStage: string;
   fullName?: string;
@@ -124,7 +124,6 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
     const fetchPostAndApplicants = async (user: FirebaseUser) => {
         setLoading(true);
-        let isCancelled = false;
 
         try {
             // Step 1: Determine post type and fetch post details
@@ -140,42 +139,49 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
                 if (postSnap.exists()) postType = 'internship';
             }
 
-            if (isCancelled || !postSnap.exists() || !postType) {
-                if (!isCancelled) setPostDetails(null);
+            if (!postSnap.exists() || !postType) {
+                setPostDetails(null);
+                setLoading(false);
                 return;
             }
 
             const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
-            if (isCancelled) return;
             setPostDetails(postData);
 
             // Step 2: Verify ownership
             const owner = user.uid === postData.employerId;
             setIsOwner(owner);
-            if (!owner) return;
-
-            // Step 3: Fetch applicants from the subcollection
-            const applicantsCollectionRef = collection(db, postType, postId, 'applicants');
-            const applicantsSnap = await getDocs(applicantsCollectionRef).catch(serverError => {
-                const permissionError = new FirestorePermissionError({
-                    path: applicantsCollectionRef.path,
-                    operation: 'list',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                throw permissionError;
-            });
-            
-            const applicantDocsData = applicantsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            if (applicantDocsData.length === 0) {
-                if (!isCancelled) setApplicants([]);
+            if (!owner) {
+                setLoading(false);
                 return;
             }
 
-            const applicantIds = applicantDocsData.map(app => app.id);
+            // Step 3: Fetch all applications for this post
+            const applicationsRef = collection(db, 'applications');
+            const q = query(applicationsRef, where('postId', '==', postId));
+            const applicationsSnap = await getDocs(q).catch(serverError => {
+                 const permissionError = new FirestorePermissionError({ path: 'applications', operation: 'list' });
+                 errorEmitter.emit('permission-error', permissionError);
+                 throw permissionError;
+            });
 
-            // Step 4: Fetch candidate profiles for the applicants
-            const candidatePromises = applicantIds.map(id => getDoc(doc(db, 'candidates', id)).catch(serverError => {
+            const applicationsData = applicationsSnap.docs.map(doc => doc.data());
+            
+            if(applicationsData.length === 0) {
+                setApplicants([]);
+                setLoading(false);
+                return;
+            }
+            
+            const candidateIds = applicationsData.map(app => app.candidateId);
+            if(candidateIds.length === 0) {
+                 setApplicants([]);
+                 setLoading(false);
+                 return;
+            }
+            
+            // Step 4: Fetch profiles for the candidates
+            const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)).catch(serverError => {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' }));
                 return null;
             }));
@@ -184,27 +190,24 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
 
             const mergedApplicants = candidateSnaps.map((snap, index) => {
                 const profile = snap?.exists() ? snap.data() : {};
-                const applicantData = applicantDocsData[index];
+                const appData = applicationsData[index];
                 return {
-                    id: snap?.id || applicantIds[index],
-                    candidateId: snap?.id || applicantIds[index],
+                    id: snap?.id || candidateIds[index],
+                    candidateId: snap?.id || candidateIds[index],
                     fullName: profile.fullName || 'Unknown Candidate',
                     headline: profile.headline || 'No headline',
                     avatar: profile.fullName?.charAt(0) || 'U',
-                    currentStage: applicantData.currentStage || 'Applied',
+                    currentStage: appData.status || 'Applied',
                     matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75), // Placeholder
                 } as Applicant;
             });
             
-            if (!isCancelled) {
-              setApplicants(mergedApplicants);
-            }
+            setApplicants(mergedApplicants);
+
         } catch (error) {
             console.error("An error occurred during data fetching:", error);
         } finally {
-            if (!isCancelled) {
-                setLoading(false);
-            }
+            setLoading(false);
         }
     };
     

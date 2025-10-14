@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, getDoc, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, DocumentData, query, where } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 interface Internship extends DocumentData {
   id: string;
   title: string;
+  employerId: string;
   companyName: string;
   location: string;
   workMode: string;
@@ -51,9 +52,10 @@ export default function InternshipsPage() {
 
   useEffect(() => {
     if (user) {
-      const appliedInternshipsRef = collection(db, 'candidates', user.uid, 'internshipApplications');
-      const unsubscribeApplied = onSnapshot(appliedInternshipsRef, (snapshot) => {
-        const appliedIds = snapshot.docs.map(doc => doc.id);
+      const appliedInternshipsRef = collection(db, 'applications');
+       const q = query(appliedInternshipsRef, where('candidateId', '==', user.uid), where('postType', '==', 'internship'));
+      const unsubscribeApplied = onSnapshot(q, (snapshot) => {
+        const appliedIds = snapshot.docs.map(doc => doc.data().postId);
         setAppliedInternships(appliedIds);
       }, (error) => {
           console.error("Failed to listen for applied internships:", error);
@@ -153,7 +155,7 @@ export default function InternshipsPage() {
         };
         runMatching();
     }
-  }, [user, internships.length]);
+  }, [user, internships.length, matching]);
 
   const getPipelineStageName = (stage: { stage: string, type?: string }) => {
     const stageName = stage.stage.replace(/_/g, ' ');
@@ -166,7 +168,7 @@ export default function InternshipsPage() {
   
   const handleApply = (internship: Internship) => {
     if (user) {
-      applyToAction('internship', internship.id, internship.title, internship.companyName, user.uid);
+      applyToAction('internship', internship.id, internship.employerId, internship.title, internship.companyName, user.uid);
       toast({
         title: "Application Sent!",
         description: `You have successfully applied for ${internship.title}.`,

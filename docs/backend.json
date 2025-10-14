@@ -141,6 +141,7 @@
         "education": { "type": "string" },
         "employerId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
+        "applicantCount": { "type": "number"},
         "pipeline": {
             "type": "array",
             "items": {
@@ -170,6 +171,7 @@
         "education": { "type": "string" },
         "employerId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
+        "applicantCount": { "type": "number"},
         "pipeline": {
             "type": "array",
             "items": {
@@ -188,24 +190,16 @@
         "description": "Represents a candidate's application for a job or internship.",
         "type": "object",
         "properties": {
+            "candidateId": { "type": "string" },
+            "employerId": { "type": "string" },
             "postId": { "type": "string" },
+            "postType": { "type": "string", "enum": ["job", "internship"]},
             "postTitle": { "type": "string" },
             "companyName": { "type": "string" },
             "appliedOn": { "type": "string", "format": "date-time" },
             "status": { "type": "string" }
         },
-        "required": ["postId", "postTitle", "companyName", "appliedOn", "status"]
-    },
-    "Applicant": {
-        "title": "Applicant",
-        "description": "Represents an applicant for a job or internship.",
-        "type": "object",
-        "properties": {
-            "candidateId": { "type": "string" },
-            "appliedOn": { "type": "string", "format": "date-time" },
-            "currentStage": { "type": "string" }
-        },
-        "required": ["candidateId", "appliedOn", "currentStage"]
+        "required": ["candidateId", "employerId", "postId", "postType", "postTitle", "companyName", "appliedOn", "status"]
     }
   },
   "auth": {
@@ -215,14 +209,6 @@
     "/candidates/{userId}": {
       "schema": { "$ref": "#/entities/CandidateProfile" },
       "description": "Stores detailed profiles for candidate users."
-    },
-    "/candidates/{userId}/jobApplications/{jobId}": {
-      "schema": { "$ref": "#/entities/Application" },
-      "description": "Stores a candidate's applications to jobs."
-    },
-     "/candidates/{userId}/internshipApplications/{internshipId}": {
-      "schema": { "$ref": "#/entities/Application" },
-      "description": "Stores a candidate's applications to internships."
     },
     "/employers/{userId}": {
       "schema": { "$ref": "#/entities/EmployerProfile" },
@@ -236,17 +222,13 @@
       "schema": { "$ref": "#/entities/Job" },
       "description": "Stores all job postings."
     },
-     "/jobs/{jobId}/applicants/{candidateId}": {
-      "schema": { "$ref": "#/entities/Applicant" },
-      "description": "Stores applicants for a specific job."
-    },
     "/internships/{internshipId}": {
         "schema": { "$ref": "#/entities/Internship" },
         "description": "Stores all internship postings."
     },
-    "/internships/{internshipId}/applicants/{candidateId}": {
-      "schema": { "$ref": "#/entities/Applicant" },
-      "description": "Stores applicants for a specific internship."
+    "/applications/{applicationId}": {
+      "schema": { "$ref": "#/entities/Application" },
+      "description": "Stores all applications for jobs and internships."
     }
   }
 }

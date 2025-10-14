@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 interface Job extends DocumentData {
   id: string;
   title: string;
+  employerId: string;
   companyName: string;
   location: string;
   workMode: string;
@@ -50,9 +51,10 @@ export default function JobsPage() {
 
   useEffect(() => {
     if (user) {
-      const appliedJobsRef = collection(db, 'candidates', user.uid, 'jobApplications');
-      const unsubscribeApplied = onSnapshot(appliedJobsRef, (snapshot) => {
-        const appliedIds = snapshot.docs.map(doc => doc.id);
+      const appliedJobsRef = collection(db, 'applications');
+      const q = query(appliedJobsRef, where('candidateId', '==', user.uid), where('postType', '==', 'job'));
+      const unsubscribeApplied = onSnapshot(q, (snapshot) => {
+        const appliedIds = snapshot.docs.map(doc => doc.data().postId);
         setAppliedJobs(appliedIds);
       }, (error) => {
         console.error("Failed to listen for applied jobs:", error);
@@ -153,7 +155,7 @@ export default function JobsPage() {
         };
         runMatching();
     }
-  }, [user, jobs.length]); // Depend on jobs.length to re-trigger if jobs are added/removed
+  }, [user, jobs.length, matching]);
 
   const getPipelineStageName = (stage: { stage: string, type?: string }) => {
     const stageName = stage.stage.replace(/_/g, ' ');
@@ -166,7 +168,7 @@ export default function JobsPage() {
   
   const handleApply = (job: Job) => {
     if (user) {
-      applyToAction('job', job.id, job.title, job.companyName, user.uid);
+      applyToAction('job', job.id, job.employerId, job.title, job.companyName, user.uid);
       toast({
         title: "Application Sent!",
         description: `You have successfully applied for ${job.title}.`,

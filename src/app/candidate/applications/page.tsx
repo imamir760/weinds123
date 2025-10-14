@@ -23,7 +23,7 @@ import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, Timestamp, query, where } from 'firebase/firestore';
 import { Loader2, Briefcase, GraduationCap } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -33,6 +33,7 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 interface Application extends DocumentData {
   id: string;
+  postId: string;
   postTitle: string;
   companyName: string;
   appliedOn: Timestamp;
@@ -41,55 +42,40 @@ interface Application extends DocumentData {
 
 export default function ApplicationsPage() {
   const { user } = useAuth();
-  const [jobApplications, setJobApplications] = useState<Application[]>([]);
-  const [internshipApplications, setInternshipApplications] = useState<Application[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
 
   useEffect(() => {
     if (user) {
       setLoading(true);
-      const jobAppsRef = collection(db, 'candidates', user.uid, 'jobApplications');
-      const internAppsRef = collection(db, 'candidates', user.uid, 'internshipApplications');
+      const appsRef = collection(db, 'applications');
+      const q = query(appsRef, where('candidateId', '==', user.uid));
 
-      const jobUnsubscribe = onSnapshot(jobAppsRef, (snapshot) => {
+      const unsubscribe = onSnapshot(q, (snapshot) => {
         const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Application));
-        setJobApplications(apps);
+        setApplications(apps);
         setLoading(false);
       },
       async (serverError) => {
         const permissionError = new FirestorePermissionError({
-            path: jobAppsRef.path,
+            path: 'applications',
             operation: 'list',
         });
         errorEmitter.emit('permission-error', permissionError);
         setLoading(false);
       });
 
-      const internUnsubscribe = onSnapshot(internAppsRef, (snapshot) => {
-        const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Application));
-        setInternshipApplications(apps);
-        setLoading(false);
-      },
-      async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-              path: internAppsRef.path,
-              operation: 'list',
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          setLoading(false);
-      });
 
       return () => {
-        jobUnsubscribe();
-        internUnsubscribe();
+        unsubscribe();
       };
     } else {
       setLoading(false);
     }
   }, [user]);
 
-  const displayedApplications = showInternships ? internshipApplications : jobApplications;
+  const displayedApplications = showInternships ? applications.filter(app => app.postType === 'internship') : applications.filter(app => app.postType === 'job');
   
   const formatDate = (timestamp: Timestamp | Date | undefined) => {
     if (!timestamp) return 'N/A';
@@ -157,7 +143,7 @@ export default function ApplicationsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Button asChild variant="outline" size="sm">
-                          <Link href={`/candidate/${showInternships ? 'internships' : 'jobs'}/${app.id}`}>View Post</Link>
+                          <Link href={`/candidate/${showInternships ? 'internships' : 'jobs'}/${app.postId}`}>View Post</Link>
                       </Button>
                     </TableCell>
                   </TableRow>
