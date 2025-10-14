@@ -29,6 +29,7 @@ interface SkillTest extends DocumentData {
   duration: number; // in minutes
   createdAt: Timestamp;
   status: 'pending' | 'completed';
+  candidateId: string;
 }
 
 export default function SkillTestsPage() {
