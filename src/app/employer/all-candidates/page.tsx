@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
-import { Loader2, Briefcase, GraduationCap } from 'lucide-react';
+import { Loader2, Briefcase, GraduationCap, ChevronsRight } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -85,6 +85,16 @@ export default function AllCandidatesPage() {
         const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
         return format(date, 'MMM d, yyyy');
     }
+    
+    const getNextStage = (currentStatus: string): string => {
+        const stages = ['Applied', 'Shortlisted', 'Skill Test', 'Interview', 'Final Interview', 'Hired'];
+        const currentIndex = stages.indexOf(currentStatus);
+        if (currentIndex > -1 && currentIndex < stages.length - 1) {
+            return stages[currentIndex + 1];
+        }
+        return 'View';
+    }
+
 
     return (
         <div className="container mx-auto py-8 px-4">
@@ -141,7 +151,9 @@ export default function AllCandidatesPage() {
                                                 <AvatarFallback>{app.candidateName?.charAt(0) || 'U'}</AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <p>{app.candidateName}</p>
+                                                <Link href={`/employer/${app.postType}s/${app.postId}/candidates/${app.candidateId}`} className="hover:underline">
+                                                    <p>{app.candidateName}</p>
+                                                </Link>
                                                 <p className="text-xs text-muted-foreground">{app.candidateEmail}</p>
                                             </div>
                                         </div>
@@ -154,8 +166,8 @@ export default function AllCandidatesPage() {
                                         <Badge variant="secondary" className="capitalize">{app.status.replace(/_/g, ' ')}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button asChild variant="outline" size="sm">
-                                            <Link href={`/employer/${app.postType}s/${app.postId}/candidates/${app.candidateId}`}>View Profile</Link>
+                                        <Button variant="outline" size="sm">
+                                            {getNextStage(app.status)} <ChevronsRight className="w-3 h-3 ml-2"/>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
