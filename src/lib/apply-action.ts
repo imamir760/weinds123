@@ -26,6 +26,7 @@ export async function applyToAction(
   
   try {
       const candidateRef = doc(db, 'candidates', candidateId);
+      // Ensure we await the result of getDoc
       const candidateSnap = await getDoc(candidateRef);
       if (candidateSnap.exists()) {
           candidateName = candidateSnap.data().fullName || candidateName;
@@ -33,7 +34,10 @@ export async function applyToAction(
       }
   } catch (error) {
     console.error("Could not fetch candidate profile for application.", error);
-    // Don't emit here, let the application creation fail and handle it there.
+    // Don't emit here, let the application creation fail and handle it there,
+    // as applying without a profile is a failure condition.
+    // This will now be caught by the outer try/catch.
+    throw error;
   }
   
   const applicationData = {
@@ -52,6 +56,7 @@ export async function applyToAction(
   const applicationsCollectionRef = collection(db, 'applications');
   
   try {
+    // Await the addDoc to properly catch errors on this operation
     await addDoc(applicationsCollectionRef, applicationData);
   } catch (serverError) {
     const permissionError = new FirestorePermissionError({
@@ -60,5 +65,7 @@ export async function applyToAction(
       requestResourceData: applicationData,
     });
     errorEmitter.emit('permission-error', permissionError);
+    // Re-throw the error so the caller knows the operation failed.
+    throw serverError;
   }
 }

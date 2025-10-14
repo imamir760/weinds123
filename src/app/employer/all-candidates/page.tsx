@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -13,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import EmployerDashboardPage from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, DocumentData, Timestamp, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
 import { Loader2, Briefcase, GraduationCap } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -51,44 +52,18 @@ export default function AllCandidatesPage() {
         setLoading(true);
         const applicationsQuery = query(collection(db, 'applications'), where("employerId", "==", user.uid));
         
-        const unsubscribe = onSnapshot(applicationsQuery, async (snapshot) => {
-            const applications = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as DocumentData));
+        const unsubscribe = onSnapshot(applicationsQuery, (snapshot) => {
+            const applications = snapshot.docs.map(doc => ({
+                 id: doc.id,
+                 ...doc.data(),
+                 // Ensure default values if fields are missing from old documents
+                 candidateName: doc.data().candidateName || 'Unknown Candidate',
+                 candidateEmail: doc.data().candidateEmail || 'No email'
+            })) as Applicant[];
 
-            const candidateIds = [...new Set(applications.map(app => app.candidateId).filter(Boolean))];
+            const sortedApplicants = applications.sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
 
-            let candidatesData: Record<string, { fullName: string, email: string }> = {};
-
-            if (candidateIds.length > 0) {
-                 const candidatePromises = candidateIds.map(id => 
-                    getDoc(doc(db, 'candidates', id)).catch(serverError => {
-                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' }));
-                        return null;
-                    })
-                );
-
-                const candidateSnaps = await Promise.all(candidatePromises);
-
-                candidateSnaps.forEach(snap => {
-                    if (snap && snap.exists()) {
-                        const data = snap.data();
-                        candidatesData[snap.id] = {
-                            fullName: data.fullName || 'Unknown Candidate',
-                            email: data.email || 'No email'
-                        };
-                    }
-                });
-            }
-
-            const mergedApplicants = applications.map(app => {
-                 const candidateInfo = candidatesData[app.candidateId] || { fullName: 'Unknown Candidate', email: 'No email' };
-                 return {
-                     ...app,
-                     candidateName: candidateInfo.fullName,
-                     candidateEmail: candidateInfo.email,
-                 } as Applicant;
-            }).sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
-
-            setAllApplicants(mergedApplicants);
+            setAllApplicants(sortedApplicants);
             setLoading(false);
         }, (serverError) => {
             const permissionError = new FirestorePermissionError({
