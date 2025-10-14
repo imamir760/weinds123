@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Briefcase, GraduationCap, Star, FolderKanban, BookOpen, UserCircle, Github, Linkedin, Mail, Phone, MapPin } from "lucide-react";
@@ -33,6 +33,7 @@ type CandidateProfile = DocumentData & {
 };
 
 export default function CandidateDetailsPage({ params }: { params: { id: string; candidateId: string } }) {
+  const resolvedParams = use(params);
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string;
     const fetchProfile = async () => {
       setLoading(true);
       setError(null);
-      const docRef = doc(db, 'candidates', params.candidateId);
+      const docRef = doc(db, 'candidates', resolvedParams.candidateId);
       try {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
@@ -61,17 +62,17 @@ export default function CandidateDetailsPage({ params }: { params: { id: string;
       }
     };
 
-    if (params.candidateId) {
+    if (resolvedParams.candidateId) {
       fetchProfile();
     }
-  }, [params.candidateId]);
+  }, [resolvedParams.candidateId]);
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
             <Button asChild variant="outline" size="sm">
-                <Link href={`/employer/jobs/${params.id}`}><ArrowLeft className="mr-2" /> Back to Applicants</Link>
+                <Link href={`/employer/jobs/${resolvedParams.id}`}><ArrowLeft className="mr-2" /> Back to Applicants</Link>
             </Button>
         </div>
 
