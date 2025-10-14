@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import {
   Card,
   CardContent,
@@ -13,6 +14,8 @@ import Link from 'next/link';
 import EmployerLayout from '@/app/employer/layout';
 
 export default function ViewSkillTestsPage({ params }: { params: { postId: string } }) {
+  const resolvedParams = use(params);
+
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
         <div className="mb-6">
@@ -23,7 +26,7 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
         <Card>
             <CardHeader>
                 <CardTitle>Skill Tests</CardTitle>
-                <CardDescription>Viewing all tests for Post ID: {params.postId}</CardDescription>
+                <CardDescription>Viewing all tests for Post ID: {resolvedParams.postId}</CardDescription>
             </CardHeader>
             <CardContent>
                 <p>A list of existing skill tests for this post will be shown here.</p>

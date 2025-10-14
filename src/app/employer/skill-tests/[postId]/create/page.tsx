@@ -1,5 +1,6 @@
 'use client';
 
+import { use } from 'react';
 import {
   Card,
   CardContent,
@@ -13,6 +14,8 @@ import Link from 'next/link';
 import EmployerLayout from '@/app/employer/layout';
 
 export default function CreateSkillTestPage({ params }: { params: { postId: string } }) {
+  const resolvedParams = use(params);
+  
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
         <div className="mb-6">
@@ -23,7 +26,7 @@ export default function CreateSkillTestPage({ params }: { params: { postId: stri
         <Card>
             <CardHeader>
                 <CardTitle>Create Skill Test</CardTitle>
-                <CardDescription>For Post ID: {params.postId}</CardDescription>
+                <CardDescription>For Post ID: {resolvedParams.postId}</CardDescription>
             </CardHeader>
             <CardContent>
                 <p>A form to create a new skill test with questions, duration, etc., will be here.</p>
