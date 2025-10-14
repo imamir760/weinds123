@@ -182,45 +182,30 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
 
                 const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
                     getDocs(jobsQuery).catch(error => {
-                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: jobsQuery.path, operation: 'list'}));
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: "jobs", operation: 'list'}));
                         return null;
                     }), 
                     getDocs(internshipsQuery).catch(error => {
-                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: internshipsQuery.path, operation: 'list'}));
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: "internships", operation: 'list'}));
                         return null;
                     })
                 ]);
                 
-                if (!jobsSnapshot && !internshipsSnapshot) {
-                    setLoading(false);
-                    return;
-                }
-
                 const allPosts = [
                     ...(jobsSnapshot?.docs.map(d => ({ ...d.data(), id: d.id, type: 'job' as const })) || []),
                     ...(internshipsSnapshot?.docs.map(d => ({ ...d.data(), id: d.id, type: 'internship' as const })) || [])
                 ];
 
-                let totalCandidates = 0;
-                let shortlistedCount = 0;
-                let hiredCount = 0;
-
-                allPosts.forEach(post => {
-                    totalCandidates += post.applicantCount || 0;
-                    // This is a simplified aggregation. A more accurate one would require fetching applicants.
-                    // For now, we are avoiding that to prevent permission errors on the dashboard.
-                });
+                const totalCandidates = allPosts.reduce((acc, post) => acc + (post.applicantCount || 0), 0);
                 
                 const newStats = {
                     activeJobs: allPosts.length,
                     totalCandidates: totalCandidates,
-                    shortlisted: shortlistedCount, // Placeholder
-                    hired: hiredCount // Placeholder
+                    shortlisted: 0, // Placeholder
+                    hired: 0 // Placeholder
                 };
                 setStats(newStats);
                 
-                // Pipeline stage counts are not calculated here anymore to avoid complex queries on the dashboard.
-                // This data can be shown on a dedicated analytics page or per-job.
                 setPipelineStages(initialPipelineStages.map(s => ({...s, count: 0})));
 
 
