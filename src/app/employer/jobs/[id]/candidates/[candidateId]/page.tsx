@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 
 type CandidateProfile = DocumentData & {
+  id: string;
   fullName: string;
   email: string;
   headline: string;
@@ -155,10 +156,19 @@ const SkillTestTab = ({ profile, jobDetails, postId }: { profile: CandidateProfi
                 createdAt: serverTimestamp(),
                 questions: questions.questions,
                 candidateId: profile.id,
-                status: 'pending'
+                status: 'pending',
+                companyName: jobDetails.companyName,
             };
 
-            await addDoc(collection(db, 'skill_tests'), testData);
+            const skillTestsCollectionRef = collection(db, 'skill_tests');
+            addDoc(skillTestsCollectionRef, testData).catch(serverError => {
+              const permissionError = new FirestorePermissionError({
+                  path: '/skill_tests',
+                  operation: 'create',
+                  requestResourceData: testData,
+              });
+              errorEmitter.emit('permission-error', permissionError);
+            });
 
             toast({ title: "Success", description: "AI Skill Test has been generated and sent to the candidate." });
             setTestSent(true);
