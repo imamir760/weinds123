@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, collection, getDocs, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, DocumentData, collectionGroup, query, where } from 'firebase/firestore';
 import EmployerDashboardPage from '../../dashboard/page';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -81,7 +81,7 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
                                         </div>
                                         <div className="flex items-center gap-1 text-primary font-bold text-sm">
                                             <Star className="w-4 h-4 fill-primary"/>
-                                            {candidate.matchScore}% 
+                                            {candidate.matchScore}%
                                         </div>
                                     </div>
                                     <div className="flex justify-between items-center border-t pt-3">
@@ -108,7 +108,7 @@ const CandidateStageDialog = ({ isOpen, onOpenChange, stageName, candidates, pos
 
 
 export default function JobPipelinePage({ params }: { params: { id: string } }) {
-  const { id: postId } = React.use(params);
+  const postId = React.use(params).id;
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);
   const [applicants, setApplicants] = useState<Applicant[]>([]);
@@ -123,6 +123,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
     let isCancelled = false;
 
     const fetchPostAndApplicants = async (user: FirebaseUser) => {
+        setLoading(true);
         try {
             // Step 1: Fetch the main post document (job or internship)
             let postSnap;
@@ -140,74 +141,60 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             }
 
             if (isCancelled || !postSnap.exists() || !postType) {
-                console.error("Post not found.");
-                if (!isCancelled) {
-                    setPostDetails(null);
-                    setIsOwner(false);
-                    setLoading(false);
-                }
+                if (!isCancelled) setPostDetails(null);
                 return;
             }
 
             const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
-             if (isCancelled) return;
+            if (isCancelled) return;
             setPostDetails(postData);
+            
+            // Step 2: Check ownership
+            const owner = user.uid === postData.employerId;
+            setIsOwner(owner);
+            if (!owner) return;
 
-            // Step 2: Check for ownership
-            if (user.uid !== postData.employerId) {
-                if (!isCancelled) {
-                    setIsOwner(false);
-                    setLoading(false);
-                }
-                return;
-            }
-             if (isCancelled) return;
-            setIsOwner(true);
-
-            // Step 3: Fetch applicants only if user is the owner
-            const applicantsCollectionRef = collection(db, postType, postId, 'applicants');
-            const applicantsSnap = await getDocs(applicantsCollectionRef).catch(serverError => {
+            // Step 3: Fetch applicants using a collectionGroup query
+            const applicationCollectionName = postType === 'job' ? 'jobApplications' : 'internshipApplications';
+            const applicationsQuery = query(collectionGroup(db, applicationCollectionName), where('postId', '==', postId));
+            
+            const applicationsSnapshot = await getDocs(applicationsQuery).catch(serverError => {
                  const permissionError = new FirestorePermissionError({
-                    path: applicantsCollectionRef.path,
+                    path: `/${applicationCollectionName} (collectionGroup)`,
                     operation: 'list',
                 });
                 errorEmitter.emit('permission-error', permissionError);
                 throw permissionError;
             });
-            
-            const applicantsData = applicantsSnap.docs.map(d => ({ id: d.id, candidateId: d.id, ...d.data() })) as Applicant[];
 
-            if (applicantsData.length === 0) {
-                 if (isCancelled) return;
-                setApplicants([]);
-                setLoading(false);
+            const applicantIds = applicationsSnapshot.docs.map(doc => doc.ref.parent.parent!.id);
+            const applicantDocsData = applicationsSnapshot.docs.map(doc => doc.data());
+
+
+            if (applicantIds.length === 0) {
+                if (!isCancelled) setApplicants([]);
                 return;
             }
 
             // Step 4: Fetch candidate profiles for the applicants
-            const candidatePromises = applicantsData.map(applicant =>
-                getDoc(doc(db, 'candidates', applicant.candidateId)).catch(serverError => {
-                    const permissionError = new FirestorePermissionError({ path: `/candidates/${applicant.candidateId}`, operation: 'get' });
-                    errorEmitter.emit('permission-error', permissionError);
-                    return null;
-                })
-            );
+            const candidatePromises = applicantIds.map(id => getDoc(doc(db, 'candidates', id)).catch(serverError => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' }));
+                return null;
+            }));
 
             const candidateSnaps = await Promise.all(candidatePromises);
 
-            const candidatesMap = new Map<string, DocumentData>();
-            candidateSnaps.forEach(snap => {
-                if (snap && snap.exists()) candidatesMap.set(snap.id, snap.data());
-            });
-
-            const mergedApplicants = applicantsData.map(app => {
-                const profile = candidatesMap.get(app.candidateId);
+            const mergedApplicants = candidateSnaps.map((snap, index) => {
+                const profile = snap?.exists() ? snap.data() : {};
+                const applicationData = applicantDocsData[index];
                 return {
-                    ...app,
-                    fullName: profile?.fullName || 'Unknown Candidate',
-                    headline: profile?.headline || 'No headline available',
-                    avatar: profile?.fullName?.charAt(0) || 'U',
-                    matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75)
+                    id: snap?.id || applicantIds[index],
+                    candidateId: snap?.id || applicantIds[index],
+                    fullName: profile.fullName || 'Unknown Candidate',
+                    headline: profile.headline || 'No headline',
+                    avatar: profile.fullName?.charAt(0) || 'U',
+                    currentStage: applicationData.status || 'Applied',
+                    matchScore: Math.floor(Math.random() * (98 - 75 + 1) + 75), // Placeholder
                 } as Applicant;
             });
             
@@ -216,7 +203,6 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
             }
         } catch (error) {
             console.error("An error occurred during data fetching:", error);
-            // Error is already emitted, but we can log a generic message here if needed.
         } finally {
             if (!isCancelled) {
                 setLoading(false);
@@ -224,12 +210,10 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
         }
     };
     
-    // Use onAuthStateChanged to ensure Firebase Auth is initialized
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         fetchPostAndApplicants(user);
       } else {
-        // Not logged in, cannot be owner
         setIsOwner(false);
         setLoading(false);
       }
