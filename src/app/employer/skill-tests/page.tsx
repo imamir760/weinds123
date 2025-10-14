@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -20,6 +21,8 @@ import { format } from 'date-fns';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import EmployerLayout from '../layout';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 type Post = DocumentData & { id: string; type: 'Job' | 'Internship'; title: string, createdAt: Timestamp };
 
@@ -27,6 +30,7 @@ export default function SkillTestsPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showInternships, setShowInternships] = useState(false);
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -67,6 +71,10 @@ export default function SkillTestsPage() {
 
     fetchPosts();
   }, [user]);
+
+  const filteredPosts = useMemo(() => {
+    return posts.filter(post => showInternships ? post.type === 'Internship' : post.type === 'Job');
+  }, [posts, showInternships]);
   
   const formatDate = (timestamp: Timestamp | Date | undefined) => {
     if (!timestamp) return 'N/A';
@@ -81,10 +89,25 @@ export default function SkillTestsPage() {
               <h1 className="text-3xl font-bold font-headline flex items-center gap-2"><TestTube2 className="w-8 h-8" /> Skill Tests</h1>
               <CardDescription>Create and manage skill assessments for your job and internship postings.</CardDescription>
           </div>
+           <div className="flex items-center space-x-2">
+              <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                <Briefcase className={!showInternships ? 'text-primary' : ''}/>
+                <span>Jobs</span>
+              </Label>
+              <Switch 
+                id="post-type-toggle"
+                checked={showInternships}
+                onCheckedChange={setShowInternships}
+              />
+              <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                <GraduationCap className={showInternships ? 'text-primary' : ''}/>
+                <span>Internships</span>
+              </Label>
+            </div>
       </div>
       <Card>
         <CardHeader>
-            <CardTitle>Your Postings</CardTitle>
+            <CardTitle>Your {showInternships ? 'Internship' : 'Job'} Postings</CardTitle>
             <CardDescription>Select a posting to create or view its skill tests.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -92,9 +115,9 @@ export default function SkillTestsPage() {
                 <div className="flex justify-center items-center h-48">
                     <Loader2 className="w-8 h-8 animate-spin" />
                 </div>
-            ) : posts.length === 0 ? (
+            ) : filteredPosts.length === 0 ? (
                  <div className="text-center py-12 text-muted-foreground">
-                    <p>You haven't created any job or internship postings yet.</p>
+                    <p>You haven't created any {showInternships ? 'internships' : 'job'} postings yet.</p>
                      <Button variant="link" asChild>
                         <Link href="/employer/jobs">Go to My Postings</Link>
                      </Button>
@@ -110,7 +133,7 @@ export default function SkillTestsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {posts.map(post => (
+                        {filteredPosts.map(post => (
                             <TableRow key={post.id}>
                                 <TableCell className="font-medium">{post.title}</TableCell>
                                 <TableCell>
