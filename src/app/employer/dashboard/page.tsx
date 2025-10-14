@@ -25,6 +25,8 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { collection, query, where, getDocs, doc, getDoc, DocumentData, Timestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 const navigation = [
     { name: 'Dashboard', href: '/employer/dashboard', icon: Briefcase, current: true },
@@ -175,42 +177,58 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
         const fetchDashboardData = async () => {
             setLoading(true);
             try {
-                // 1. Fetch all posts (jobs and internships)
                 const jobsQuery = query(collection(db, 'jobs'), where("employerId", "==", user.uid));
                 const internshipsQuery = query(collection(db, 'internships'), where("employerId", "==", user.uid));
 
-                const [jobsSnapshot, internshipsSnapshot] = await Promise.all([getDocs(jobsQuery), getDocs(internshipsQuery)]);
+                const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
+                    getDocs(jobsQuery).catch(error => {
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: jobsQuery.path, operation: 'list'}));
+                        return null;
+                    }), 
+                    getDocs(internshipsQuery).catch(error => {
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: internshipsQuery.path, operation: 'list'}));
+                        return null;
+                    })
+                ]);
                 
+                if (!jobsSnapshot && !internshipsSnapshot) {
+                    setLoading(false);
+                    return;
+                }
+
                 const allPosts = [
-                    ...jobsSnapshot.docs.map(d => ({ ...d.data(), id: d.id, type: 'job' as const })),
-                    ...internshipsSnapshot.docs.map(d => ({ ...d.data(), id: d.id, type: 'internship' as const }))
+                    ...(jobsSnapshot?.docs.map(d => ({ ...d.data(), id: d.id, type: 'job' as const })) || []),
+                    ...(internshipsSnapshot?.docs.map(d => ({ ...d.data(), id: d.id, type: 'internship' as const })) || [])
                 ];
 
-                // 2. Fetch all applicants for each post
                 const applicantPromises = allPosts.map(post => {
                     const applicantsRef = collection(db, post.type === 'job' ? 'jobs' : 'internships', post.id, 'applicants');
                     return getDocs(applicantsRef).then(snapshot => 
                         snapshot.docs.map(doc => ({...doc.data(), id: doc.id, postType: post.type, postId: post.id } as Applicant))
-                    );
+                    ).catch(error => {
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: applicantsRef.path, operation: 'list'}));
+                        return []; // Return empty array on error to not break the whole Promise.all
+                    });
                 });
 
                 const applicantsByPost = await Promise.all(applicantPromises);
                 const fetchedApplicants = applicantsByPost.flat();
                 
-                // 3. Fetch candidate profiles
                 const candidateIds = [...new Set(fetchedApplicants.map(app => app.candidateId))];
                 const candidateProfiles = new Map<string, DocumentData>();
                  if (candidateIds.length > 0) {
-                    const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)));
+                    const candidatePromises = candidateIds.map(id => getDoc(doc(db, 'candidates', id)).catch(error => {
+                         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get'}));
+                         return null;
+                    }));
                     const candidateSnapshots = await Promise.all(candidatePromises);
                     candidateSnapshots.forEach(snap => {
-                        if(snap.exists()) {
+                        if(snap && snap.exists()) {
                            candidateProfiles.set(snap.id, snap.data());
                         }
                     });
                 }
                 
-                // 4. Merge profiles into applicants
                 const mergedApplicants = fetchedApplicants.map(app => {
                     const profile = candidateProfiles.get(app.candidateId);
                     return {
@@ -222,7 +240,6 @@ function DashboardContent({ onPostJobOpen }: { onPostJobOpen: () => void }) {
                 });
                 setAllApplicants(mergedApplicants);
 
-                // 5. Calculate stats and pipeline counts
                 const stageCounts = new Map<string, number>();
                 initialPipelineStages.forEach(s => stageCounts.set(s.id, 0));
 
