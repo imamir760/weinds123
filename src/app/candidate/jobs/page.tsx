@@ -59,8 +59,12 @@ export default function JobsPage() {
           const snapshot = await getDocs(q);
           const appliedIds = snapshot.docs.map(doc => doc.data().postId);
           setAppliedJobs(appliedIds);
-        } catch (error) {
-          console.error("Could not fetch applied jobs. This may be due to permissions and is not a fatal error.");
+        } catch (serverError) {
+          const permissionError = new FirestorePermissionError({
+            path: 'applications',
+            operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
         }
       }
       fetchAppliedJobs();
@@ -321,3 +325,5 @@ export default function JobsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
+    

@@ -60,8 +60,12 @@ export default function InternshipsPage() {
           const snapshot = await getDocs(q);
           const appliedIds = snapshot.docs.map(doc => doc.data().postId);
           setAppliedInternships(appliedIds);
-        } catch (error) {
-          console.error("Could not fetch applied internships. This may be due to permissions and is not a fatal error.");
+        } catch (serverError) {
+          const permissionError = new FirestorePermissionError({
+            path: 'applications',
+            operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
         }
       }
       fetchAppliedInternships();
@@ -322,3 +326,5 @@ export default function InternshipsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
+    
