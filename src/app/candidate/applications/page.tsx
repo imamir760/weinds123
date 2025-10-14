@@ -28,6 +28,8 @@ import { Loader2, Briefcase, GraduationCap } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 interface Application extends DocumentData {
   id: string;
@@ -54,12 +56,28 @@ export default function ApplicationsPage() {
         const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Application));
         setJobApplications(apps);
         setLoading(false);
+      },
+      (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: jobAppsRef.path,
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setLoading(false);
       });
 
       const internUnsubscribe = onSnapshot(internAppsRef, (snapshot) => {
         const apps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Application));
         setInternshipApplications(apps);
         setLoading(false);
+      },
+      (serverError) => {
+          const permissionError = new FirestorePermissionError({
+              path: internAppsRef.path,
+              operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          setLoading(false);
       });
 
       return () => {
