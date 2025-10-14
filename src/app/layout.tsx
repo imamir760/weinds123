@@ -7,6 +7,7 @@ import { Footer } from '@/components/footer';
 import { AuthProvider } from '@/components/auth/auth-provider';
 import { AuthModal } from '@/components/auth/auth-modal';
 import { ConditionalHeader } from '@/components/conditional-header';
+import { ConditionalFooter } from '@/components/conditional-footer';
 
 export const metadata: Metadata = {
   title: 'Weinds - Your AI-Powered Career OS',
@@ -41,7 +42,7 @@ export default function RootLayout({
         <AuthProvider>
             <ConditionalHeader />
             <main className="flex-grow">{children}</main>
-            <Footer />
+            <ConditionalFooter />
             <Toaster />
             <AuthModal />
         </AuthProvider>
