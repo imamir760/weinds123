@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import EmployerDashboardPage from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, DocumentData, Timestamp } from 'firebase/firestore';
 import { Loader2, Briefcase, GraduationCap } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -52,8 +52,8 @@ export default function AllCandidatesPage() {
             setLoading(true);
             
             try {
+                // 1. Fetch all applications for the employer
                 const applicationsQuery = query(collection(db, 'applications'), where("employerId", "==", user.uid));
-                
                 const applicationsSnapshot = await getDocs(applicationsQuery).catch(serverError => {
                     errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list'}));
                     return null;
@@ -65,10 +65,44 @@ export default function AllCandidatesPage() {
                     return;
                 }
                 
-                const applicationsData = applicationsSnapshot.docs.map(d => ({ ...d.data() }) as Applicant)
-                    .sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
+                const applicationsData = applicationsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }) as DocumentData);
 
-                setAllApplicants(applicationsData);
+                // 2. Get unique candidate IDs
+                const candidateIds = [...new Set(applicationsData.map(app => app.candidateId).filter(Boolean))];
+
+                if (candidateIds.length === 0) {
+                    setAllApplicants([]);
+                    setLoading(false);
+                    return;
+                }
+
+                // 3. Fetch candidate profiles
+                const candidatePromises = candidateIds.map(id => 
+                    getDoc(doc(db, 'candidates', id)).catch(serverError => {
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/candidates/${id}`, operation: 'get' }));
+                        return null;
+                    })
+                );
+                const candidateDocs = await Promise.all(candidatePromises);
+
+                const candidateProfiles = new Map<string, DocumentData>();
+                candidateDocs.forEach(docSnap => {
+                    if (docSnap && docSnap.exists()) {
+                        candidateProfiles.set(docSnap.id, docSnap.data());
+                    }
+                });
+
+                // 4. Merge application data with candidate data
+                const mergedApplicants = applicationsData.map(app => {
+                    const profile = candidateProfiles.get(app.candidateId);
+                    return {
+                        ...app,
+                        candidateName: profile?.fullName || 'Unknown Candidate',
+                        candidateEmail: profile?.email || 'No email',
+                    } as Applicant;
+                }).sort((a,b) => b.appliedOn.toMillis() - a.appliedOn.toMillis());
+
+                setAllApplicants(mergedApplicants);
 
             } catch (error) {
                 console.error("An unexpected error occurred in fetchAllData:", error);
@@ -144,8 +178,8 @@ export default function AllCandidatesPage() {
                                                 <AvatarFallback>{app.candidateName?.charAt(0) || 'U'}</AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <p>{app.candidateName || 'Unknown Candidate'}</p>
-                                                <p className="text-xs text-muted-foreground">{app.candidateEmail || 'No email'}</p>
+                                                <p>{app.candidateName}</p>
+                                                <p className="text-xs text-muted-foreground">{app.candidateEmail}</p>
                                             </div>
                                         </div>
                                     </TableCell>
