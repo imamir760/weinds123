@@ -141,6 +141,14 @@ export default function InternshipsPage() {
     }
   }, [user, internships]); // Rerun when internships list changes
 
+  const getPipelineStageName = (stage: { stage: string, type?: string }) => {
+    const stageName = stage.stage.replace(/_/g, ' ');
+    if (stage.type) {
+      return `${stageName} (${stage.type.replace(/_/g, ' ')})`;
+    }
+    return stageName;
+  };
+
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
@@ -215,7 +223,7 @@ export default function InternshipsPage() {
                                     <div className="flex items-center gap-2 flex-wrap">
                                         {internship.pipeline.map((stage, index) => (
                                             <div key={index} className="flex items-center gap-2">
-                                                <Badge variant="secondary" className="capitalize">{stage.stage.replace(/_/g, ' ')}</Badge>
+                                                <Badge variant="secondary" className="capitalize">{getPipelineStageName(stage)}</Badge>
                                                 {index < internship.pipeline.length -1 && <ChevronsRight className="w-4 h-4 text-muted-foreground"/>}
                                             </div>
                                         ))}

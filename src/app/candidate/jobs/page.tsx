@@ -140,6 +140,14 @@ export default function JobsPage() {
     }
 }, [user, jobs]); // Rerun when jobs list changes
 
+  const getPipelineStageName = (stage: { stage: string, type?: string }) => {
+    const stageName = stage.stage.replace(/_/g, ' ');
+    if (stage.type) {
+      return `${stageName} (${stage.type.replace(/_/g, ' ')})`;
+    }
+    return stageName;
+  };
+
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
@@ -213,7 +221,7 @@ export default function JobsPage() {
                                     <div className="flex items-center gap-2 flex-wrap">
                                         {job.pipeline.map((stage, index) => (
                                             <div key={index} className="flex items-center gap-2">
-                                                <Badge variant="secondary" className="capitalize">{stage.stage.replace(/_/g, ' ')}</Badge>
+                                                <Badge variant="secondary" className="capitalize">{getPipelineStageName(stage)}</Badge>
                                                 {index < job.pipeline.length -1 && <ChevronsRight className="w-4 h-4 text-muted-foreground"/>}
                                             </div>
                                         ))}
