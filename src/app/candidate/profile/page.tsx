@@ -11,7 +11,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserCircle, Settings, Star, FolderKanban, Save, GraduationCap, Briefcase, PlusCircle, BookOpen } from 'lucide-react';
+import { Loader2, UserCircle, Settings, Star, FolderKanban, Save, GraduationCap, Briefcase, PlusCircle, BookOpen, Github, Linkedin } from 'lucide-react';
 import { saveUserProfile } from '@/lib/user-actions';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -28,6 +28,7 @@ import { ProjectCard } from './project-card';
 import { AchievementCard } from './achievement-card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 export type Experience = {
   jobTitle: string;
@@ -64,6 +65,9 @@ type ProfileData = {
   achievements: Achievement[];
   projects: Project[];
   phone?: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  portfolioUrl?: string;
 };
 
 function CandidateProfilePage() {
@@ -82,6 +86,9 @@ function CandidateProfilePage() {
     achievements: [],
     projects: [],
     phone: '',
+    githubUrl: '',
+    linkedinUrl: '',
+    portfolioUrl: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -96,15 +103,15 @@ function CandidateProfilePage() {
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
               const data = docSnap.data() as ProfileData;
-              if (typeof data.skills === 'string') {
-                data.skills = (data.skills as string).split(',').map(s => s.trim()).filter(Boolean);
-              }
-              if (!Array.isArray(data.skills)) data.skills = [];
-              if (!Array.isArray(data.experience)) data.experience = [];
-              if (!Array.isArray(data.education)) data.education = [];
-              if (!Array.isArray(data.projects)) data.projects = [];
-              if (!Array.isArray(data.achievements)) data.achievements = [];
-              setProfile(data);
+              setProfile(prev => ({
+                ...prev,
+                ...data,
+                skills: Array.isArray(data.skills) ? data.skills : [],
+                experience: Array.isArray(data.experience) ? data.experience : [],
+                education: Array.isArray(data.education) ? data.education : [],
+                projects: Array.isArray(data.projects) ? data.projects : [],
+                achievements: Array.isArray(data.achievements) ? data.achievements : [],
+              }));
             } else {
               setProfile(prev => ({
                 ...prev, 
@@ -134,7 +141,9 @@ function CandidateProfilePage() {
               profile.fullName,
               profile.headline,
               profile.location,
-              profile.phone
+              profile.phone,
+              profile.githubUrl,
+              profile.linkedinUrl,
           ];
           const totalFields = fields.length + 5; // +5 for skills, exp, edu, projects, achievements
           let filledFields = fields.filter(Boolean).length;
@@ -299,6 +308,14 @@ function CandidateProfilePage() {
               <Label htmlFor="phone">Phone</Label>
               <Input id="phone" type="tel" value={profile.phone} onChange={handleInputChange} />
             </div>
+             <div className="space-y-1">
+              <Label htmlFor="githubUrl">GitHub URL</Label>
+              <Input id="githubUrl" type="url" placeholder="https://github.com/username" value={profile.githubUrl} onChange={handleInputChange} />
+            </div>
+             <div className="space-y-1">
+              <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
+              <Input id="linkedinUrl" type="url" placeholder="https://linkedin.com/in/username" value={profile.linkedinUrl} onChange={handleInputChange} />
+            </div>
           </div>
            <div className="space-y-1">
               <Label htmlFor="location">Location</Label>
@@ -413,6 +430,10 @@ function CandidateProfilePage() {
               <CardTitle className="flex items-center gap-2"><FolderKanban className="w-5 h-5 text-primary"/> Projects</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className='space-y-1'>
+                <Label htmlFor="portfolioUrl">Main Portfolio URL</Label>
+                <Input id="portfolioUrl" type="url" placeholder="https://your-portfolio.com" value={profile.portfolioUrl} onChange={handleInputChange} />
+            </div>
              {profile.projects.map((proj, index) => (
                 <ProjectCard 
                     key={index}
@@ -472,6 +493,11 @@ function CandidateProfilePage() {
                         </div>
                     </div>
                     <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+                </div>
+                 <div className="flex items-center gap-4 pt-4">
+                    {profile.githubUrl && <Button variant="outline" asChild size="sm"><Link href={profile.githubUrl} target="_blank"><Github className="mr-2" /> GitHub</Link></Button>}
+                    {profile.linkedinUrl && <Button variant="outline" asChild size="sm"><Link href={profile.linkedinUrl} target="_blank"><Linkedin className="mr-2" /> LinkedIn</Link></Button>}
+                    {profile.portfolioUrl && <Button variant="outline" asChild size="sm"><Link href={profile.portfolioUrl} target="_blank"><FolderKanban className="mr-2" /> Portfolio</Link></Button>}
                 </div>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
@@ -589,3 +615,5 @@ function CandidateProfilePage() {
 }
 
 export default CandidateProfilePage;
+
+    

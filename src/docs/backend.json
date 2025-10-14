@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -93,7 +94,10 @@
             }
           }
         },
-        "phone": { "type": "string" }
+        "phone": { "type": "string" },
+        "githubUrl": { "type": "string", "format": "uri" },
+        "linkedinUrl": { "type": "string", "format": "uri" },
+        "portfolioUrl": { "type": "string", "format": "uri" }
       }
     },
     "EmployerProfile": {
@@ -283,3 +287,5 @@
     }
   }
 }
+
+    
