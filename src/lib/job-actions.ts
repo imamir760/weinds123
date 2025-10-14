@@ -47,6 +47,7 @@ export async function createJobWithPipeline(
     createdAt: serverTimestamp(),
     pipeline: pipeline,
     applicantCount: 0,
+    status: 'Active'
   };
 
   const collectionRef = collection(db, collectionName);
