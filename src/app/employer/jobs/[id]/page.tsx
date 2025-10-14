@@ -36,6 +36,8 @@ const pipeline = {
 };
 
 export default function JobPipelinePage({ params }: { params: { id: string } }) {
+  const { id: jobId } = params;
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
@@ -58,7 +60,7 @@ export default function JobPipelinePage({ params }: { params: { id: string } }) 
               <CardContent className="space-y-4">
                 {stage.candidates.map(candidate => (
                   <Card key={candidate.id} className="bg-background shadow-md hover:shadow-lg transition-shadow duration-300">
-                     <Link href={`/employer/jobs/${params.id}/candidates/${candidate.id}`}>
+                     <Link href={`/employer/jobs/${jobId}/candidates/${candidate.id}`}>
                         <CardContent className="p-4 cursor-pointer">
                         <div className="flex justify-between items-start">
                             <div className="flex items-center gap-3">
