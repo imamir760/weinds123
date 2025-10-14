@@ -58,7 +58,7 @@ export default function InternshipsPage() {
           const appliedIds = snapshot.docs.map(doc => doc.data().postId);
           setAppliedInternships(appliedIds);
         } catch (error) {
-          console.error("Could not fetch applied internships, user may not have permissions. This is not a fatal error.");
+          console.error("Could not fetch applied internships. This may be due to permissions and is not a fatal error.");
         }
       }
       fetchAppliedInternships();
@@ -192,7 +192,7 @@ export default function InternshipsPage() {
                           <div className="flex justify-between items-start gap-4">
                               <div>
                                   <CardTitle className="text-xl font-headline">{internship.title}</CardTitle>
-                                  <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {internship.companyName}</CardDescription>
+                                  <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {internship.companyName || 'Company Name N/A'}</CardDescription>
                               </div>
                               <div className="text-right flex items-center gap-3 bg-secondary p-2 rounded-lg">
                                   {internship.matchScore === undefined ? (

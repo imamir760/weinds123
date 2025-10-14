@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { collection, onSnapshot, doc, getDoc, DocumentData, query, where, getDocs } from 'firebase/firestore';
 import {
   Card,
@@ -57,7 +57,7 @@ export default function JobsPage() {
           const appliedIds = snapshot.docs.map(doc => doc.data().postId);
           setAppliedJobs(appliedIds);
         } catch (error) {
-          console.error("Could not fetch applied jobs, user may not have permissions. This is not a fatal error.");
+          console.error("Could not fetch applied jobs. This may be due to permissions and is not a fatal error.");
         }
       }
       fetchAppliedJobs();
@@ -76,8 +76,6 @@ export default function JobsPage() {
       setLoading(false);
     }, (error) => {
       console.error("Error fetching jobs:", error);
-      // We are not using the permission error emitter here to avoid app crashes
-      // and provide a more stable experience. The error is logged for debugging.
       setLoading(false);
     });
 
@@ -193,7 +191,7 @@ export default function JobsPage() {
                             <div className="flex justify-between items-start gap-4">
                                 <div>
                                     <CardTitle className="text-xl font-headline">{job.title}</CardTitle>
-                                    <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {job.companyName}</CardDescription>
+                                    <CardDescription className="flex items-center gap-2 pt-1"><Building className="w-4 h-4" /> {job.companyName || 'Company Name N/A'}</CardDescription>
                                 </div>
                                 <div className="text-right flex items-center gap-3 bg-secondary p-2 rounded-lg">
                                     {job.matchScore === undefined ? (
