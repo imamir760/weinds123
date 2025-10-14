@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -61,11 +60,8 @@ export default function InternshipsPage() {
           const appliedIds = snapshot.docs.map(doc => doc.data().postId);
           setAppliedInternships(appliedIds);
         } catch (serverError) {
-          const permissionError = new FirestorePermissionError({
-            path: 'applications',
-            operation: 'list',
-          });
-          errorEmitter.emit('permission-error', permissionError);
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list' }));
+          console.error("Could not fetch applied internships. This may be due to permissions and is not a fatal error.");
         }
       }
       fetchAppliedInternships();
@@ -80,6 +76,24 @@ export default function InternshipsPage() {
         id: doc.id,
         ...doc.data()
       })) as Internship[];
+      
+      const employerIds = [...new Set(internshipsData.map(i => i.employerId).filter(Boolean))];
+      if (employerIds.length > 0) {
+          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(() => null));
+          const employerSnapshots = await Promise.all(employerPromises);
+          const employerMap = new Map<string, string>();
+          employerSnapshots.forEach(snap => {
+              if (snap && snap.exists()) {
+                  employerMap.set(snap.id, snap.data().companyName);
+              }
+          });
+
+          internshipsData.forEach(internship => {
+              if (internship.employerId && employerMap.has(internship.employerId)) {
+                  internship.companyName = employerMap.get(internship.employerId)!;
+              }
+          });
+      }
       
       setInternships(internshipsData);
       setLoading(false);
@@ -110,11 +124,7 @@ export default function InternshipsPage() {
                 candidateProfile = JSON.stringify(candidateSnap.data());
             } catch (error) {
                 console.error("Failed to fetch candidate profile:", error);
-                 const permissionError = new FirestorePermissionError({
-                    path: candidateDocRef.path,
-                    operation: 'get',
-                });
-                errorEmitter.emit('permission-error', permissionError);
+                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: candidateDocRef.path, operation: 'get' }));
                 setMatching(false);
                 return;
             }
@@ -286,7 +296,7 @@ export default function InternshipsPage() {
                                     {appliedInternships.includes(internship.id) ? (
                                         <Button disabled variant="outline"><CheckCircle className="mr-2"/> Applied</Button>
                                     ) : (
-                                        <Button onClick={() => handleApply(internship)} disabled={!internship.companyName}>Apply Now</Button>
+                                        <Button onClick={() => handleApply(internship)} disabled={!internship.companyName || internship.companyName === 'Company Name N/A'}>Apply Now</Button>
                                     )}
                                      <Button asChild variant="outline">
                                         <Link href={`/candidate/internships/${internship.id}`}>View Details</Link>

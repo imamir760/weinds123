@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -28,7 +27,7 @@ interface Job extends DocumentData {
   id: string;
   title: string;
   employerId: string;
-  companyName: string; 
+  companyName: string;
   location: string;
   workMode: string;
   salary: string;
@@ -60,11 +59,8 @@ export default function JobsPage() {
           const appliedIds = snapshot.docs.map(doc => doc.data().postId);
           setAppliedJobs(appliedIds);
         } catch (serverError) {
-          const permissionError = new FirestorePermissionError({
-            path: 'applications',
-            operation: 'list',
-          });
-          errorEmitter.emit('permission-error', permissionError);
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applications', operation: 'list'}));
+          console.error("Could not fetch applied jobs. This may be due to permissions and is not a fatal error.");
         }
       }
       fetchAppliedJobs();
@@ -80,6 +76,24 @@ export default function JobsPage() {
         ...doc.data()
       })) as Job[];
 
+      const employerIds = [...new Set(jobsData.map(j => j.employerId).filter(Boolean))];
+      if (employerIds.length > 0) {
+          const employerPromises = employerIds.map(id => getDoc(doc(db, 'employers', id)).catch(() => null));
+          const employerSnapshots = await Promise.all(employerPromises);
+          const employerMap = new Map<string, string>();
+          employerSnapshots.forEach(snap => {
+              if (snap && snap.exists()) {
+                  employerMap.set(snap.id, snap.data().companyName);
+              }
+          });
+
+          jobsData.forEach(job => {
+              if (job.employerId && employerMap.has(job.employerId)) {
+                  job.companyName = employerMap.get(job.employerId)!;
+              }
+          });
+      }
+
       setJobs(jobsData);
       setLoading(false);
 
@@ -91,7 +105,7 @@ export default function JobsPage() {
 
     return () => unsubscribe();
   }, []);
-
+  
   useEffect(() => {
     if (user && jobs.length > 0 && !matching) {
         const runMatching = async () => {
@@ -109,11 +123,7 @@ export default function JobsPage() {
                 candidateProfile = JSON.stringify(candidateSnap.data());
             } catch (error) {
                 console.error("Failed to fetch candidate profile:", error);
-                 const permissionError = new FirestorePermissionError({
-                    path: candidateDocRef.path,
-                    operation: 'get',
-                });
-                errorEmitter.emit('permission-error', permissionError);
+                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: candidateDocRef.path, operation: 'get'}));
                 setMatching(false);
                 return;
             }
@@ -284,7 +294,7 @@ export default function JobsPage() {
                                     {appliedJobs.includes(job.id) ? (
                                         <Button disabled variant="outline"><CheckCircle className="mr-2"/> Applied</Button>
                                     ) : (
-                                        <Button onClick={() => handleApply(job)} disabled={!job.companyName}>Apply Now</Button>
+                                        <Button onClick={() => handleApply(job)} disabled={!job.companyName || job.companyName === 'Company Name N/A'}>Apply Now</Button>
                                     )}
                                      <Button asChild variant="outline">
                                         <Link href={`/candidate/jobs/${job.id}`}>View Details</Link>
