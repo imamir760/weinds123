@@ -10,7 +10,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap, TestTube2, FilePlus, Eye } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, TestTube2, FilePlus, Eye, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
@@ -88,19 +88,31 @@ export default function SkillTestsPage() {
     return format(date, 'MMM d, yyyy');
   }
 
-  const getTestType = (pipeline: { stage: string, type?: string }[]) => {
+  const getTestInfo = (pipeline: { stage: string, type?: string }[]) => {
       const skillTestStage = pipeline?.find(p => p.stage === 'skill_test');
-      if (!skillTestStage || !skillTestStage.type) return <Badge variant="outline">Not Set</Badge>;
+      if (!skillTestStage || !skillTestStage.type) return {
+          badge: <Badge variant="outline">Not Set</Badge>,
+          isAi: false
+      };
       
       const type = skillTestStage.type;
 
       if (type === 'ai') {
-          return <Badge>AI Test</Badge>
+          return {
+              badge: <Badge>AI Test</Badge>,
+              isAi: true
+          }
       }
       if (type === 'traditional') {
-          return <Badge variant="secondary">Traditional</Badge>
+          return {
+              badge: <Badge variant="secondary">Traditional</Badge>,
+              isAi: false
+          }
       }
-      return <Badge variant="outline">{type}</Badge>
+      return {
+          badge: <Badge variant="outline">{type}</Badge>,
+          isAi: false
+      }
   }
 
   const PageContent = (
@@ -155,33 +167,43 @@ export default function SkillTestsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredPosts.map(post => (
-                            <TableRow key={post.id}>
-                                <TableCell className="font-medium">{post.title}</TableCell>
-                                <TableCell>
-                                    <Badge variant={post.type === 'Job' ? 'default' : 'secondary'} className="flex items-center gap-1 w-fit">
-                                      {post.type === 'Job' ? <Briefcase className="w-3 h-3"/> : <GraduationCap className="w-3 h-3"/>}
-                                      {post.type}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>{getTestType(post.pipeline)}</TableCell>
-                                <TableCell>{formatDate(post.createdAt)}</TableCell>
-                                <TableCell className="text-right space-x-2">
-                                     <Button asChild variant="outline" size="sm">
-                                        <Link href={`/employer/skill-tests/${post.id}/view`}>
-                                          <Eye className="mr-2 h-3 w-3"/>
-                                          View Tests
-                                        </Link>
-                                    </Button>
-                                     <Button asChild size="sm">
-                                        <Link href={`/employer/skill-tests/${post.id}/create`}>
-                                          <FilePlus className="mr-2 h-3 w-3"/>
-                                          Create Test
-                                        </Link>
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {filteredPosts.map(post => {
+                            const testInfo = getTestInfo(post.pipeline);
+                            return (
+                                <TableRow key={post.id}>
+                                    <TableCell className="font-medium">{post.title}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={post.type === 'Job' ? 'default' : 'secondary'} className="flex items-center gap-1 w-fit">
+                                          {post.type === 'Job' ? <Briefcase className="w-3 h-3"/> : <GraduationCap className="w-3 h-3"/>}
+                                          {post.type}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>{testInfo.badge}</TableCell>
+                                    <TableCell>{formatDate(post.createdAt)}</TableCell>
+                                    <TableCell className="text-right space-x-2">
+                                         <Button asChild variant="outline" size="sm">
+                                            <Link href={`/employer/skill-tests/${post.id}/view`}>
+                                              <Eye className="mr-2 h-3 w-3"/>
+                                              View Tests
+                                            </Link>
+                                        </Button>
+                                        {testInfo.isAi ? (
+                                            <Button size="sm" disabled>
+                                                <CheckCircle className="mr-2 h-3 w-3"/>
+                                                AI Test Enabled
+                                            </Button>
+                                        ) : (
+                                            <Button asChild size="sm">
+                                                <Link href={`/employer/skill-tests/${post.id}/create`}>
+                                                <FilePlus className="mr-2 h-3 w-3"/>
+                                                Create Test
+                                                </Link>
+                                            </Button>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
                     </TableBody>
                 </Table>
             )}
