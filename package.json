@@ -10,10 +10,11 @@
     "build": "next build",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "start": "next start --hostname 0.0.0.0 --port ${PORT:-8080}",
+    "start": "sh -c \"next start --hostname 0.0.0.0 -p $PORT\"",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
+
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",
     "@genkit-ai/next": "^1.20.0",
