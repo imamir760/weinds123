@@ -1,24 +1,29 @@
-# Stage 1: Install dependencies and build the Next.js application
+# Dockerfile (multi-stage, works with npm)
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
-COPY . .
-RUN yarn build
 
-# Stage 2: Serve the Next.js application
+# copy package files (works whether you have package-lock.json or not)
+COPY package*.json ./
+
+# install all deps (includes dev deps so next is available for build)
+RUN npm ci
+
+# copy everything and build
+COPY . .
+RUN npm run build
+
+# final image
 FROM node:20-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV production
-# Copy build output from the builder stage
-COPY --from=builder /app/.next ./.next
+
+# copy built output and node_modules from builder
+COPY --from=builder /app/.next .next
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/public ./public # Copy public assets if any
-# If you have a custom server.js, copy it here
-# COPY --from=builder /app/server.js ./server.js
 
-EXPOSE 8080 # This line documents that the container listens on port 8080
+EXPOSE 8080
+ENV PORT 8080
 
-# Command to run the Next.js application in production
-CMD ["yarn", "start"]
+# start using the local next binary and bind to 0.0.0.0
+CMD ["sh","-c","node_modules/.bin/next start --hostname 0.0.0.0 -p $PORT"]
