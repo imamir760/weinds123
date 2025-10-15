@@ -89,6 +89,10 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
             
             const generatedTest = await generateSkillTest({ jobDescription, candidateSkills: candidateData.skills || [] });
             
+            if (!generatedTest || !generatedTest.questions) {
+              throw new Error("An unexpected response was received from the server.");
+            }
+            
             setTest(generatedTest);
             setAnswers(new Array(generatedTest.questions.length).fill(undefined));
 
@@ -143,12 +147,12 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
             <p className="text-muted-foreground">Generating your personalized skill test...</p>
           </CardContent>
         </Card>
-      ) : error ? (
+      ) : error || !currentQuestion ? (
          <Card className="max-w-4xl mx-auto">
           <CardContent className="h-96 flex flex-col items-center justify-center text-center">
              <AlertCircle className="w-12 h-12 text-destructive mb-4" />
              <h3 className="text-xl font-semibold text-destructive">Could not generate test</h3>
-            <p className="text-muted-foreground mt-2">{error}</p>
+            <p className="text-muted-foreground mt-2">{error || "An unknown error occurred."}</p>
              <Button asChild variant="outline" className="mt-6">
                 <Link href="/candidate/skill-tests">
                     <ChevronLeft className="mr-2"/> Back to Tests
