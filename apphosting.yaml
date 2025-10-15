@@ -1,20 +1,7 @@
 # https://firebase.google.com/docs/app-hosting/configure
 version: 1
 run:
-  # The command to start your app
-  # This is automatically detected for Next.js
-  # command: 'npm start'
-  # The port your app listens on
-  port: 9002
+  command: npm start
 build:
-  # The command to build your app
-  # This is automatically detected for Next.js
-  # command: 'npm run build'
-  # The directory to serve your app from
-  # This is automatically detected for Next.js
-  # outputDirectory: '.next'
-# This section is not needed for a basic Next.js app
-# but is included for completeness
-# env:
-#   - variable: 'NODE_ENV'
-#     value: 'production'
+  command: npm run build
+  outputDirectory: .next
