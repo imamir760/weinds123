@@ -14,23 +14,28 @@ import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, Timestamp, query, where } from 'firebase/firestore';
-import { Loader2, TestTube2, Building, FileText } from 'lucide-react';
+import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc } from 'firebase/firestore';
+import { Loader2, TestTube2, Building, FileText, Download, Upload } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 interface ApplicationForTest extends DocumentData {
   id: string; // application id
   postTitle: string;
   companyName: string;
   postId: string;
+  postType: 'job' | 'internship';
+  testType?: 'ai' | 'traditional';
+  testFileUrl?: string; // For traditional tests
 }
 
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const [skillTests, setSkillTests] = useState<ApplicationForTest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submissionFiles, setSubmissionFiles] = useState<{[key: string]: File | null}>({});
 
   useEffect(() => {
     if (user) {
@@ -39,10 +44,38 @@ export default function SkillTestsPage() {
       // Query for applications that are in the 'Skill Test' stage for the current candidate
       const q = query(appsRef, where('candidateId', '==', user.uid), where('status', '==', 'Skill Test'));
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const tests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ApplicationForTest));
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
+        const testsPromises = snapshot.docs.map(async (appDoc) => {
+          const appData = appDoc.data() as ApplicationForTest;
+          const postRef = doc(db, appData.postType === 'job' ? 'jobs' : 'internships', appData.postId);
+          
+          try {
+            const postSnap = await getDoc(postRef);
+            if (postSnap.exists()) {
+                const postData = postSnap.data();
+                const pipeline = postData.pipeline || [];
+                const skillTestStage = pipeline.find((p: any) => p.stage === 'Skill Test');
+                appData.testType = skillTestStage?.type;
+                // In a real app, you'd get this from the test document
+                if (appData.testType === 'traditional') {
+                    appData.testFileUrl = '#'; // Placeholder
+                }
+            }
+          } catch (e) {
+             console.error("Could not fetch post details for skill test", e);
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: postRef.path,
+                operation: 'get',
+             }));
+          }
+          
+          return { id: appDoc.id, ...appData } as ApplicationForTest;
+        });
+
+        const tests = await Promise.all(testsPromises);
         setSkillTests(tests);
         setLoading(false);
+
       },
       async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -58,6 +91,23 @@ export default function SkillTestsPage() {
       setLoading(false);
     }
   }, [user]);
+
+  const handleFileChange = (testId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSubmissionFiles(prev => ({...prev, [testId]: e.target.files![0]}));
+    }
+  }
+
+  const handleSubmitTraditionalTest = (testId: string) => {
+      const file = submissionFiles[testId];
+      if (!file) {
+          alert("Please select a file to submit.");
+          return;
+      }
+      // In a real app, you would upload this file to Firebase Storage
+      // and then update the application/skillTest status.
+      alert(`Submitting ${file.name} for test ${testId}.`);
+  }
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
@@ -79,7 +129,7 @@ export default function SkillTestsPage() {
           ) : skillTests.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No skill tests</h3>
+              <h3 className="mt-2 text-sm font-medium">No skill tests</h3>
               <p className="mt-1 text-sm text-gray-500">You have not been assigned any skill tests yet.</p>
             </div>
           ) : (
@@ -92,16 +142,47 @@ export default function SkillTestsPage() {
                                 <Building className="w-4 h-4" /> {test.companyName || 'A Company'}
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <span>Status:</span>
                                 <Badge variant="default">Pending</Badge>
-                           </div>
-                           <div>
-                                <Button asChild>
-                                    <Link href={`/candidate/skill-tests/${test.postId}`}>Start Test</Link>
-                                </Button>
-                           </div>
+                                <span className="text-muted-foreground/50">|</span>
+                                <span>Type:</span>
+                                <Badge variant="secondary" className="capitalize">{test.testType || 'N/A'}</Badge>
+                            </div>
+
+                            {test.testType === 'ai' && (
+                                <div className="p-4 border rounded-lg bg-secondary/50">
+                                    <p className="text-sm text-muted-foreground mb-4">This is an AI-powered test. Your responses will be evaluated automatically. Please ensure you have a stable internet connection.</p>
+                                    <Button asChild>
+                                        <Link href={`/candidate/skill-tests/${test.postId}`}>Start Test</Link>
+                                    </Button>
+                                </div>
+                            )}
+
+                             {test.testType === 'traditional' && (
+                                <div className="p-4 border rounded-lg bg-secondary/50 space-y-4">
+                                   <div>
+                                        <h4 className="font-semibold mb-2">Step 1: Download Test</h4>
+                                        <p className="text-sm text-muted-foreground mb-3">Download the test file provided by the employer.</p>
+                                        <Button asChild variant="outline">
+                                            <a href={test.testFileUrl} download>
+                                                <Download className="mr-2"/> Download Test File
+                                            </a>
+                                        </Button>
+                                   </div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Step 2: Submit Your Work</h4>
+                                        <p className="text-sm text-muted-foreground mb-3">Upload your completed test file (PDF, DOC, or code).</p>
+                                        <div className="flex items-center gap-2">
+                                            <Input id={`file-upload-${test.id}`} type="file" className="max-w-xs" onChange={(e) => handleFileChange(test.id, e)}/>
+                                            <Button onClick={() => handleSubmitTraditionalTest(test.id)} disabled={!submissionFiles[test.id]}>
+                                                <Upload className="mr-2"/> Submit
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 ))}
@@ -114,3 +195,5 @@ export default function SkillTestsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
+    
