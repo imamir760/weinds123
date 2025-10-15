@@ -1,6 +1,42 @@
-
+# cloudbuild.yaml — REQUIRED for Studio signed-URL builds
+# Fetches signed source, extracts it into /workspace, then installs & builds.
 steps:
-- name: 'gcr.io/cloud-builders/npm'
-  args: ['install']
-- name: 'gcr.io/cloud-builders/npm'
+# 0) fetch the signed source tarball (Studio provides SIGNED_URL env var)
+- id: fetch
+  name: 'curlimages/curl:8.2.1'
+  entrypoint: 'sh'
+  args:
+    - '-c'
+    - |
+      if [ -z "$SIGNED_URL" ]; then
+        echo "ERROR: SIGNED_URL not set"
+        exit 1
+      fi
+      echo "Fetching signed source from $SIGNED_URL ..."
+      mkdir -p /workspace/source
+      curl -fsSL "$SIGNED_URL" -o /workspace/source/source.tar.gz || (echo "curl failed" && exit 1)
+      tar -xzf /workspace/source/source.tar.gz -C /workspace/source || (echo "tar failed" && exit 1)
+      # If archive has a top-level folder, move its contents into /workspace
+      shopt -s dotglob || true
+      if [ -d /workspace/source/* ]; then
+        cp -a /workspace/source/* /workspace/ || true
+      else
+        cp -a /workspace/source /workspace/ || true
+      fi
+
+# 1) install dependencies (runs in /workspace)
+- id: install
+  name: 'gcr.io/cloud-builders/npm'
+  args: ['ci']
+
+# 2) build (runs in /workspace)
+- id: build
+  name: 'gcr.io/cloud-builders/npm'
   args: ['run', 'build']
+
+# 3) (optional) export if you're using static export
+# - id: export
+#   name: 'gcr.io/cloud-builders/npm'
+#   args: ['run', 'export']
+
+images: []
