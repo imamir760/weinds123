@@ -22,14 +22,13 @@ import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc } from 'firebase/firestore';
-import { Loader2, TestTube2, Building, FileText, Download, Upload, CheckCircle, FileBarChart2, Star, ThumbsUp, ThumbsDown, AlertTriangle, FileQuestion } from 'lucide-react';
+import { Loader2, TestTube2, Building, FileText, FileBarChart2, Star, ThumbsUp, ThumbsDown, AlertTriangle, FileQuestion, CheckCircle, Upload, Download } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { EvaluateSkillTestOutput } from '@/ai/dev';
 import { useToast } from '@/hooks/use-toast';
-import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -427,5 +426,3 @@ export default function SkillTestsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
-
-    
