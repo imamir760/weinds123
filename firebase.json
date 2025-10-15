@@ -4,7 +4,7 @@
     "database": "(default)"
   },
   "apphosting": {
-    "backendId": "studio",
+    "backendId": "weinds123",
     "rootDir": "/",
     "ignore": [
       "node_modules",
