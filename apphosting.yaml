@@ -1,17 +1,20 @@
-# Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
-
-# Specifies the version of the App Hosting configuration schema.
 version: 1
-
-# Defines the build process for the application.
-# For many frameworks, like Next.js, an empty build section is sufficient
-# as App Hosting automatically detects and handles the build.
-build:
-  - # No custom build steps needed for Next.js
-
-# Defines the runtime configuration for serving the application.
 run:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
-  maxInstances: 1
+  # The command to start your app
+  # This is automatically detected for Next.js
+  # command: 'npm start'
+  # The port your app listens on
+  port: 9002
+build:
+  # The command to build your app
+  # This is automatically detected for Next.js
+  # command: 'npm run build'
+  # The directory to serve your app from
+  # This is automatically detected for Next.js
+  # outputDirectory: '.next'
+# This section is not needed for a basic Next.js app
+# but is included for completeness
+# env:
+#   - variable: 'NODE_ENV'
+#     value: 'production'
