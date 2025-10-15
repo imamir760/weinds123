@@ -4,8 +4,14 @@
 # Specifies the version of the App Hosting configuration schema.
 version: 1
 
+# Defines the build process for the application.
+# For many frameworks, like Next.js, an empty build section is sufficient
+# as App Hosting automatically detects and handles the build.
+build:
+  - # No custom build steps needed for Next.js
+
 # Defines the runtime configuration for serving the application.
-runConfig:
+run:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
