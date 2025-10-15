@@ -93,8 +93,9 @@ export default function SkillTestsPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                           <div className="flex gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                                <p>Status: <Badge variant="default">Pending</Badge></p>
+                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>Status:</span>
+                                <Badge variant="default">Pending</Badge>
                            </div>
                            <div>
                                 <Button asChild>
