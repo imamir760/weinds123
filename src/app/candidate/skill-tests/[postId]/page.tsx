@@ -14,7 +14,7 @@ import Link from 'next/link';
 import CandidateDashboardLayout from '../../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, DocumentData, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Loader2, Clock, Check, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -25,23 +25,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
+import { useRouter } from 'next/navigation';
 
 type Question = GenerateSkillTestOutput['questions'][0];
 
 export default function StartSkillTestPage({ params }: { params: { postId: string } }) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const resolvedParams = use(params);
   const postId = resolvedParams.postId;
 
   const [test, setTest] = useState<GenerateSkillTestOutput | null>(null);
-  const [testDetails, setTestDetails] = useState<{title: string, companyName: string, duration: number, postType: 'job' | 'internship'} | null>(null);
+  const [testDetails, setTestDetails] = useState<{title: string, companyName: string, duration: number, postType: 'job' | 'internship', employerId: string} | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<(string | undefined)[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
     if (user && postId) {
@@ -82,6 +84,7 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
                 companyName: postData.companyName,
                 duration: 60, // Default to 60 mins
                 postType: postType,
+                employerId: postData.employerId
             });
             setTimeLeft(60 * 60); // 60 minutes in seconds
 
@@ -112,11 +115,16 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
   }, [user, postId]);
   
   useEffect(() => {
-    if (timeLeft > 0 && test) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+    if (timeLeft > 0 && test && !isSubmitting) {
+      const timer = setTimeout(() => {
+        if (timeLeft === 1) {
+            handleSubmit();
+        }
+        setTimeLeft(timeLeft - 1)
+      }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [timeLeft, test]);
+  }, [timeLeft, test, isSubmitting]);
 
   const handleAnswerChange = (value: string) => {
     const newAnswers = [...answers];
@@ -130,13 +138,45 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSubmit = () => {
-    // In a real app, save test results to Firestore
-    toast({
-        title: "Test Submitted!",
-        description: "Your responses have been recorded. You will be notified of the results.",
-    });
-     // Redirect or show a completion screen
+  const handleSubmit = async () => {
+    if (isSubmitting || !user || !test || !testDetails) return;
+    setIsSubmitting(true);
+
+    const submissionData = {
+        candidateId: user.uid,
+        postId: postId,
+        postType: testDetails.postType,
+        employerId: testDetails.employerId,
+        submittedAt: serverTimestamp(),
+        submission: test.questions.map((q, index) => ({
+            questionText: q.questionText,
+            candidateAnswer: answers[index] || '',
+            correctAnswer: q.correctAnswer
+        }))
+    };
+
+    try {
+        await addDoc(collection(db, 'skillTestSubmissions'), submissionData);
+        toast({
+            title: "Test Submitted!",
+            description: "Your responses have been recorded. You will be notified of the results.",
+        });
+        router.push('/candidate/skill-tests');
+
+    } catch(serverError: any) {
+        const permissionError = new FirestorePermissionError({
+            path: '/skillTestSubmissions',
+            operation: 'create',
+            requestResourceData: submissionData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+            title: "Submission Failed",
+            description: "There was an error submitting your test. Please try again.",
+            variant: "destructive"
+        });
+        setIsSubmitting(false);
+    }
   }
 
   const currentQuestion = test?.questions[currentQuestionIndex];
@@ -210,19 +250,22 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
                         <Button
                             variant="outline"
                             onClick={() => setCurrentQuestionIndex(currentQuestionIndex - 1)}
-                            disabled={currentQuestionIndex === 0}
+                            disabled={currentQuestionIndex === 0 || isSubmitting}
                         >
                             <ChevronLeft className="mr-2"/> Previous
                         </Button>
                         
                         {currentQuestionIndex < test.questions.length - 1 ? (
-                            <Button onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)}>
+                            <Button onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)} disabled={isSubmitting}>
                                 Next <ChevronRight className="ml-2"/>
                             </Button>
                         ) : (
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="default">Submit Test</Button>
+                                    <Button variant="default" disabled={isSubmitting}>
+                                      {isSubmitting && <Loader2 className="mr-2 animate-spin"/>}
+                                      Submit Test
+                                    </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>

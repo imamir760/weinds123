@@ -230,6 +230,30 @@
         }
       },
       "required": ["title", "postId", "postType", "employerId", "createdAt"]
+    },
+    "SkillTestSubmission": {
+      "title": "Skill Test Submission",
+      "description": "Stores a candidate's submission for a skill test.",
+      "type": "object",
+      "properties": {
+        "candidateId": { "type": "string" },
+        "postId": { "type": "string" },
+        "postType": { "type": "string", "enum": ["job", "internship"] },
+        "employerId": { "type": "string" },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "submission": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "questionText": { "type": "string" },
+              "candidateAnswer": { "type": "string" },
+              "correctAnswer": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["candidateId", "postId", "postType", "employerId", "submittedAt", "submission"]
     }
   },
   "auth": {
@@ -263,6 +287,10 @@
     "/skill_tests/{testId}": {
       "schema": { "$ref": "#/entities/SkillTest" },
       "description": "Stores all skill tests created by employers."
+    },
+    "/skillTestSubmissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/SkillTestSubmission" },
+      "description": "Stores all candidate submissions for skill tests."
     }
   }
 }
