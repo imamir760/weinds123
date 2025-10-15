@@ -15,42 +15,38 @@ import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, DocumentData, Timestamp, query, where } from 'firebase/firestore';
-import { Loader2, TestTube2, Building, Clock, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+import { Loader2, TestTube2, Building, FileText } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Badge } from '@/components/ui/badge';
 
-interface SkillTest extends DocumentData {
-  id: string;
-  title: string;
-  employerId: string;
+interface ApplicationForTest extends DocumentData {
+  id: string; // application id
+  postTitle: string;
   companyName: string;
-  duration: number; // in minutes
-  createdAt: Timestamp;
-  status: 'pending' | 'completed';
-  candidateId: string;
+  postId: string;
 }
 
 export default function SkillTestsPage() {
   const { user } = useAuth();
-  const [skillTests, setSkillTests] = useState<SkillTest[]>([]);
+  const [skillTests, setSkillTests] = useState<ApplicationForTest[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       setLoading(true);
-      const testsRef = collection(db, 'skill_tests');
-      const q = query(testsRef, where('candidateId', '==', user.uid));
+      const appsRef = collection(db, 'applications');
+      // Query for applications that are in the 'Skill Test' stage for the current candidate
+      const q = query(appsRef, where('candidateId', '==', user.uid), where('status', '==', 'Skill Test'));
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        const tests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SkillTest));
+        const tests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ApplicationForTest));
         setSkillTests(tests);
         setLoading(false);
       },
       async (serverError) => {
         const permissionError = new FirestorePermissionError({
-            path: `skill_tests where candidateId == ${user.uid}`,
+            path: `applications where candidateId == ${user.uid} and status == 'Skill Test'`,
             operation: 'list',
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -62,12 +58,6 @@ export default function SkillTestsPage() {
       setLoading(false);
     }
   }, [user]);
-
-  const formatDate = (timestamp: Timestamp | Date | undefined) => {
-    if (!timestamp) return 'N/A';
-    const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
-    return format(date, 'MMM d, yyyy');
-  }
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
@@ -97,29 +87,19 @@ export default function SkillTestsPage() {
                 {skillTests.map((test) => (
                     <Card key={test.id}>
                         <CardHeader>
-                            <CardTitle>{test.title}</CardTitle>
+                            <CardTitle>{test.postTitle}</CardTitle>
                             <CardDescription className="flex items-center gap-2 pt-1">
                                 <Building className="w-4 h-4" /> {test.companyName || 'A Company'}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                            <div className="flex gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1.5"><Clock className="h-4 w-4"/> {test.duration} minutes</div>
-                                <div className="flex items-center gap-1.5">
-                                    <p>Status:</p>
-                                    <Badge variant={test.status === 'completed' ? 'secondary' : 'default'} className="capitalize">{test.status}</Badge>
-                                </div>
+                                <p>Status: <Badge variant="default">Pending</Badge></p>
                            </div>
                            <div>
-                                {test.status === 'pending' ? (
-                                    <Button asChild>
-                                        <Link href={`/candidate/skill-tests/${test.id}`}>Start Test</Link>
-                                    </Button>
-                                ) : (
-                                     <Button variant="outline" asChild>
-                                         <Link href={`/candidate/skill-tests/${test.id}/result`}>View Result</Link>
-                                     </Button>
-                                )}
+                                <Button asChild>
+                                    <Link href={`/candidate/skill-tests/${test.postId}`}>Start Test</Link>
+                                </Button>
                            </div>
                         </CardContent>
                     </Card>
