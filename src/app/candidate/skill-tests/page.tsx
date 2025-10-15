@@ -22,7 +22,7 @@ import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc } from 'firebase/firestore';
-import { Loader2, TestTube2, Building, FileText, Download, Upload, CheckCircle, FileBarChart2, Star, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Loader2, TestTube2, Building, FileText, Download, Upload, CheckCircle, FileBarChart2, Star, ThumbsUp, ThumbsDown, AlertTriangle, FileQuestion } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,7 @@ import { EvaluateSkillTestOutput } from '@/ai/dev';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface ApplicationForTest extends DocumentData {
   id: string; // application id
@@ -45,13 +46,19 @@ interface ApplicationForTest extends DocumentData {
 interface Report extends EvaluateSkillTestOutput {
     id: string;
     generatedAt: Timestamp;
+    submission: {
+      questionText: string;
+      candidateAnswer: string;
+
+      correctAnswer: string;
+    }[];
 }
 
 const ReportDialog = ({ report, open, onOpenChange }: { report: Report | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
     if (!report) return null;
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2"><FileBarChart2 /> Skill Test Report</DialogTitle>
                     <DialogDescription>Generated on {new Date(report.generatedAt.seconds * 1000).toLocaleDateString()}</DialogDescription>
@@ -93,6 +100,39 @@ const ReportDialog = ({ report, open, onOpenChange }: { report: Report | null, o
                             </CardContent>
                         </Card>
                     </div>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><FileQuestion/> Detailed Analysis</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                             <Accordion type="single" collapsible className="w-full">
+                                {report.submission?.map((item, index) => {
+                                    const isCorrect = item.candidateAnswer.toLowerCase().trim() === item.correctAnswer.toLowerCase().trim();
+                                    return (
+                                        <AccordionItem value={`item-${index}`} key={index}>
+                                            <AccordionTrigger>
+                                                <div className="flex items-center gap-3">
+                                                     {isCorrect ? <CheckCircle className="w-5 h-5 text-green-500"/> : <AlertTriangle className="w-5 h-5 text-destructive"/> }
+                                                     <span className="text-left">Question {index + 1}</span>
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="space-y-4">
+                                                <p className="font-semibold">{item.questionText}</p>
+                                                <div>
+                                                    <p className="text-sm font-medium">Your Answer:</p>
+                                                    <p className="text-sm text-muted-foreground mt-1 p-2 bg-secondary rounded">{item.candidateAnswer || '(Not answered)'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium">Correct Answer:</p>
+                                                    <p className="text-sm text-muted-foreground mt-1 p-2 bg-secondary rounded">{item.correctAnswer}</p>
+                                                </div>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    )
+                                })}
+                            </Accordion>
+                        </CardContent>
+                    </Card>
                 </div>
             </DialogContent>
         </Dialog>
@@ -339,3 +379,5 @@ export default function SkillTestsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
+    

@@ -125,7 +125,7 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
       }, 1000);
       return () => clearTimeout(timerId);
     }
-  }, [timeLeft, test, isSubmitting]);
+  }, [timeLeft, test, isSubmitting, handleSubmit]);
 
   const handleAnswerChange = (value: string) => {
     const newAnswers = [...answers];
@@ -181,7 +181,8 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
                 submissionId: submissionDocRef.id,
                 candidateId: user.uid,
                 postId: postId,
-                generatedAt: serverTimestamp()
+                generatedAt: serverTimestamp(),
+                submission: submission, // Also store the submission data in the report
             };
             await addDoc(collection(db, 'skillTestReports'), reportData);
             toast({
@@ -330,3 +331,5 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
+    

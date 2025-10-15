@@ -251,10 +251,6 @@
               "correctAnswer": { "type": "string" }
             }
           }
-        },
-        "reportId": {
-          "type": "string",
-          "description": "The ID of the generated evaluation report."
         }
       },
       "required": ["candidateId", "postId", "postType", "employerId", "submittedAt", "submission"]
@@ -271,9 +267,21 @@
         "score": { "type": "number" },
         "summary": { "type": "string" },
         "strengths": { "type": "array", "items": { "type": "string" } },
-        "areasForImprovement": { "type": "array", "items": { "type": "string" } }
+        "areasForImprovement": { "type": "array", "items": { "type": "string" } },
+        "submission": {
+          "type": "array",
+          "description": "The original submission data for reference.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "questionText": { "type": "string" },
+              "candidateAnswer": { "type": "string" },
+              "correctAnswer": { "type": "string" }
+            }
+          }
+        }
       },
-      "required": ["submissionId", "candidateId", "postId", "generatedAt", "score", "summary"]
+      "required": ["submissionId", "candidateId", "postId", "generatedAt", "score", "summary", "submission"]
     }
   },
   "auth": {
@@ -318,3 +326,5 @@
     }
   }
 }
+
+    
