@@ -68,8 +68,25 @@ const ReportDialog = ({ report, open, onOpenChange }: { report: Report | null, o
                             <CardTitle>Overall Score</CardTitle>
                         </CardHeader>
                         <CardContent className="flex items-center gap-4">
-                            <div className="relative">
-                                <Progress value={report.score} className="w-24 h-24 rounded-full [&>div]:bg-primary" style={{ clipPath: 'circle(50% at 50% 50%)' }}/>
+                             <div className="relative w-24 h-24">
+                                <svg className="w-full h-full" viewBox="0 0 36 36">
+                                    <path
+                                        className="text-gray-200 dark:text-gray-700"
+                                        stroke="currentColor"
+                                        strokeWidth="2.5"
+                                        fill="none"
+                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    />
+                                    <path
+                                        className="text-primary"
+                                        stroke="currentColor"
+                                        strokeWidth="2.5"
+                                        strokeDasharray={`${report.score}, 100`}
+                                        strokeLinecap="round"
+                                        fill="none"
+                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    />
+                                </svg>
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <span className="text-2xl font-bold">{report.score}</span>
                                 </div>
@@ -106,7 +123,7 @@ const ReportDialog = ({ report, open, onOpenChange }: { report: Report | null, o
                         <CardContent>
                              <Accordion type="single" collapsible className="w-full">
                                 {report.submission?.map((item, index) => {
-                                    const isCorrect = item.candidateAnswer.toLowerCase().trim() === item.correctAnswer.toLowerCase().trim();
+                                    const isCorrect = item.candidateAnswer?.trim().toLowerCase() === item.correctAnswer?.trim().toLowerCase();
                                     return (
                                         <AccordionItem value={`item-${index}`} key={index}>
                                             <AccordionTrigger>
@@ -121,10 +138,12 @@ const ReportDialog = ({ report, open, onOpenChange }: { report: Report | null, o
                                                     <p className="text-sm font-medium">Your Answer:</p>
                                                     <p className="text-sm text-muted-foreground mt-1 p-2 bg-secondary rounded">{item.candidateAnswer || '(Not answered)'}</p>
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-medium">Correct Answer:</p>
-                                                    <p className="text-sm text-muted-foreground mt-1 p-2 bg-secondary rounded">{item.correctAnswer}</p>
-                                                </div>
+                                                {!isCorrect && (
+                                                    <div>
+                                                        <p className="text-sm font-medium">Correct Answer:</p>
+                                                        <p className="text-sm text-muted-foreground mt-1 p-2 bg-secondary rounded">{item.correctAnswer}</p>
+                                                    </div>
+                                                )}
                                             </AccordionContent>
                                         </AccordionItem>
                                     )
