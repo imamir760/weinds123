@@ -8,6 +8,8 @@ RUN npm ci
 
 # copy source and build
 COPY . .
+RUN mkdir -p public
+
 RUN npm run build
 
 # runtime image

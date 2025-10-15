@@ -114,32 +114,7 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
     }
   }, [user, postId]);
   
-  useEffect(() => {
-    if (timeLeft > 0 && test && !isSubmitting) {
-      const timerId = setTimeout(() => {
-        const newTimeLeft = timeLeft - 1;
-        setTimeLeft(newTimeLeft);
-        if (newTimeLeft <= 0) {
-            handleSubmit(true); // Auto-submit when timer reaches zero
-        }
-      }, 1000);
-      return () => clearTimeout(timerId);
-    }
-  }, [timeLeft, test, isSubmitting, handleSubmit]);
-
-  const handleAnswerChange = (value: string) => {
-    const newAnswers = [...answers];
-    newAnswers[currentQuestionIndex] = value;
-    setAnswers(newAnswers);
-  };
-  
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleSubmit = async (autoSubmitted = false) => {
+  const handleSubmit = useCallback(async (autoSubmitted = false) => {
     if (isSubmitting || !user || !test || !testDetails) return;
     setIsSubmitting(true);
     
@@ -182,7 +157,6 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
                 candidateId: user.uid,
                 postId: postId,
                 generatedAt: serverTimestamp(),
-                submission: submission, // Also store the submission data in the report
             };
             await addDoc(collection(db, 'skillTestReports'), reportData);
             toast({
@@ -217,7 +191,32 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
         });
         setIsSubmitting(false);
     }
-  }
+  }, [answers, isSubmitting, postId, router, test, testDetails, toast, user]);
+
+  useEffect(() => {
+    if (timeLeft > 0 && test && !isSubmitting) {
+      const timerId = setTimeout(() => {
+        const newTimeLeft = timeLeft - 1;
+        setTimeLeft(newTimeLeft);
+        if (newTimeLeft <= 0) {
+            handleSubmit(true); // Auto-submit when timer reaches zero
+        }
+      }, 1000);
+      return () => clearTimeout(timerId);
+    }
+  }, [timeLeft, test, isSubmitting, handleSubmit]);
+
+  const handleAnswerChange = (value: string) => {
+    const newAnswers = [...answers];
+    newAnswers[currentQuestionIndex] = value;
+    setAnswers(newAnswers);
+  };
+  
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const currentQuestion = test?.questions[currentQuestionIndex];
   const progress = test ? ((currentQuestionIndex + 1) / test.questions.length) * 100 : 0;
@@ -331,5 +330,3 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
-
-    

@@ -43,9 +43,15 @@ interface ApplicationForTest extends DocumentData {
   testFileUrl?: string; // For traditional tests
 }
 
-interface Report extends EvaluateSkillTestOutput {
-    id: string;
+type ReportEvaluation = Omit<EvaluateSkillTestOutput, 'submission'>;
+
+interface Report extends ReportEvaluation {
+    id: string; // reportId
+    submissionId: string;
     generatedAt: Timestamp;
+}
+
+interface FullReport extends Report {
     submission: {
       questionText: string;
       candidateAnswer: string;
@@ -53,7 +59,8 @@ interface Report extends EvaluateSkillTestOutput {
     }[];
 }
 
-const ReportDialog = ({ report, open, onOpenChange }: { report: Report | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
+
+const ReportDialog = ({ report, open, onOpenChange }: { report: FullReport | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
     if (!report) return null;
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -165,7 +172,7 @@ export default function SkillTestsPage() {
   const [reports, setReports] = useState<{[key: string]: Report}>({});
   const [loading, setLoading] = useState(true);
   const [submissionFiles, setSubmissionFiles] = useState<{[key: string]: File | null}>({});
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [selectedReport, setSelectedReport] = useState<FullReport | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   useEffect(() => {
@@ -273,11 +280,34 @@ export default function SkillTestsPage() {
       toast({ title: `Submitting ${file.name} for test ${testId}.` });
   }
   
-  const handleViewReport = (postId: string) => {
+  const handleViewReport = async (postId: string) => {
     const report = reports[postId];
-    if (report) {
-      setSelectedReport(report);
-      setIsReportOpen(true);
+    if (!report) {
+        toast({ title: "Report not found.", variant: "destructive" });
+        return;
+    }
+
+    try {
+        const submissionRef = doc(db, 'skillTestSubmissions', report.submissionId);
+        const submissionSnap = await getDoc(submissionRef);
+        if (!submissionSnap.exists()) {
+            throw new Error("Submission details could not be found.");
+        }
+        const submissionData = submissionSnap.data();
+        
+        const fullReport: FullReport = {
+            ...report,
+            submission: submissionData.submission,
+        };
+
+        setSelectedReport(fullReport);
+        setIsReportOpen(true);
+    } catch (error: any) {
+        toast({ title: "Error opening report", description: error.message, variant: "destructive"});
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: `skillTestSubmissions/${report.submissionId}`,
+            operation: 'get',
+        }));
     }
   };
 
@@ -397,3 +427,5 @@ export default function SkillTestsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
+    

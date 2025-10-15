@@ -230,6 +230,46 @@
         }
       },
       "required": ["title", "postId", "postType", "employerId", "createdAt"]
+    },
+    "SkillTestSubmission": {
+      "title": "Skill Test Submission",
+      "description": "Stores a candidate's submission for a skill test.",
+      "type": "object",
+      "properties": {
+        "candidateId": { "type": "string" },
+        "postId": { "type": "string" },
+        "postType": { "type": "string", "enum": ["job", "internship"] },
+        "employerId": { "type": "string" },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "submission": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "questionText": { "type": "string" },
+              "candidateAnswer": { "type": "string" },
+              "correctAnswer": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["candidateId", "postId", "postType", "employerId", "submittedAt", "submission"]
+    },
+    "SkillTestReport": {
+      "title": "Skill Test Report",
+      "description": "Stores the AI-generated evaluation of a skill test submission.",
+      "type": "object",
+      "properties": {
+        "submissionId": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "postId": { "type": "string" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "score": { "type": "number" },
+        "summary": { "type": "string" },
+        "strengths": { "type": "array", "items": { "type": "string" } },
+        "areasForImprovement": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["submissionId", "candidateId", "postId", "generatedAt", "score", "summary"]
     }
   },
   "auth": {
@@ -263,6 +303,14 @@
     "/skill_tests/{testId}": {
       "schema": { "$ref": "#/entities/SkillTest" },
       "description": "Stores all skill tests created by employers."
+    },
+    "/skillTestSubmissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/SkillTestSubmission" },
+      "description": "Stores all candidate submissions for skill tests."
+    },
+    "/skillTestReports/{reportId}": {
+        "schema": { "$ref": "#/entities/SkillTestReport" },
+        "description": "Stores AI-generated reports for skill test submissions."
     }
   }
 }
