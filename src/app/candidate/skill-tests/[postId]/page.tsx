@@ -85,7 +85,11 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
             });
             setTimeLeft(60 * 60); // 60 minutes in seconds
 
-            const jobDescription = `Title: ${postData.title}\nResponsibilities: ${postData.responsibilities}\nSkills: ${postData.skills}`;
+            const jobDescription = `
+                Title: ${postData.title}\n
+                Responsibilities: ${postData.responsibilities}\n
+                Required Skills: ${postData.skills}
+            `;
             
             const generatedTest = await generateSkillTest({ jobDescription, candidateSkills: candidateData.skills || [] });
             
