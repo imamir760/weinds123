@@ -50,20 +50,20 @@ export const ReportDialog = ({ report, open, onOpenChange }: { report: FullRepor
                         <CardHeader>
                             <CardTitle>Overall Score</CardTitle>
                         </CardHeader>
-                        <CardContent className="flex items-center gap-4">
-                             <div className="relative w-24 h-24">
+                        <CardContent className="flex flex-col md:flex-row items-center gap-6">
+                             <div className="relative w-32 h-32 shrink-0">
                                 <svg className="w-full h-full" viewBox="0 0 36 36">
                                     <path
                                         className="text-gray-200 dark:text-gray-700"
                                         stroke="currentColor"
-                                        strokeWidth="2.5"
+                                        strokeWidth="3"
                                         fill="none"
                                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                     />
                                     <path
                                         className="text-primary"
                                         stroke="currentColor"
-                                        strokeWidth="2.5"
+                                        strokeWidth="3"
                                         strokeDasharray={`${report.score}, 100`}
                                         strokeLinecap="round"
                                         fill="none"
@@ -71,10 +71,10 @@ export const ReportDialog = ({ report, open, onOpenChange }: { report: FullRepor
                                     />
                                 </svg>
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-2xl font-bold">{report.score}</span>
+                                    <span className="text-4xl font-bold">{report.score}</span>
                                 </div>
                             </div>
-                            <p className="flex-1 text-muted-foreground">{report.summary}</p>
+                            <p className="flex-1 text-muted-foreground text-sm">{report.summary}</p>
                         </CardContent>
                     </Card>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -118,7 +118,7 @@ export const ReportDialog = ({ report, open, onOpenChange }: { report: FullRepor
                                             <AccordionContent className="space-y-4">
                                                 <p className="font-semibold">{item.questionText}</p>
                                                 <div>
-                                                    <p className="text-sm font-medium">Your Answer:</p>
+                                                    <p className="text-sm font-medium">Candidate's Answer:</p>
                                                     <p className="text-sm text-muted-foreground mt-1 p-2 bg-secondary rounded">{item.candidateAnswer || '(Not answered)'}</p>
                                                 </div>
                                                 {!isCorrect && (
