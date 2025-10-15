@@ -1,7 +1,8 @@
-# https://firebase.google.com/docs/app-hosting/configure
-version: 1
-run:
-  command: npm start
+runConfig:
+  cpu: 1
+  memoryMiB: 512
 build:
   command: npm install && npm run build
-  outputDirectory: .next
+run:
+  command: npm run start
+  exposedPort: 3000
