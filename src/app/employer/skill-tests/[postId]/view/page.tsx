@@ -25,6 +25,8 @@ import { format } from 'date-fns';
 
 type ReportWithCandidate = FullReport & {
   candidateName: string;
+  candidateId: string;
+  postType: 'job' | 'internship';
 };
 
 export default function ViewSkillTestsPage({ params }: { params: { postId: string } }) {
@@ -51,6 +53,8 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
         // Fetch post title
         const jobRef = doc(db, 'jobs', resolvedParams.postId);
         const internRef = doc(db, 'internships', resolvedParams.postId);
+        let postType: 'job' | 'internship' = 'job';
+        
         const jobSnap = await getDoc(jobRef);
         if (jobSnap.exists()) {
           setPostTitle(jobSnap.data().title);
@@ -58,6 +62,7 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
           const internSnap = await getDoc(internRef);
           if (internSnap.exists()) {
             setPostTitle(internSnap.data().title);
+            postType = 'internship';
           }
         }
 
@@ -90,6 +95,8 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
             ...report,
             submission: submissionData.submission,
             candidateName,
+            candidateId: report.candidateId,
+            postType: postType,
           });
         }
         
@@ -154,7 +161,7 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
                                             <AvatarFallback>{report.candidateName.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <div>
-                                            <p className="font-semibold">{report.candidateName}</p>
+                                            <Link href={`/employer/${report.postType}s/${report.postId}/candidates/${report.candidateId}`} className="font-semibold hover:underline">{report.candidateName}</Link>
                                             <p className="text-sm text-muted-foreground">Score: {report.score}/100</p>
                                         </div>
                                     </div>
