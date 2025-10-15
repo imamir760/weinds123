@@ -49,7 +49,6 @@ interface Report extends EvaluateSkillTestOutput {
     submission: {
       questionText: string;
       candidateAnswer: string;
-
       correctAnswer: string;
     }[];
 }
