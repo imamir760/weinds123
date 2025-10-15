@@ -27,6 +27,7 @@ import { conductAiInterview } from './conduct-ai-interview';
 import { matchJobCandidate } from './match-job-candidate';
 import { diagnoseError } from './diagnose-error';
 import { generateSkillTest } from './generate-skill-test';
+import { evaluateSkillTest } from './evaluate-skill-test';
 
 import type {
   GenerateLearningRoadmapInput,
@@ -60,6 +61,11 @@ import type {
   GenerateSkillTestInput,
   GenerateSkillTestOutput,
 } from '../schemas/generate-skill-test-schema';
+import type {
+  EvaluateSkillTestInput,
+  EvaluateSkillTestOutput,
+} from '../schemas/evaluate-skill-test-schema';
+
 
 export {
   generateLearningRoadmap,
@@ -70,6 +76,7 @@ export {
   matchJobCandidate,
   diagnoseError,
   generateSkillTest,
+  evaluateSkillTest,
 };
 export type {
   GenerateLearningRoadmapInput,
@@ -88,4 +95,6 @@ export type {
   DiagnoseErrorOutput,
   GenerateSkillTestInput,
   GenerateSkillTestOutput,
+  EvaluateSkillTestInput,
+  EvaluateSkillTestOutput,
 };

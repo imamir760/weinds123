@@ -251,9 +251,29 @@
               "correctAnswer": { "type": "string" }
             }
           }
+        },
+        "reportId": {
+          "type": "string",
+          "description": "The ID of the generated evaluation report."
         }
       },
       "required": ["candidateId", "postId", "postType", "employerId", "submittedAt", "submission"]
+    },
+    "SkillTestReport": {
+      "title": "Skill Test Report",
+      "description": "Stores the AI-generated evaluation of a skill test submission.",
+      "type": "object",
+      "properties": {
+        "submissionId": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "postId": { "type": "string" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "score": { "type": "number" },
+        "summary": { "type": "string" },
+        "strengths": { "type": "array", "items": { "type": "string" } },
+        "areasForImprovement": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["submissionId", "candidateId", "postId", "generatedAt", "score", "summary"]
     }
   },
   "auth": {
@@ -291,6 +311,10 @@
     "/skillTestSubmissions/{submissionId}": {
       "schema": { "$ref": "#/entities/SkillTestSubmission" },
       "description": "Stores all candidate submissions for skill tests."
+    },
+    "/skillTestReports/{reportId}": {
+        "schema": { "$ref": "#/entities/SkillTestReport" },
+        "description": "Stores AI-generated reports for skill test submissions."
     }
   }
 }

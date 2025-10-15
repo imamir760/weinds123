@@ -14,12 +14,14 @@ import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc, getDocs } from 'firebase/firestore';
-import { Loader2, TestTube2, Building, FileText, Download, Upload, CheckCircle } from 'lucide-react';
+import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Loader2, TestTube2, Building, FileText, Download, Upload, CheckCircle, FileBarChart2 } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { evaluateSkillTest, EvaluateSkillTestOutput } from '@/ai/dev';
+import { useToast } from '@/hooks/use-toast';
 
 interface ApplicationForTest extends DocumentData {
   id: string; // application id
@@ -31,18 +33,25 @@ interface ApplicationForTest extends DocumentData {
   testFileUrl?: string; // For traditional tests
 }
 
+interface Report extends EvaluateSkillTestOutput {
+    id: string;
+    generatedAt: Timestamp;
+}
+
 export default function SkillTestsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [skillTests, setSkillTests] = useState<ApplicationForTest[]>([]);
   const [submittedTests, setSubmittedTests] = useState<string[]>([]);
+  const [reports, setReports] = useState<{[key: string]: Report}>({});
   const [loading, setLoading] = useState(true);
+  const [evaluating, setEvaluating] = useState<string | null>(null);
   const [submissionFiles, setSubmissionFiles] = useState<{[key: string]: File | null}>({});
 
   useEffect(() => {
     if (user) {
       setLoading(true);
 
-      // Fetch submitted test IDs
       const submissionsQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid));
       const unsubscribeSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
         const submittedPostIds = snapshot.docs.map(doc => doc.data().postId);
@@ -54,17 +63,30 @@ export default function SkillTestsPage() {
               requestResourceData: { candidateId: user.uid }
           });
           errorEmitter.emit('permission-error', permissionError);
-          // Non-fatal, the page can still function
           console.error("Could not check for submitted tests.");
       });
 
-      // Fetch applications in 'Skill Test' stage
+      const reportsQuery = query(collection(db, 'skillTestReports'), where('candidateId', '==', user.uid));
+        const unsubscribeReports = onSnapshot(reportsQuery, (snapshot) => {
+            const reportsData: {[key: string]: Report} = {};
+            snapshot.docs.forEach(doc => {
+                reportsData[doc.data().postId] = { id: doc.id, ...doc.data() } as Report;
+            });
+            setReports(reportsData);
+        }, (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: 'skillTestReports',
+                operation: 'list',
+                requestResourceData: { candidateId: user.uid }
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            console.error("Could not fetch test reports.");
+        });
+
       const appsRef = collection(db, 'applications');
       const q = query(appsRef, where('candidateId', '==', user.uid), where('status', '==', 'Skill Test'));
-
       const unsubscribeApps = onSnapshot(q, async (snapshot) => {
         const appsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ApplicationForTest));
-
         if (appsData.length === 0) {
             setSkillTests([]);
             setLoading(false);
@@ -72,7 +94,6 @@ export default function SkillTestsPage() {
         }
 
         const testsWithDetails: ApplicationForTest[] = [];
-
         for (const appData of appsData) {
             const postRef = doc(db, appData.postType === 'job' ? 'jobs' : 'internships', appData.postId);
             try {
@@ -82,32 +103,23 @@ export default function SkillTestsPage() {
                     const pipeline = postData.pipeline || [];
                     const skillTestStage = pipeline.find((p: any) => p.stage === 'skill_test');
                     
-                    const testType = skillTestStage?.type;
-                    const testFileUrl = testType === 'traditional' ? '#' : undefined; // Placeholder
-
                     testsWithDetails.push({
                         ...appData,
-                        testType: testType,
-                        testFileUrl: testFileUrl,
+                        testType: skillTestStage?.type,
+                        testFileUrl: skillTestStage?.type === 'traditional' ? '#' : undefined,
                     });
                 } else {
                    testsWithDetails.push(appData);
                 }
             } catch (e) {
                 console.error(`Could not fetch post details for app ${appData.id}`, e);
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                   path: postRef.path,
-                   operation: 'get',
-                }));
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: postRef.path, operation: 'get' }));
                 testsWithDetails.push(appData);
             }
         }
-        
         setSkillTests(testsWithDetails);
         setLoading(false);
-
-      },
-      (serverError) => {
+      }, (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: `applications where candidateId == ${user.uid} and status == 'Skill Test'`,
             operation: 'list',
@@ -119,6 +131,7 @@ export default function SkillTestsPage() {
       return () => {
         unsubscribeSubmissions();
         unsubscribeApps();
+        unsubscribeReports();
       };
     } else {
       setLoading(false);
@@ -134,10 +147,47 @@ export default function SkillTestsPage() {
   const handleSubmitTraditionalTest = (testId: string) => {
       const file = submissionFiles[testId];
       if (!file) {
-          alert("Please select a file to submit.");
+          toast({ title: "Please select a file to submit.", variant: "destructive" });
           return;
       }
-      alert(`Submitting ${file.name} for test ${testId}.`);
+      toast({ title: `Submitting ${file.name} for test ${testId}.` });
+  }
+
+   const handleEvaluateTest = async (postId: string) => {
+      if (!user) return;
+      setEvaluating(postId);
+      try {
+        const submissionQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid), where('postId', '==', postId));
+        const submissionSnap = await getDocs(submissionQuery);
+
+        if (submissionSnap.empty) throw new Error("Submission not found.");
+
+        const submissionDoc = submissionSnap.docs[0];
+        const submissionData = submissionDoc.data();
+
+        const evaluationResult = await evaluateSkillTest({ submission: submissionData.submission });
+
+        const reportData = {
+          ...evaluationResult,
+          submissionId: submissionDoc.id,
+          candidateId: user.uid,
+          postId: postId,
+          generatedAt: serverTimestamp()
+        };
+
+        const reportRef = addDoc(collection(db, 'skillTestReports'), reportData);
+        
+        toast({ title: "Evaluation Complete!", description: "Your test report is now available." });
+
+      } catch (err: any) {
+          toast({ title: "Evaluation Failed", description: err.message || "An error occurred.", variant: "destructive" });
+           errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'skillTestReports or skillTestSubmissions',
+                operation: 'write',
+            }));
+      } finally {
+        setEvaluating(null);
+      }
   }
 
   const PageContent = (
@@ -167,6 +217,7 @@ export default function SkillTestsPage() {
             <div className="space-y-4">
                 {skillTests.map((test) => {
                     const isSubmitted = submittedTests.includes(test.postId);
+                    const reportExists = !!reports[test.postId];
                     return (
                     <Card key={test.id}>
                         <CardHeader>
@@ -191,15 +242,28 @@ export default function SkillTestsPage() {
                             {test.testType === 'ai' && (
                                 <div className="p-4 border rounded-lg bg-secondary/50">
                                     <p className="text-sm text-muted-foreground mb-4">This is an AI-powered test. Your responses will be evaluated automatically. Please ensure you have a stable internet connection.</p>
-                                    {isSubmitted ? (
-                                        <Button disabled>
-                                            <CheckCircle className="mr-2"/> Submitted
-                                        </Button>
-                                    ) : (
-                                        <Button asChild>
-                                            <Link href={`/candidate/skill-tests/${test.postId}`}>Start Test</Link>
-                                        </Button>
-                                    )}
+                                    <div className="flex gap-2">
+                                        {isSubmitted ? (
+                                            <Button disabled>
+                                                <CheckCircle className="mr-2"/> Submitted
+                                            </Button>
+                                        ) : (
+                                            <Button asChild>
+                                                <Link href={`/candidate/skill-tests/${test.postId}`}>Start Test</Link>
+                                            </Button>
+                                        )}
+                                        {isSubmitted && !reportExists && (
+                                            <Button onClick={() => handleEvaluateTest(test.postId)} disabled={evaluating === test.postId}>
+                                                {evaluating === test.postId ? <Loader2 className="mr-2 animate-spin"/> : <TestTube2 className="mr-2"/>}
+                                                Evaluate Test
+                                            </Button>
+                                        )}
+                                        {isSubmitted && reportExists && (
+                                             <Button variant="outline">
+                                                <FileBarChart2 className="mr-2"/> View Report
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
