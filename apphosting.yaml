@@ -2,6 +2,6 @@
 version: 1
 run:
   command: npm start
-  outputDirectory: .next
 build:
   command: npm install && npm run build
+  outputDirectory: .next
