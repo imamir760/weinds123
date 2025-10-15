@@ -14,7 +14,7 @@ import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc, getDocs } from 'firebase/firestore';
 import { Loader2, TestTube2, Building, FileText, Download, Upload } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -45,39 +45,51 @@ export default function SkillTestsPage() {
       const q = query(appsRef, where('candidateId', '==', user.uid), where('status', '==', 'Skill Test'));
 
       const unsubscribe = onSnapshot(q, async (snapshot) => {
-        const testsPromises = snapshot.docs.map(async (appDoc) => {
-          const appData = appDoc.data() as ApplicationForTest;
-          const postRef = doc(db, appData.postType === 'job' ? 'jobs' : 'internships', appData.postId);
-          
-          try {
-            const postSnap = await getDoc(postRef);
-            if (postSnap.exists()) {
-                const postData = postSnap.data();
-                const pipeline = postData.pipeline || [];
-                const skillTestStage = pipeline.find((p: any) => p.stage === 'Skill Test');
-                appData.testType = skillTestStage?.type;
-                // In a real app, you'd get this from the test document
-                if (appData.testType === 'traditional') {
-                    appData.testFileUrl = '#'; // Placeholder
-                }
-            }
-          } catch (e) {
-             console.error("Could not fetch post details for skill test", e);
-             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: postRef.path,
-                operation: 'get',
-             }));
-          }
-          
-          return { id: appDoc.id, ...appData } as ApplicationForTest;
-        });
+        const appsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ApplicationForTest));
 
-        const tests = await Promise.all(testsPromises);
-        setSkillTests(tests);
+        if (appsData.length === 0) {
+            setSkillTests([]);
+            setLoading(false);
+            return;
+        }
+
+        const testsWithDetails: ApplicationForTest[] = [];
+
+        for (const appData of appsData) {
+            const postRef = doc(db, appData.postType === 'job' ? 'jobs' : 'internships', appData.postId);
+            try {
+                const postSnap = await getDoc(postRef);
+                if (postSnap.exists()) {
+                    const postData = postSnap.data();
+                    const pipeline = postData.pipeline || [];
+                    const skillTestStage = pipeline.find((p: any) => p.stage === 'Skill Test');
+                    
+                    const testType = skillTestStage?.type;
+                    const testFileUrl = testType === 'traditional' ? '#' : undefined; // Placeholder
+
+                    testsWithDetails.push({
+                        ...appData,
+                        testType: testType,
+                        testFileUrl: testFileUrl,
+                    });
+                } else {
+                   testsWithDetails.push(appData); // Add app even if post is not found
+                }
+            } catch (e) {
+                console.error(`Could not fetch post details for app ${appData.id}`, e);
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                   path: postRef.path,
+                   operation: 'get',
+                }));
+                testsWithDetails.push(appData); // Add app even on error
+            }
+        }
+        
+        setSkillTests(testsWithDetails);
         setLoading(false);
 
       },
-      async (serverError) => {
+      (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: `applications where candidateId == ${user.uid} and status == 'Skill Test'`,
             operation: 'list',
@@ -148,7 +160,11 @@ export default function SkillTestsPage() {
                                 <Badge variant="default">Pending</Badge>
                                 <span className="text-muted-foreground/50">|</span>
                                 <span>Type:</span>
-                                <Badge variant="secondary" className="capitalize">{test.testType || 'N/A'}</Badge>
+                                {test.testType ? (
+                                    <Badge variant="secondary" className="capitalize">{test.testType}</Badge>
+                                ) : (
+                                    <Badge variant="outline">Not Specified</Badge>
+                                )}
                             </div>
 
                             {test.testType === 'ai' && (
@@ -183,6 +199,13 @@ export default function SkillTestsPage() {
                                     </div>
                                 </div>
                             )}
+                            
+                             {!test.testType && (
+                                <div className="p-4 border rounded-lg bg-secondary/50">
+                                     <p className="text-sm text-muted-foreground">The test type for this application is not specified. Please contact the employer for more details.</p>
+                                </div>
+                             )}
+
                         </CardContent>
                     </Card>
                 ))}
