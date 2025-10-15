@@ -9,19 +9,28 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Loader2, TestTube2, Building, FileText, Download, Upload, CheckCircle, FileBarChart2 } from 'lucide-react';
+import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc } from 'firebase/firestore';
+import { Loader2, TestTube2, Building, FileText, Download, Upload, CheckCircle, FileBarChart2, Star, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { evaluateSkillTest, EvaluateSkillTestOutput } from '@/ai/dev';
+import { EvaluateSkillTestOutput } from '@/ai/dev';
 import { useToast } from '@/hooks/use-toast';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 
 interface ApplicationForTest extends DocumentData {
   id: string; // application id
@@ -38,6 +47,58 @@ interface Report extends EvaluateSkillTestOutput {
     generatedAt: Timestamp;
 }
 
+const ReportDialog = ({ report, open, onOpenChange }: { report: Report | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
+    if (!report) return null;
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><FileBarChart2 /> Skill Test Report</DialogTitle>
+                    <DialogDescription>Generated on {new Date(report.generatedAt.seconds * 1000).toLocaleDateString()}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Overall Score</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex items-center gap-4">
+                            <div className="relative">
+                                <Progress value={report.score} className="w-24 h-24 rounded-full [&>div]:bg-primary" style={{ clipPath: 'circle(50% at 50% 50%)' }}/>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-2xl font-bold">{report.score}</span>
+                                </div>
+                            </div>
+                            <p className="flex-1 text-muted-foreground">{report.summary}</p>
+                        </CardContent>
+                    </Card>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card>
+                             <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><ThumbsUp className="text-green-500"/> Strengths</CardTitle>
+                            </CardHeader>
+                             <CardContent>
+                                <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                                    {report.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                             <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><ThumbsDown className="text-destructive"/> Areas for Improvement</CardTitle>
+                            </CardHeader>
+                             <CardContent>
+                                <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                                    {report.areasForImprovement.map((s, i) => <li key={i}>{s}</li>)}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -45,8 +106,9 @@ export default function SkillTestsPage() {
   const [submittedTests, setSubmittedTests] = useState<string[]>([]);
   const [reports, setReports] = useState<{[key: string]: Report}>({});
   const [loading, setLoading] = useState(true);
-  const [evaluating, setEvaluating] = useState<string | null>(null);
   const [submissionFiles, setSubmissionFiles] = useState<{[key: string]: File | null}>({});
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -152,43 +214,15 @@ export default function SkillTestsPage() {
       }
       toast({ title: `Submitting ${file.name} for test ${testId}.` });
   }
+  
+  const handleViewReport = (postId: string) => {
+    const report = reports[postId];
+    if (report) {
+      setSelectedReport(report);
+      setIsReportOpen(true);
+    }
+  };
 
-   const handleEvaluateTest = async (postId: string) => {
-      if (!user) return;
-      setEvaluating(postId);
-      try {
-        const submissionQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid), where('postId', '==', postId));
-        const submissionSnap = await getDocs(submissionQuery);
-
-        if (submissionSnap.empty) throw new Error("Submission not found.");
-
-        const submissionDoc = submissionSnap.docs[0];
-        const submissionData = submissionDoc.data();
-
-        const evaluationResult = await evaluateSkillTest({ submission: submissionData.submission });
-
-        const reportData = {
-          ...evaluationResult,
-          submissionId: submissionDoc.id,
-          candidateId: user.uid,
-          postId: postId,
-          generatedAt: serverTimestamp()
-        };
-
-        const reportRef = addDoc(collection(db, 'skillTestReports'), reportData);
-        
-        toast({ title: "Evaluation Complete!", description: "Your test report is now available." });
-
-      } catch (err: any) {
-          toast({ title: "Evaluation Failed", description: err.message || "An error occurred.", variant: "destructive" });
-           errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'skillTestReports or skillTestSubmissions',
-                operation: 'write',
-            }));
-      } finally {
-        setEvaluating(null);
-      }
-  }
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
@@ -244,23 +278,18 @@ export default function SkillTestsPage() {
                                     <p className="text-sm text-muted-foreground mb-4">This is an AI-powered test. Your responses will be evaluated automatically. Please ensure you have a stable internet connection.</p>
                                     <div className="flex gap-2">
                                         {isSubmitted ? (
-                                            <Button disabled>
-                                                <CheckCircle className="mr-2"/> Submitted
-                                            </Button>
+                                            reportExists ? (
+                                                <Button onClick={() => handleViewReport(test.postId)}>
+                                                    <FileBarChart2 className="mr-2"/> View Report
+                                                </Button>
+                                            ) : (
+                                                <Button disabled>
+                                                    <Loader2 className="mr-2 animate-spin"/> Evaluating...
+                                                </Button>
+                                            )
                                         ) : (
                                             <Button asChild>
                                                 <Link href={`/candidate/skill-tests/${test.postId}`}>Start Test</Link>
-                                            </Button>
-                                        )}
-                                        {isSubmitted && !reportExists && (
-                                            <Button onClick={() => handleEvaluateTest(test.postId)} disabled={evaluating === test.postId}>
-                                                {evaluating === test.postId ? <Loader2 className="mr-2 animate-spin"/> : <TestTube2 className="mr-2"/>}
-                                                Evaluate Test
-                                            </Button>
-                                        )}
-                                        {isSubmitted && reportExists && (
-                                             <Button variant="outline">
-                                                <FileBarChart2 className="mr-2"/> View Report
                                             </Button>
                                         )}
                                     </div>
@@ -304,6 +333,7 @@ export default function SkillTestsPage() {
           )}
         </CardContent>
       </Card>
+      <ReportDialog report={selectedReport} open={isReportOpen} onOpenChange={setIsReportOpen} />
     </div>
   );
 

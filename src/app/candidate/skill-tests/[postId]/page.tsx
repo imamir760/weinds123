@@ -18,7 +18,7 @@ import { doc, getDoc, collection, query, where, getDocs, DocumentData, addDoc, s
 import { Loader2, Clock, Check, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
-import { generateSkillTest, GenerateSkillTestOutput } from '@/ai/dev';
+import { generateSkillTest, evaluateSkillTest, GenerateSkillTestOutput } from '@/ai/dev';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -116,13 +116,14 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
   
   useEffect(() => {
     if (timeLeft > 0 && test && !isSubmitting) {
-      const timer = setTimeout(() => {
-        if (timeLeft === 1) {
-            handleSubmit();
+      const timerId = setTimeout(() => {
+        const newTimeLeft = timeLeft - 1;
+        setTimeLeft(newTimeLeft);
+        if (newTimeLeft <= 0) {
+            handleSubmit(true); // Auto-submit when timer reaches zero
         }
-        setTimeLeft(timeLeft - 1)
       }, 1000);
-      return () => clearTimeout(timer);
+      return () => clearTimeout(timerId);
     }
   }, [timeLeft, test, isSubmitting]);
 
@@ -138,9 +139,23 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (autoSubmitted = false) => {
     if (isSubmitting || !user || !test || !testDetails) return;
     setIsSubmitting(true);
+    
+    if (autoSubmitted) {
+        toast({
+            title: "Time's up!",
+            description: "Your test is being submitted automatically.",
+            variant: "destructive"
+        });
+    }
+
+    const submission = test.questions.map((q, index) => ({
+        questionText: q.questionText,
+        candidateAnswer: answers[index] || '',
+        correctAnswer: q.correctAnswer
+    }));
 
     const submissionData = {
         candidateId: user.uid,
@@ -148,19 +163,43 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
         postType: testDetails.postType,
         employerId: testDetails.employerId,
         submittedAt: serverTimestamp(),
-        submission: test.questions.map((q, index) => ({
-            questionText: q.questionText,
-            candidateAnswer: answers[index] || '',
-            correctAnswer: q.correctAnswer
-        }))
+        submission: submission
     };
 
     try {
-        await addDoc(collection(db, 'skillTestSubmissions'), submissionData);
+        const submissionDocRef = await addDoc(collection(db, 'skillTestSubmissions'), submissionData);
         toast({
             title: "Test Submitted!",
-            description: "Your responses have been recorded. You will be notified of the results.",
+            description: "Your responses have been recorded. Evaluating your results...",
         });
+
+        // Automatically trigger evaluation
+        try {
+            const evaluationResult = await evaluateSkillTest({ submission });
+            const reportData = {
+                ...evaluationResult,
+                submissionId: submissionDocRef.id,
+                candidateId: user.uid,
+                postId: postId,
+                generatedAt: serverTimestamp()
+            };
+            await addDoc(collection(db, 'skillTestReports'), reportData);
+            toast({
+                title: "Evaluation Complete!",
+                description: "Your results are ready to be viewed.",
+            });
+        } catch (evalError) {
+             toast({
+                title: "Evaluation Failed",
+                description: "Could not automatically evaluate your test, but it has been submitted.",
+                variant: "destructive"
+            });
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'skillTestReports',
+                operation: 'create',
+            }));
+        }
+
         router.push('/candidate/skill-tests');
 
     } catch(serverError: any) {
@@ -276,7 +315,7 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleSubmit}>Submit</AlertDialogAction>
+                                        <AlertDialogAction onClick={() => handleSubmit(false)}>Submit</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
