@@ -14,7 +14,7 @@ import { Briefcase, Loader2, GraduationCap, TestTube2, FilePlus, Eye, CheckCircl
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -23,6 +23,10 @@ import { FirestorePermissionError } from '@/lib/errors';
 import EmployerLayout from '../layout';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { FullReport, ReportDialog } from '@/components/employer/report-dialog';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
 type Post = DocumentData & { 
     id: string; 
@@ -32,11 +36,144 @@ type Post = DocumentData & {
     pipeline: { stage: string, type?: string }[];
 };
 
+type ReportWithCandidate = FullReport & {
+  candidateName: string;
+  candidateId: string;
+  postType: 'job' | 'internship';
+};
+
+
+const ViewSubmissionsDialog = ({ 
+    isOpen, 
+    onOpenChange, 
+    post 
+}: { 
+    isOpen: boolean; 
+    onOpenChange: (open: boolean) => void;
+    post: Post | null;
+}) => {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [reports, setReports] = useState<ReportWithCandidate[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedReport, setSelectedReport] = useState<FullReport | null>(null);
+    const [isReportOpen, setIsReportOpen] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && post && user) {
+            const fetchReports = async () => {
+                setLoading(true);
+                try {
+                    const reportsQuery = query(collection(db, 'skillTestReports'), where('postId', '==', post.id), where('employerId', '==', user.uid));
+                    const reportsSnapshot = await getDocs(reportsQuery);
+
+                    if (reportsSnapshot.empty) {
+                        setReports([]);
+                        setLoading(false);
+                        return;
+                    }
+
+                    const reportsData = reportsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FullReport[];
+                    
+                    const reportsWithDetails: ReportWithCandidate[] = [];
+                    for (const report of reportsData) {
+                        let submissionData: { submission: any[] } = { submission: [] };
+                        if (report.submissionId) {
+                            const submissionRef = doc(db, 'skillTestSubmissions', report.submissionId);
+                            const submissionSnap = await getDoc(submissionRef);
+                            if (submissionSnap.exists()) {
+                                submissionData = submissionSnap.data() as { submission: any[] };
+                            }
+                        }
+                        
+                        const applicationQuery = query(collection(db, 'applications'), where('candidateId', '==', report.candidateId), where('postId', '==', report.postId));
+                        const applicationSnap = await getDocs(applicationQuery);
+                        const candidateName = applicationSnap.docs[0]?.data()?.candidateName || 'Unknown Candidate';
+
+                        reportsWithDetails.push({
+                            ...report,
+                            submission: submissionData.submission,
+                            candidateName,
+                            candidateId: report.candidateId,
+                            postType: post.type.toLowerCase() as 'job' | 'internship',
+                        });
+                    }
+                    
+                    setReports(reportsWithDetails.sort((a,b) => b.generatedAt.toMillis() - a.generatedAt.toMillis()));
+
+                } catch (error) {
+                    console.error("Error fetching skill test reports:", error);
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: `skillTestReports for post ${post.id}`,
+                        operation: 'list',
+                    }));
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchReports();
+        }
+    }, [isOpen, post, user]);
+
+    const handleViewReport = (report: ReportWithCandidate) => {
+        setSelectedReport(report);
+        setIsReportOpen(true);
+    };
+
+    return (
+        <>
+            <Dialog open={isOpen} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Submissions for "{post?.title}"</DialogTitle>
+                        <DialogDescription>Review reports for candidates who have completed the skill test.</DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-[60vh] overflow-y-auto pr-4">
+                        {loading ? (
+                             <div className="flex items-center justify-center h-48">
+                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                            </div>
+                        ) : reports.length === 0 ? (
+                             <div className="text-center py-12 text-muted-foreground">
+                                <p>No skill tests have been submitted for this post yet.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {reports.map((report) => (
+                                    <Card key={report.id}>
+                                        <CardContent className="p-3 flex justify-between items-center">
+                                            <div className="flex items-center gap-4">
+                                                <Avatar>
+                                                    <AvatarFallback>{report.candidateName.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                     <Link href={`/employer/jobs/${report.postId}/candidates/${report.candidateId}`} className="font-semibold hover:underline">{report.candidateName}</Link>
+                                                    <p className="text-sm text-muted-foreground">Score: {report.score}/100</p>
+                                                </div>
+                                            </div>
+                                            <Button size="sm" variant="outline" onClick={() => handleViewReport(report)}>
+                                                <Eye className="mr-2 h-4 w-4"/> View Report
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+            <ReportDialog report={selectedReport} open={isReportOpen} onOpenChange={setIsReportOpen} />
+        </>
+    )
+}
+
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
+  const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -77,6 +214,11 @@ export default function SkillTestsPage() {
 
     fetchPosts();
   }, [user]);
+
+  const handleViewTestsClick = (post: Post) => {
+    setSelectedPost(post);
+    setIsSubmissionsOpen(true);
+  }
 
   const filteredPosts = useMemo(() => {
     return posts.filter(post => showInternships ? post.type === 'Internship' : post.type === 'Job');
@@ -181,11 +323,9 @@ export default function SkillTestsPage() {
                                     <TableCell>{testInfo.badge}</TableCell>
                                     <TableCell>{formatDate(post.createdAt)}</TableCell>
                                     <TableCell className="text-right space-x-2">
-                                         <Button asChild variant="outline" size="sm">
-                                            <Link href={`/employer/skill-tests/${post.id}/view`}>
+                                         <Button variant="outline" size="sm" onClick={() => handleViewTestsClick(post)}>
                                               <Eye className="mr-2 h-3 w-3"/>
                                               View Tests
-                                            </Link>
                                         </Button>
                                         {testInfo.type === 'ai' ? (
                                             <Button size="sm" disabled>
@@ -214,8 +354,15 @@ export default function SkillTestsPage() {
             )}
         </CardContent>
       </Card>
+      <ViewSubmissionsDialog 
+        isOpen={isSubmissionsOpen}
+        onOpenChange={setIsSubmissionsOpen}
+        post={selectedPost}
+      />
     </div>
   );
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
+
+    
