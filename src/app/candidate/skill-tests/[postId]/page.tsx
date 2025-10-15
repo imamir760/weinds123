@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import {
   Card,
   CardContent,
@@ -31,7 +32,8 @@ type Question = GenerateSkillTestOutput['questions'][0];
 export default function StartSkillTestPage({ params }: { params: { postId: string } }) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { postId } = params;
+  const resolvedParams = use(params);
+  const postId = resolvedParams.postId;
 
   const [test, setTest] = useState<GenerateSkillTestOutput | null>(null);
   const [testDetails, setTestDetails] = useState<{title: string, companyName: string, duration: number, postType: 'job' | 'internship'} | null>(null);
