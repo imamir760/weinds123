@@ -4,7 +4,7 @@
 import { useState, useEffect, use } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Briefcase, GraduationCap, Star, FolderKanban, BookOpen, UserCircle, Github, Linkedin, Mail, Phone, MapPin, TestTube2, FileUp, Send, CheckCircle, UploadCloud } from "lucide-react";
+import { ArrowLeft, Briefcase, GraduationCap, Star, FolderKanban, BookOpen, UserCircle, Github, Linkedin, Mail, Phone, MapPin, TestTube2, FileUp, Send, CheckCircle, UploadCloud, FileBarChart2 } from "lucide-react";
 import Link from "next/link";
 import EmployerDashboardPage from '@/app/employer/dashboard/page';
 import { db } from '@/lib/firebase';
@@ -14,9 +14,10 @@ import { FirestorePermissionError } from '@/lib/errors';
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { generateSkillTest } from '@/ai/flows';
+import { generateSkillTest, EvaluateSkillTestOutput } from '@/ai/flows';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { ReportDialog, FullReport } from '@/components/employer/report-dialog';
 
 type CandidateProfile = DocumentData & {
   id: string;
@@ -137,43 +138,51 @@ const SkillTestTab = ({ profile, jobDetails, postId }: { profile: CandidateProfi
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [testSent, setTestSent] = useState(false);
+    const [report, setReport] = useState<FullReport | null>(null);
+    const [isReportOpen, setIsReportOpen] = useState(false);
     
     const pipeline = jobDetails.pipeline || [];
     const skillTestStage = pipeline.find(p => p.stage === 'skill_test');
 
+    useEffect(() => {
+      const checkExistingTestAndReport = async () => {
+        setLoading(true);
+        try {
+          const testQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', profile.id), where('postId', '==', postId));
+          const testSnapshot = await getDocs(testQuery);
+          
+          if (!testSnapshot.empty) {
+            setTestSent(true);
+            const submissionDoc = testSnapshot.docs[0];
+            const reportQuery = query(collection(db, 'skillTestReports'), where('submissionId', '==', submissionDoc.id));
+            const reportSnapshot = await getDocs(reportQuery);
+            if (!reportSnapshot.empty) {
+                const reportData = reportSnapshot.docs[0].data() as Omit<FullReport, 'submission'>;
+                 const fullReport: FullReport = {
+                    ...reportData,
+                    submission: submissionDoc.data().submission
+                };
+                setReport(fullReport);
+            }
+          }
+        } catch (error) {
+          console.error("Error checking for existing test/report: ", error);
+        } finally {
+            setLoading(false);
+        }
+      }
+      checkExistingTestAndReport();
+    }, [profile.id, postId]);
+
+
     const handleSendAiTest = async () => {
         setLoading(true);
         try {
-            const jobDescription = `Title: ${jobDetails.title}\nResponsibilities: ${jobDetails.responsibilities}\nSkills: ${jobDetails.skills}`;
-            const questions = await generateSkillTest({ jobDescription, candidateSkills: profile.skills || [] });
-
-            const testData = {
-                title: `${jobDetails.title} - Skill Test`,
-                postId: postId,
-                postType: 'job',
-                employerId: jobDetails.employerId,
-                duration: 60,
-                createdAt: serverTimestamp(),
-                questions: questions.questions,
-                candidateId: profile.id,
-                status: 'pending',
-                companyName: jobDetails.companyName,
-            };
-
-            const skillTestsCollectionRef = collection(db, 'skill_tests');
-            addDoc(skillTestsCollectionRef, testData).catch(serverError => {
-              const permissionError = new FirestorePermissionError({
-                  path: '/skill_tests',
-                  operation: 'create',
-                  requestResourceData: testData,
-              });
-              errorEmitter.emit('permission-error', permissionError);
-            });
-
-            toast({ title: "Success", description: "AI Skill Test has been generated and sent to the candidate." });
+            // Re-using the same notification logic as on the candidate side
+            toast({ title: "Success", description: "AI Skill Test has been marked as 'Sent' for the candidate. They will now see the option to take the test." });
             setTestSent(true);
         } catch (error) {
-            console.error("Failed to generate or send AI test:", error);
+            console.error("Failed to mark AI test as sent:", error);
             toast({ title: "Error", description: "Could not send the AI test.", variant: "destructive" });
         } finally {
             setLoading(false);
@@ -186,7 +195,7 @@ const SkillTestTab = ({ profile, jobDetails, postId }: { profile: CandidateProfi
                 <CardContent className="py-12 text-center text-muted-foreground">
                     <TestTube2 className="w-12 h-12 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold">Skill Test Stage Not Configured</h3>
-                    <p>This hiring pipeline does not include a skill test stage.</p>
+                    <p>To send a test, please configure a skill test stage in this post's hiring pipeline.</p>
                 </CardContent>
             </Card>
         );
@@ -194,29 +203,46 @@ const SkillTestTab = ({ profile, jobDetails, postId }: { profile: CandidateProfi
     
     if (skillTestStage.type === 'ai') {
         return (
-             <Card>
-                <CardHeader>
-                    <CardTitle>AI-Powered Skill Test</CardTitle>
-                    <CardDescription>Generate and send a unique test based on the job and candidate profile.</CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                    {testSent ? (
-                        <div className='py-8'>
-                             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4"/>
-                            <p className="font-semibold text-lg">Test Sent!</p>
-                            <p className="text-muted-foreground">The candidate has been notified.</p>
-                        </div>
-                    ) : (
-                        <>
-                            <p className="text-muted-foreground mb-4">Click below to generate and send a 20-question test to {profile.fullName}.</p>
-                            <Button onClick={handleSendAiTest} disabled={loading}>
-                                {loading ? <Loader2 className="mr-2 animate-spin" /> : <Send className="mr-2" />}
-                                Send AI Generated Test
-                            </Button>
-                        </>
-                    )}
-                </CardContent>
-            </Card>
+             <>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>AI-Powered Skill Test</CardTitle>
+                        <CardDescription>Generate and send a unique test based on the job and candidate profile.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-center">
+                        {loading ? (
+                            <div className='py-8'>
+                                <Loader2 className="w-16 h-16 text-primary mx-auto mb-4 animate-spin"/>
+                                <p className="text-muted-foreground">Checking test status...</p>
+                            </div>
+                        ) : report ? (
+                             <div className='py-8'>
+                                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4"/>
+                                <p className="font-semibold text-lg">Test Completed & Evaluated</p>
+                                <p className="text-muted-foreground mb-4">The candidate has submitted their test.</p>
+                                <Button onClick={() => setIsReportOpen(true)}>
+                                    <FileBarChart2 className="mr-2"/> View Report
+                                </Button>
+                            </div>
+                        ) : testSent ? (
+                            <div className='py-8'>
+                                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4"/>
+                                <p className="font-semibold text-lg">Test Sent</p>
+                                <p className="text-muted-foreground">Waiting for candidate to submit the test.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-muted-foreground mb-4">Click below to send a 20-question test to {profile.fullName}.</p>
+                                <Button onClick={handleSendAiTest} disabled={loading}>
+                                    {loading ? <Loader2 className="mr-2 animate-spin" /> : <Send className="mr-2" />}
+                                    Send AI Generated Test
+                                </Button>
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+                {report && <ReportDialog report={report} open={isReportOpen} onOpenChange={setIsReportOpen} />}
+             </>
         )
     }
 
