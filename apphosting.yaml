@@ -1,10 +1,12 @@
-runConfig:
-  cpu: 1
-  memoryMiB: 512
-build:
-  command: npm install && npm run build
-run:
-  command: npm run start
-  exposedPort: 3000
-apphosting:
-  rootDir: /
+version: 1
+runtime: nodejs20
+
+scripts:
+  buildCommand: npm ci && npm run build
+  runCommand: npm start
+
+outputFiles:
+  serverApp:
+    include:
+      - ".next"
+      - "package.json"
