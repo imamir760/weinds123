@@ -27,4 +27,4 @@ ENV PORT=8080
 EXPOSE 8080
 
 # start using the local next binary and bind to 0.0.0.0 and $PORT
-CMD ["sh","-c","node_modules/.bin/next start --hostname 0.0.0.0 -p $PORT"]
+CMD ["npm", "start"]
