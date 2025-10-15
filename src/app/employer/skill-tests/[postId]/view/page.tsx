@@ -1,6 +1,7 @@
+
 'use client';
 
-import { use } from 'react';
+import { use, useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -9,12 +10,116 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2, User, FileBarChart2 } from 'lucide-react';
 import Link from 'next/link';
 import EmployerLayout from '@/app/employer/layout';
+import { useAuth } from '@/components/auth/auth-provider';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
+import { FullReport, ReportDialog } from '@/components/employer/report-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
+import { format } from 'date-fns';
+
+type ReportWithCandidate = FullReport & {
+  candidateName: string;
+};
 
 export default function ViewSkillTestsPage({ params }: { params: { postId: string } }) {
   const resolvedParams = use(params);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [reports, setReports] = useState<ReportWithCandidate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [postTitle, setPostTitle] = useState('');
+  const [selectedReport, setSelectedReport] = useState<FullReport | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user || !resolvedParams.postId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchReports = async () => {
+      setLoading(true);
+
+      try {
+        // Fetch post title
+        const jobRef = doc(db, 'jobs', resolvedParams.postId);
+        const internRef = doc(db, 'internships', resolvedParams.postId);
+        const jobSnap = await getDoc(jobRef);
+        if (jobSnap.exists()) {
+          setPostTitle(jobSnap.data().title);
+        } else {
+          const internSnap = await getDoc(internRef);
+          if (internSnap.exists()) {
+            setPostTitle(internSnap.data().title);
+          }
+        }
+
+
+        // Fetch reports
+        const reportsQuery = query(collection(db, 'skillTestReports'), where('postId', '==', resolvedParams.postId), where('employerId', '==', user.uid));
+        const reportsSnapshot = await getDocs(reportsQuery);
+
+        if (reportsSnapshot.empty) {
+          setReports([]);
+          setLoading(false);
+          return;
+        }
+
+        const reportsData = reportsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FullReport[];
+        
+        const reportsWithDetails: ReportWithCandidate[] = [];
+        for (const report of reportsData) {
+          // Fetch submission
+          const submissionRef = doc(db, 'skillTestSubmissions', report.submissionId);
+          const submissionSnap = await getDoc(submissionRef);
+          const submissionData = submissionSnap.exists() ? submissionSnap.data() : { submission: [] };
+          
+          // Fetch candidate name
+          const applicationQuery = query(collection(db, 'applications'), where('candidateId', '==', report.candidateId), where('postId', '==', report.postId));
+          const applicationSnap = await getDocs(applicationQuery);
+          const candidateName = applicationSnap.docs[0]?.data()?.candidateName || 'Unknown Candidate';
+
+          reportsWithDetails.push({
+            ...report,
+            submission: submissionData.submission,
+            candidateName,
+          });
+        }
+        
+        setReports(reportsWithDetails.sort((a,b) => b.generatedAt.toMillis() - a.generatedAt.toMillis()));
+
+      } catch (error) {
+        console.error("Error fetching skill test reports:", error);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: 'skillTestReports or skillTestSubmissions',
+          operation: 'list',
+        }));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReports();
+
+  }, [user, resolvedParams.postId]);
+  
+  const handleViewReport = (report: ReportWithCandidate) => {
+    setSelectedReport(report);
+    setIsReportOpen(true);
+  };
+  
+  const formatDate = (timestamp: Timestamp | Date | undefined) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
+    return format(date, 'MMM d, yyyy');
+  }
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
@@ -25,13 +130,50 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
         </div>
         <Card>
             <CardHeader>
-                <CardTitle>Skill Tests</CardTitle>
-                <CardDescription>Viewing all tests for Post ID: {resolvedParams.postId}</CardDescription>
+                <CardTitle>Skill Test Reports</CardTitle>
+                <CardDescription>
+                  Viewing reports for post: <span className="font-semibold">{postTitle || resolvedParams.postId}</span>
+                </CardDescription>
             </CardHeader>
             <CardContent>
-                <p>A list of existing skill tests for this post will be shown here.</p>
+                {loading ? (
+                    <div className="flex items-center justify-center h-64">
+                        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                    </div>
+                ) : reports.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                        <p>No skill tests have been submitted for this post yet.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {reports.map((report) => (
+                             <Card key={report.id}>
+                                <CardContent className="p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                                     <div className="flex items-center gap-4">
+                                        <Avatar>
+                                            <AvatarFallback>{report.candidateName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-semibold">{report.candidateName}</p>
+                                            <p className="text-sm text-muted-foreground">Score: {report.score}/100</p>
+                                        </div>
+                                    </div>
+                                    <div className='flex items-center gap-4'>
+                                      <p className="text-sm text-muted-foreground">
+                                        Submitted on {formatDate(report.generatedAt)}
+                                      </p>
+                                      <Button onClick={() => handleViewReport(report)}>
+                                          <FileBarChart2 className="mr-2"/> View Report
+                                      </Button>
+                                    </div>
+                                </CardContent>
+                             </Card>
+                        ))}
+                    </div>
+                )}
             </CardContent>
         </Card>
+        <ReportDialog report={selectedReport} open={isReportOpen} onOpenChange={setIsReportOpen} />
     </div>
   );
   
