@@ -15,7 +15,7 @@ import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc, getDocs } from 'firebase/firestore';
-import { Loader2, TestTube2, Building, FileText, Download, Upload } from 'lucide-react';
+import { Loader2, TestTube2, Building, FileText, Download, Upload, CheckCircle } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Badge } from '@/components/ui/badge';
@@ -34,17 +34,35 @@ interface ApplicationForTest extends DocumentData {
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const [skillTests, setSkillTests] = useState<ApplicationForTest[]>([]);
+  const [submittedTests, setSubmittedTests] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [submissionFiles, setSubmissionFiles] = useState<{[key: string]: File | null}>({});
 
   useEffect(() => {
     if (user) {
       setLoading(true);
+
+      // Fetch submitted test IDs
+      const submissionsQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid));
+      const unsubscribeSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
+        const submittedPostIds = snapshot.docs.map(doc => doc.data().postId);
+        setSubmittedTests(submittedPostIds);
+      }, (serverError) => {
+          const permissionError = new FirestorePermissionError({
+              path: 'skillTestSubmissions',
+              operation: 'list',
+              requestResourceData: { candidateId: user.uid }
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          // Non-fatal, the page can still function
+          console.error("Could not check for submitted tests.");
+      });
+
+      // Fetch applications in 'Skill Test' stage
       const appsRef = collection(db, 'applications');
-      // Query for applications that are in the 'Skill Test' stage for the current candidate
       const q = query(appsRef, where('candidateId', '==', user.uid), where('status', '==', 'Skill Test'));
 
-      const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const unsubscribeApps = onSnapshot(q, async (snapshot) => {
         const appsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ApplicationForTest));
 
         if (appsData.length === 0) {
@@ -65,7 +83,6 @@ export default function SkillTestsPage() {
                     const skillTestStage = pipeline.find((p: any) => p.stage === 'skill_test');
                     
                     const testType = skillTestStage?.type;
-                    // In a real app, this URL would come from the employer's upload to Firebase Storage.
                     const testFileUrl = testType === 'traditional' ? '#' : undefined; // Placeholder
 
                     testsWithDetails.push({
@@ -74,7 +91,7 @@ export default function SkillTestsPage() {
                         testFileUrl: testFileUrl,
                     });
                 } else {
-                   testsWithDetails.push(appData); // Add app even if post is not found
+                   testsWithDetails.push(appData);
                 }
             } catch (e) {
                 console.error(`Could not fetch post details for app ${appData.id}`, e);
@@ -82,7 +99,7 @@ export default function SkillTestsPage() {
                    path: postRef.path,
                    operation: 'get',
                 }));
-                testsWithDetails.push(appData); // Add app even on error
+                testsWithDetails.push(appData);
             }
         }
         
@@ -99,7 +116,10 @@ export default function SkillTestsPage() {
         setLoading(false);
       });
 
-      return () => unsubscribe();
+      return () => {
+        unsubscribeSubmissions();
+        unsubscribeApps();
+      };
     } else {
       setLoading(false);
     }
@@ -117,8 +137,6 @@ export default function SkillTestsPage() {
           alert("Please select a file to submit.");
           return;
       }
-      // In a real app, you would upload this file to Firebase Storage
-      // and then update the application/skillTest status.
       alert(`Submitting ${file.name} for test ${testId}.`);
   }
 
@@ -147,7 +165,9 @@ export default function SkillTestsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-                {skillTests.map((test) => (
+                {skillTests.map((test) => {
+                    const isSubmitted = submittedTests.includes(test.postId);
+                    return (
                     <Card key={test.id}>
                         <CardHeader>
                             <CardTitle>{test.postTitle}</CardTitle>
@@ -158,7 +178,7 @@ export default function SkillTestsPage() {
                         <CardContent className="space-y-4">
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <span>Status:</span>
-                                <Badge variant="default">Pending</Badge>
+                                {isSubmitted ? <Badge variant="secondary">Submitted</Badge> : <Badge variant="default">Pending</Badge>}
                                 <span className="text-muted-foreground/50">|</span>
                                 <span>Type:</span>
                                 {test.testType ? (
@@ -171,9 +191,15 @@ export default function SkillTestsPage() {
                             {test.testType === 'ai' && (
                                 <div className="p-4 border rounded-lg bg-secondary/50">
                                     <p className="text-sm text-muted-foreground mb-4">This is an AI-powered test. Your responses will be evaluated automatically. Please ensure you have a stable internet connection.</p>
-                                    <Button asChild>
-                                        <Link href={`/candidate/skill-tests/${test.postId}`}>Start Test</Link>
-                                    </Button>
+                                    {isSubmitted ? (
+                                        <Button disabled>
+                                            <CheckCircle className="mr-2"/> Submitted
+                                        </Button>
+                                    ) : (
+                                        <Button asChild>
+                                            <Link href={`/candidate/skill-tests/${test.postId}`}>Start Test</Link>
+                                        </Button>
+                                    )}
                                 </div>
                             )}
 
@@ -209,7 +235,7 @@ export default function SkillTestsPage() {
 
                         </CardContent>
                     </Card>
-                ))}
+                )})}
             </div>
           )}
         </CardContent>
