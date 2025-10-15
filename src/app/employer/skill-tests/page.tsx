@@ -79,16 +79,25 @@ const ViewSubmissionsDialog = ({
                     for (const report of reportsData) {
                         let submissionData: { submission: any[] } = { submission: [] };
                         if (report.submissionId) {
-                            const submissionRef = doc(db, 'skillTestSubmissions', report.submissionId);
-                            const submissionSnap = await getDoc(submissionRef);
-                            if (submissionSnap.exists()) {
-                                submissionData = submissionSnap.data() as { submission: any[] };
+                            try {
+                                const submissionRef = doc(db, 'skillTestSubmissions', report.submissionId);
+                                const submissionSnap = await getDoc(submissionRef);
+                                if (submissionSnap.exists()) {
+                                    submissionData = submissionSnap.data() as { submission: any[] };
+                                }
+                            } catch (e) {
+                                console.error(`Failed to fetch submission ${report.submissionId}`, e);
                             }
                         }
                         
-                        const applicationQuery = query(collection(db, 'applications'), where('candidateId', '==', report.candidateId), where('postId', '==', report.postId));
-                        const applicationSnap = await getDocs(applicationQuery);
-                        const candidateName = applicationSnap.docs[0]?.data()?.candidateName || 'Unknown Candidate';
+                        let candidateName = 'Unknown Candidate';
+                         try {
+                            const applicationQuery = query(collection(db, 'applications'), where('candidateId', '==', report.candidateId), where('postId', '==', report.postId));
+                            const applicationSnap = await getDocs(applicationQuery);
+                            candidateName = applicationSnap.docs[0]?.data()?.candidateName || 'Unknown Candidate';
+                         } catch (e) {
+                             console.error(`Failed to fetch application for candidate ${report.candidateId}`, e);
+                         }
 
                         reportsWithDetails.push({
                             ...report,
@@ -147,7 +156,7 @@ const ViewSubmissionsDialog = ({
                                                     <AvatarFallback>{report.candidateName.charAt(0)}</AvatarFallback>
                                                 </Avatar>
                                                 <div>
-                                                     <Link href={`/employer/jobs/${report.postId}/candidates/${report.candidateId}`} className="font-semibold hover:underline">{report.candidateName}</Link>
+                                                     <Link href={`/employer/${report.postType}s/${report.postId}/candidates/${report.candidateId}`} className="font-semibold hover:underline">{report.candidateName}</Link>
                                                     <p className="text-sm text-muted-foreground">Score: {report.score}/100</p>
                                                 </div>
                                             </div>
@@ -364,5 +373,3 @@ export default function SkillTestsPage() {
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
-
-    
