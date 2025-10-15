@@ -1,7 +1,7 @@
 # https://firebase.google.com/docs/app-hosting/configure
 version: 1
-build:
-  command: npm install && npm run build
 run:
   command: npm start
   outputDirectory: .next
+build:
+  command: npm install && npm run build
