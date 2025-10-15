@@ -62,9 +62,10 @@ export default function SkillTestsPage() {
                 if (postSnap.exists()) {
                     const postData = postSnap.data();
                     const pipeline = postData.pipeline || [];
-                    const skillTestStage = pipeline.find((p: any) => p.stage === 'Skill Test');
+                    const skillTestStage = pipeline.find((p: any) => p.stage === 'skill_test');
                     
                     const testType = skillTestStage?.type;
+                    // In a real app, this URL would come from the employer's upload to Firebase Storage.
                     const testFileUrl = testType === 'traditional' ? '#' : undefined; // Placeholder
 
                     testsWithDetails.push({
