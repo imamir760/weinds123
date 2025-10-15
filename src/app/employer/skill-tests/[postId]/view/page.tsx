@@ -82,9 +82,14 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
         const reportsWithDetails: ReportWithCandidate[] = [];
         for (const report of reportsData) {
           // Fetch submission
-          const submissionRef = doc(db, 'skillTestSubmissions', report.submissionId);
-          const submissionSnap = await getDoc(submissionRef);
-          const submissionData = submissionSnap.exists() ? submissionSnap.data() : { submission: [] };
+          let submissionData: { submission: any[] } = { submission: [] };
+          if (report.submissionId) {
+            const submissionRef = doc(db, 'skillTestSubmissions', report.submissionId);
+            const submissionSnap = await getDoc(submissionRef);
+            if (submissionSnap.exists()) {
+              submissionData = submissionSnap.data() as { submission: any[] };
+            }
+          }
           
           // Fetch candidate name
           const applicationQuery = query(collection(db, 'applications'), where('candidateId', '==', report.candidateId), where('postId', '==', report.postId));
@@ -161,7 +166,7 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
                                             <AvatarFallback>{report.candidateName.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <div>
-                                            <Link href={`/employer/${report.postType}s/${report.postId}/candidates/${report.candidateId}`} className="font-semibold hover:underline">{report.candidateName}</Link>
+                                            <Link href={`/employer/jobs/${report.postId}/candidates/${report.candidateId}`} className="font-semibold hover:underline">{report.candidateName}</Link>
                                             <p className="text-sm text-muted-foreground">Score: {report.score}/100</p>
                                         </div>
                                     </div>
