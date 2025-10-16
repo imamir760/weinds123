@@ -1,8 +1,9 @@
+
 version: 1
 runtime: nodejs20
 
 scripts:
-  buildCommand: npm ci && npm run build
+  buildCommand: npm ci --legacy-peer-deps && npm run build
   runCommand: npm start
 
 outputFiles:
@@ -10,3 +11,5 @@ outputFiles:
     include:
       - ".next"
       - "package.json"
+      - "public"
+
