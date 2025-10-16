@@ -4,8 +4,11 @@
     "database": "(default)"
   },
   "apphosting": {
-    "backendId": "weinds123",
-    "rootDir": "/",
+    "backendId": "studio",
+    "run": {
+      "serviceId": "studio",
+      "region": "us-central1"
+    },
     "ignore": [
       "node_modules",
       ".git",
@@ -13,6 +16,6 @@
       "firebase-debug.*.log",
       "functions"
     ],
-    "alwaysDeployFromSource": true
+    "alwaysDeployFromSource": false
   }
 }
