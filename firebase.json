@@ -4,10 +4,10 @@
     "database": "(default)"
   },
   "apphosting": {
-    "backendId": "studio",
+    "backendId": "weinds123",
     "run": {
-      "serviceId": "studio",
-      "region": "us-central1"
+      "serviceId": "weinds123",
+      "region": "asia-east1"
     },
     "ignore": [
       "node_modules",
