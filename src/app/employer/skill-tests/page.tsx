@@ -63,6 +63,7 @@ const ViewSubmissionsDialog = ({
         if (isOpen && post && user) {
             const fetchReports = async () => {
                 setLoading(true);
+                setReports([]); // Reset on open
                 try {
                     const reportsQuery = query(collection(db, 'skillTestReports'), where('postId', '==', post.id), where('employerId', '==', user.uid));
                     const reportsSnapshot = await getDocs(reportsQuery);
