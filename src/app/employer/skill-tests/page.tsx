@@ -174,7 +174,17 @@ const ViewSubmissionsDialog = ({
     )
 }
 
-const UploadTestDialog = ({ post, open, onOpenChange }: { post: Post | null, open: boolean, onOpenChange: (open: boolean) => void}) => {
+const UploadTestDialog = ({ 
+    post, 
+    open, 
+    onOpenChange,
+    onUploadComplete
+}: { 
+    post: Post | null, 
+    open: boolean, 
+    onOpenChange: (open: boolean) => void,
+    onUploadComplete: (postId: string, newPipeline: any[]) => void
+}) => {
     const { toast } = useToast();
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
@@ -189,12 +199,12 @@ const UploadTestDialog = ({ post, open, onOpenChange }: { post: Post | null, ope
             const filePath = `skill-tests/${post.id}/${file.name}`;
             const fileUrl = await uploadFile(file, filePath);
             
-            // Update the post document with the test file URL
             const postRef = doc(db, post.type.toLowerCase() + 's', post.id);
             const newPipeline = post.pipeline.map(p => p.stage === 'skill_test' ? { ...p, testFileUrl: fileUrl } : p);
             await updateDoc(postRef, { pipeline: newPipeline });
 
             toast({ title: "Test uploaded successfully!" });
+            onUploadComplete(post.id, newPipeline);
             onOpenChange(false);
         } catch (error) {
             console.error("Upload failed", error);
@@ -273,6 +283,14 @@ export default function SkillTestsPage() {
 
     fetchPosts();
   }, [user]);
+
+  const handleUploadComplete = (postId: string, newPipeline: any[]) => {
+    setPosts(prevPosts => 
+        prevPosts.map(p => 
+            p.id === postId ? { ...p, pipeline: newPipeline } : p
+        )
+    );
+  };
 
   const handleViewTestsClick = (post: Post) => {
     setSelectedPost(post);
@@ -429,6 +447,7 @@ export default function SkillTestsPage() {
         open={isUploadOpen}
         onOpenChange={setIsUploadOpen}
         post={selectedPost}
+        onUploadComplete={handleUploadComplete}
       />
     </div>
   );
