@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, use, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, DocumentData, query, where, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -42,8 +42,7 @@ type Applicant = DocumentData & {
 };
 
 export default function ViewApplicantsPage({ params }: { params: { id: string } }) {
-  const resolvedParams = use(params);
-  const postId = resolvedParams.id;
+  const { id: postId } = params;
   const { toast } = useToast();
   
   const [postDetails, setPostDetails] = useState<PostDetails | null>(null);

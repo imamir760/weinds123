@@ -1,7 +1,7 @@
 
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -30,7 +30,6 @@ type ReportWithCandidate = FullReport & {
 };
 
 export default function ViewSkillTestsPage({ params }: { params: { postId: string } }) {
-  const resolvedParams = use(params);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -41,7 +40,7 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   useEffect(() => {
-    if (!user || !resolvedParams.postId) {
+    if (!user || !params.postId) {
       setLoading(false);
       return;
     }
@@ -51,8 +50,8 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
 
       try {
         // Fetch post title
-        const jobRef = doc(db, 'jobs', resolvedParams.postId);
-        const internRef = doc(db, 'internships', resolvedParams.postId);
+        const jobRef = doc(db, 'jobs', params.postId);
+        const internRef = doc(db, 'internships', params.postId);
         let postType: 'job' | 'internship' = 'job';
         
         const jobSnap = await getDoc(jobRef);
@@ -68,7 +67,7 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
 
 
         // Fetch reports
-        const reportsQuery = query(collection(db, 'skillTestReports'), where('postId', '==', resolvedParams.postId), where('employerId', '==', user.uid));
+        const reportsQuery = query(collection(db, 'skillTestReports'), where('postId', '==', params.postId), where('employerId', '==', user.uid));
         const reportsSnapshot = await getDocs(reportsQuery);
 
         if (reportsSnapshot.empty) {
@@ -120,7 +119,7 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
 
     fetchReports();
 
-  }, [user, resolvedParams.postId]);
+  }, [user, params.postId]);
   
   const handleViewReport = (report: ReportWithCandidate) => {
     setSelectedReport(report);
@@ -144,7 +143,7 @@ export default function ViewSkillTestsPage({ params }: { params: { postId: strin
             <CardHeader>
                 <CardTitle>Skill Test Reports</CardTitle>
                 <CardDescription>
-                  Viewing reports for post: <span className="font-semibold">{postTitle || resolvedParams.postId}</span>
+                  Viewing reports for post: <span className="font-semibold">{postTitle || params.postId}</span>
                 </CardDescription>
             </CardHeader>
             <CardContent>

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -33,8 +33,7 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const resolvedParams = use(params);
-  const postId = resolvedParams.postId;
+  const { postId } = params;
 
   const [test, setTest] = useState<GenerateSkillTestOutput | null>(null);
   const [testDetails, setTestDetails] = useState<{title: string, companyName: string, duration: number, postType: 'job' | 'internship', employerId: string} | null>(null);
@@ -156,6 +155,7 @@ export default function StartSkillTestPage({ params }: { params: { postId: strin
                 submissionId: submissionDocRef.id,
                 candidateId: user.uid,
                 postId: postId,
+                employerId: testDetails.employerId,
                 generatedAt: serverTimestamp(),
             };
             await addDoc(collection(db, 'skillTestReports'), reportData);

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Briefcase, GraduationCap, Star, FolderKanban, BookOpen, UserCircle, Github, Linkedin, Mail, Phone, MapPin, TestTube2, FileUp, Send, CheckCircle, UploadCloud, FileBarChart2 } from "lucide-react";
@@ -280,7 +280,6 @@ const SkillTestTab = ({ profile, jobDetails, postId }: { profile: CandidateProfi
 
 
 export default function CandidateDetailsPage({ params }: { params: { id: string; candidateId: string } }) {
-  const resolvedParams = use(params);
   const [profile, setProfile] = useState<CandidateProfile | null>(null);
   const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -288,12 +287,12 @@ export default function CandidateDetailsPage({ params }: { params: { id: string;
   
   useEffect(() => {
     const fetchPageData = async () => {
-      if (!resolvedParams.candidateId || !resolvedParams.id) return;
+      if (!params.candidateId || !params.id) return;
       setLoading(true);
       setError(null);
       try {
         // Fetch candidate profile
-        const candidateRef = doc(db, 'candidates', resolvedParams.candidateId);
+        const candidateRef = doc(db, 'candidates', params.candidateId);
         const candidateSnap = await getDoc(candidateRef);
         if (candidateSnap.exists()) {
           setProfile({ id: candidateSnap.id, ...candidateSnap.data() } as CandidateProfile);
@@ -303,10 +302,10 @@ export default function CandidateDetailsPage({ params }: { params: { id: string;
 
         // Fetch job/internship details
         let postSnap;
-        const jobRef = doc(db, 'jobs', resolvedParams.id);
+        const jobRef = doc(db, 'jobs', params.id);
         postSnap = await getDoc(jobRef);
         if (!postSnap.exists()) {
-            const internshipRef = doc(db, 'internships', resolvedParams.id);
+            const internshipRef = doc(db, 'internships', params.id);
             postSnap = await getDoc(internshipRef);
         }
         if (postSnap.exists()){
@@ -319,7 +318,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string;
         setError(err.message || "Failed to load data.");
         if (err.name !== 'FirestorePermissionError') {
           errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: `candidates/${resolvedParams.candidateId} or jobs/${resolvedParams.id}`,
+            path: `candidates/${params.candidateId} or jobs/${params.id}`,
             operation: 'get',
           }));
         }
@@ -329,14 +328,14 @@ export default function CandidateDetailsPage({ params }: { params: { id: string;
     };
 
     fetchPageData();
-  }, [resolvedParams.candidateId, resolvedParams.id]);
+  }, [params.candidateId, params.id]);
 
   const PageContent = (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
             <Button asChild variant="outline" size="sm">
-                <Link href={`/employer/jobs/${resolvedParams.id}`}><ArrowLeft className="mr-2" /> Back to Applicants</Link>
+                <Link href={`/employer/jobs/${params.id}`}><ArrowLeft className="mr-2" /> Back to Applicants</Link>
             </Button>
         </div>
 
@@ -362,7 +361,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string;
                     <ProfileOverview profile={profile} />
                 </TabsContent>
                 <TabsContent value="skill-test">
-                    <SkillTestTab profile={profile} jobDetails={jobDetails} postId={resolvedParams.id} />
+                    <SkillTestTab profile={profile} jobDetails={jobDetails} postId={params.id} />
                 </TabsContent>
             </Tabs>
         )}
