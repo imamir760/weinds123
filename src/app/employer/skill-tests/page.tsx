@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -196,8 +197,7 @@ const UploadTestDialog = ({
       const filePath = `skill-tests/${post.id}/${file.name}`;
       const fileUrl = await uploadFile(file, filePath);
 
-      // Create a document in skill_tests collection
-      await addDoc(collection(db, 'skill_tests'), {
+      const skillTestDoc = {
           title: `${post.title} - Traditional Test`,
           postId: post.id,
           postType: post.type.toLowerCase(),
@@ -205,7 +205,14 @@ const UploadTestDialog = ({
           createdAt: serverTimestamp(),
           testFileUrl: fileUrl,
           type: 'traditional'
-      });
+      };
+
+      await addDoc(collection(db, 'skill_tests'), skillTestDoc);
+      
+      const postRef = doc(db, post.type.toLowerCase() + 's', post.id);
+      const newPipeline = post.pipeline.map(p => p.stage === 'skill_test' ? {...p, testFileUrl: fileUrl} : p);
+      await updateDoc(postRef, { pipeline: newPipeline });
+
 
       toast({ title: 'Test uploaded successfully!' });
       onUploadComplete(post.id, fileUrl);
@@ -453,7 +460,7 @@ export default function SkillTestsPage() {
                                                 AI Test Enabled
                                             </Button>
                                         ) : testInfo.type === 'traditional' ? (
-                                             <Button size="sm" onClick={() => handleUploadClick(post)}>
+                                             <Button size="sm" onClick={() => handleUploadClick(post)} disabled={testInfo.hasFile}>
                                                 {testInfo.hasFile ? <CheckCircle className="mr-2 h-3 w-3"/> : <Upload className="mr-2 h-3 w-3"/>}
                                                 {testInfo.hasFile ? 'Test Uploaded' : 'Upload Test'}
                                             </Button>
@@ -487,3 +494,5 @@ export default function SkillTestsPage() {
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
+
+    

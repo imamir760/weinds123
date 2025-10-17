@@ -167,7 +167,6 @@ export default function SkillTestsPage() {
               testType: 'traditional',
               submissionFileUrl: fileUrl,
               submittedAt: serverTimestamp(),
-              submission: [],
             });
         }
         
