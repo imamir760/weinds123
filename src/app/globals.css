@@ -14,7 +14,7 @@ body {
     --card-foreground: 224 71% 4%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71% 4%;
-    --primary: 130 57% 30%; /* Deep Green */
+    --primary: 145 74% 37%; /* #16A249 */
     --primary-foreground: 0 0% 100%;
     --secondary: 30 100% 97%; /* Very light saffron/orange */
     --secondary-foreground: 30 50% 20%;
@@ -26,7 +26,7 @@ body {
     --destructive-foreground: 0 0% 98%;
     --border: 130 30% 90%;
     --input: 130 30% 95%;
-    --ring: 130 57% 30%; /* Deep Green for rings */
+    --ring: 145 74% 37%; /* #16A249 */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -41,7 +41,7 @@ body {
     --card-foreground: 210 40% 98%;
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
-    --primary: 130 60% 45%; /* Green */
+    --primary: 145 74% 42%; /* #16A249 */
     --primary-foreground: 210 40% 98%;
     --secondary: 30 50% 15%; /* Dark Saffron/Orange for secondary bg */
     --secondary-foreground: 30 90% 80%;
@@ -53,7 +53,7 @@ body {
     --destructive-foreground: 0 0% 98%;
     --border: 217 33% 22%;
     --input: 217 33% 22%;
-    --ring: 130 60% 45%; /* Green for rings */
+    --ring: 145 74% 42%; /* #16A249 */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
