@@ -1,39 +1,29 @@
-'use server';
+'use client';
 
-import { storage } from '@/lib/firebase/admin';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { storage } from '@/lib/firebase';
 
 /**
- * Uploads a file to Firebase Storage.
+ * Uploads a file to Firebase Storage using the client-side SDK.
  * @param file The file to upload.
  * @param filePath The desired path in the storage bucket (e.g., 'skill-tests/my-file.pdf').
  * @returns The public download URL of the uploaded file.
  */
 export async function uploadFile(file: File, filePath: string): Promise<string> {
-    const bucket = storage.bucket(); // Uses the default bucket from your config
-
-    // Convert the file to a buffer to be uploaded
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-
-    // Get a reference to the file object in the bucket
-    const fileRef = bucket.file(filePath);
-
     try {
-        // Upload the file buffer
-        await fileRef.save(fileBuffer, {
-            metadata: {
-                contentType: file.type,
-            },
-        });
+        const storageRef = ref(storage, filePath);
+        
+        // Upload the file
+        const snapshot = await uploadBytes(storageRef, file);
 
-        // Make the file publicly readable and get the URL
-        await fileRef.makePublic();
-        const publicUrl = fileRef.publicUrl();
+        // Get the download URL
+        const downloadURL = await getDownloadURL(snapshot.ref);
 
-        console.log(`File uploaded successfully: ${publicUrl}`);
-        return publicUrl;
+        console.log(`File uploaded successfully: ${downloadURL}`);
+        return downloadURL;
 
     } catch (error) {
         console.error("Error uploading file to Firebase Storage:", error);
-        throw new Error("File upload failed. Please check server permissions.");
+        throw new Error("File upload failed. Please check your storage rules and network connection.");
     }
 }
