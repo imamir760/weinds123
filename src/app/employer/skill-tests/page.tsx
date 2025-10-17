@@ -13,7 +13,7 @@ import { Briefcase, Loader2, GraduationCap, TestTube2, FilePlus, Eye, CheckCircl
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, getDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -170,65 +170,95 @@ const ViewSubmissionsDialog = ({
     )
 }
 
-const UploadTestDialog = ({ 
-    post, 
-    open, 
-    onOpenChange,
-    onUploadComplete
-}: { 
-    post: Post | null, 
-    open: boolean, 
-    onOpenChange: (open: boolean) => void,
-    onUploadComplete: (postId: string, newPipeline: any[]) => void
+const UploadTestDialog = ({
+  post,
+  open,
+  onOpenChange,
+  onUploadComplete,
+}: {
+  post: Post | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUploadComplete: (postId: string, testFileUrl: string) => void;
 }) => {
-    const { toast } = useToast();
-    const [file, setFile] = useState<File | null>(null);
-    const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
 
-    const handleUpload = async () => {
-        if (!file || !post) {
-            toast({ title: "Please select a file.", variant: "destructive" });
-            return;
-        }
-        setLoading(true);
-        try {
-            const filePath = `skill-tests/${post.id}/${file.name}`;
-            const fileUrl = await uploadFile(file, filePath);
-            
-            const postRef = doc(db, post.type.toLowerCase() + 's', post.id);
-            const newPipeline = post.pipeline.map(p => p.stage === 'skill_test' ? { ...p, testFileUrl: fileUrl } : p);
-            await updateDoc(postRef, { pipeline: newPipeline });
-
-            toast({ title: "Test uploaded successfully!" });
-            onUploadComplete(post.id, newPipeline);
-            onOpenChange(false);
-            setFile(null);
-        } catch (error) {
-            console.error("Upload failed", error);
-            toast({ title: "Upload Failed", description: "Could not upload the test file.", variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
+  const handleUpload = async () => {
+    if (!file || !post || !user) {
+      toast({ title: 'Please select a file.', variant: 'destructive' });
+      return;
     }
+    setLoading(true);
+    try {
+      const filePath = `skill-tests/${post.id}/${file.name}`;
+      const fileUrl = await uploadFile(file, filePath);
 
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Upload Traditional Test</DialogTitle>
-                    <DialogDescription>Upload the test document for "{post?.title}". Candidates will be able to download this file.</DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-4">
-                    <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                    <Button onClick={handleUpload} disabled={loading || !file} className="w-full">
-                        {loading ? <Loader2 className="animate-spin mr-2"/> : <Upload className="mr-2"/>}
-                        Upload Test
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
-}
+      // Create a document in skill_tests collection
+      await addDoc(collection(db, 'skill_tests'), {
+          title: `${post.title} - Traditional Test`,
+          postId: post.id,
+          postType: post.type.toLowerCase(),
+          employerId: user.uid,
+          createdAt: serverTimestamp(),
+          testFileUrl: fileUrl,
+          type: 'traditional'
+      });
+
+      toast({ title: 'Test uploaded successfully!' });
+      onUploadComplete(post.id, fileUrl);
+      onOpenChange(false);
+      setFile(null);
+    } catch (error) {
+      console.error('Upload failed', error);
+      toast({
+        title: 'Upload Failed',
+        description: 'Could not upload the test file.',
+        variant: 'destructive',
+      });
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: '/skill_tests',
+          operation: 'create'
+      }))
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Upload Traditional Test</DialogTitle>
+          <DialogDescription>
+            Upload the test document for "{post?.title}". Candidates will be
+            able to download this file.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <Input
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+          />
+          <Button
+            onClick={handleUpload}
+            disabled={loading || !file}
+            className="w-full"
+          >
+            {loading ? (
+              <Loader2 className="animate-spin mr-2" />
+            ) : (
+              <Upload className="mr-2" />
+            )}
+            Upload Test
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 
 export default function SkillTestsPage() {
@@ -281,11 +311,17 @@ export default function SkillTestsPage() {
     fetchPosts();
   }, [user]);
 
-  const handleUploadComplete = (postId: string, newPipeline: any[]) => {
+  const handleUploadComplete = (postId: string, testFileUrl: string) => {
     setPosts(prevPosts => 
-        prevPosts.map(p => 
-            p.id === postId ? { ...p, pipeline: newPipeline } : p
-        )
+        prevPosts.map(p => {
+            if (p.id === postId) {
+                const newPipeline = p.pipeline ? p.pipeline.map(stage => 
+                    stage.stage === 'skill_test' ? { ...stage, testFileUrl } : stage
+                ) : [{ stage: 'skill_test', type: 'traditional', testFileUrl }];
+                return { ...p, pipeline: newPipeline };
+            }
+            return p;
+        })
     );
   };
 
