@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev -p 9002",
     "build": "next build",
-    "start": "sh -c \"next start -p ${PORT:-8080} -H 0.0.0.0\"",
+    "start": "next build && next start -p ${PORT:-8080} -H 0.0.0.0",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
@@ -26,6 +26,7 @@
     "@radix-ui/react-menubar": "^1.1.6",
     "@radix-ui/react-popover": "^1.1.6",
     "@radix-ui/react-progress": "^1.1.2",
+    "react-day-picker": "8.10.1",
     "@radix-ui/react-radio-group": "^1.2.3",
     "@radix-ui/react-scroll-area": "^1.2.3",
     "@radix-ui/react-select": "^2.1.6",
@@ -48,7 +49,6 @@
     "lucide-react": "^0.475.0",
     "next": "14.2.33",
     "react": "18.3.1",
-    "react-day-picker": "8.10.1",
     "react-dom": "18.3.1",
     "react-hook-form": "^7.54.2",
     "recharts": "^2.15.1",

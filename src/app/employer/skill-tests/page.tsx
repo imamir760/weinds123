@@ -10,11 +10,11 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap, TestTube2, FilePlus, Eye, CheckCircle, Upload } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, TestTube2, FilePlus, Eye, CheckCircle, Upload, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -27,21 +27,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { FullReport, ReportDialog } from '@/components/employer/report-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { uploadFile } from '@/lib/storage-actions';
 
 type Post = DocumentData & { 
     id: string; 
     type: 'Job' | 'Internship'; 
     title: string, 
     createdAt: Timestamp,
-    pipeline: { stage: string, type?: string }[];
+    pipeline: { stage: string, type?: string, testFileUrl?: string }[];
 };
 
 type ReportWithCandidate = FullReport & {
   candidateName: string;
   candidateId: string;
   postType: 'job' | 'internship';
+  submissionFileUrl?: string;
 };
-
 
 const ViewSubmissionsDialog = ({ 
     isOpen, 
@@ -61,67 +63,54 @@ const ViewSubmissionsDialog = ({
 
     useEffect(() => {
         if (isOpen && post && user) {
-            const fetchReports = async () => {
+            const fetchSubmissionsAndReports = async () => {
                 setLoading(true);
-                setReports([]); // Reset on open
+                setReports([]);
                 try {
-                    const reportsQuery = query(collection(db, 'skillTestReports'), where('postId', '==', post.id), where('employerId', '==', user.uid));
-                    const reportsSnapshot = await getDocs(reportsQuery);
+                    const submissionsQuery = query(collection(db, 'skillTestSubmissions'), where('postId', '==', post.id), where('employerId', '==', user.uid));
+                    const submissionsSnapshot = await getDocs(submissionsQuery);
 
-                    if (reportsSnapshot.empty) {
+                    if (submissionsSnapshot.empty) {
                         setReports([]);
                         setLoading(false);
                         return;
                     }
-
-                    const reportsData = reportsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FullReport[];
                     
+                    const submissionDocs = submissionsSnapshot.docs.map(d => ({...d.data(), id: d.id}));
+
                     const reportsWithDetails: ReportWithCandidate[] = [];
-                    for (const report of reportsData) {
-                        let submissionData: { submission: any[] } = { submission: [] };
-                        if (report.submissionId) {
-                            try {
-                                const submissionRef = doc(db, 'skillTestSubmissions', report.submissionId);
-                                const submissionSnap = await getDoc(submissionRef);
-                                if (submissionSnap.exists()) {
-                                    submissionData = submissionSnap.data() as { submission: any[] };
-                                }
-                            } catch (e) {
-                                console.error(`Failed to fetch submission ${report.submissionId}`, e);
-                            }
-                        }
+                    for (const submission of submissionDocs) {
+                        let reportData: FullReport | null = null;
                         
-                        let candidateName = 'Unknown Candidate';
-                         try {
-                            const applicationQuery = query(collection(db, 'applications'), where('candidateId', '==', report.candidateId), where('postId', '==', report.postId));
-                            const applicationSnap = await getDocs(applicationQuery);
-                            candidateName = applicationSnap.docs[0]?.data()?.candidateName || 'Unknown Candidate';
-                         } catch (e) {
-                             console.error(`Failed to fetch application for candidate ${report.candidateId}`, e);
-                         }
+                        if (submission.testType === 'ai') {
+                             const reportQuery = query(collection(db, 'skillTestReports'), where('submissionId', '==', submission.id));
+                             const reportSnapshot = await getDocs(reportQuery);
+                             if (!reportSnapshot.empty) {
+                                reportData = { id: reportSnapshot.docs[0].id, ...reportSnapshot.docs[0].data() } as FullReport;
+                             }
+                        }
 
                         reportsWithDetails.push({
-                            ...report,
-                            submission: submissionData.submission,
-                            candidateName,
-                            candidateId: report.candidateId,
-                            postType: post.type.toLowerCase() as 'job' | 'internship',
+                            ...(reportData as FullReport),
+                            candidateId: submission.candidateId,
+                            candidateName: submission.candidateName,
+                            postType: submission.postType,
+                            submissionFileUrl: submission.submissionFileUrl,
                         });
                     }
                     
-                    setReports(reportsWithDetails.sort((a,b) => b.generatedAt.toMillis() - a.generatedAt.toMillis()));
-
+                    setReports(reportsWithDetails);
                 } catch (error) {
-                    console.error("Error fetching skill test reports:", error);
+                    console.error("Error fetching skill test submissions:", error);
                     errorEmitter.emit('permission-error', new FirestorePermissionError({
-                        path: `skillTestReports for post ${post.id}`,
+                        path: `skillTestSubmissions for post ${post.id}`,
                         operation: 'list',
                     }));
                 } finally {
                     setLoading(false);
                 }
             };
-            fetchReports();
+            fetchSubmissionsAndReports();
         }
     }, [isOpen, post, user]);
 
@@ -136,7 +125,7 @@ const ViewSubmissionsDialog = ({
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Submissions for "{post?.title}"</DialogTitle>
-                        <DialogDescription>Review reports for candidates who have completed the skill test.</DialogDescription>
+                        <DialogDescription>Review submissions for candidates who have completed the skill test.</DialogDescription>
                     </DialogHeader>
                     <div className="max-h-[60vh] overflow-y-auto pr-4">
                         {loading ? (
@@ -150,20 +139,28 @@ const ViewSubmissionsDialog = ({
                         ) : (
                             <div className="space-y-3">
                                 {reports.map((report) => (
-                                    <Card key={report.id}>
+                                    <Card key={report.id || report.candidateId}>
                                         <CardContent className="p-3 flex justify-between items-center">
                                             <div className="flex items-center gap-4">
                                                 <Avatar>
-                                                    <AvatarFallback>{report.candidateName.charAt(0)}</AvatarFallback>
+                                                    <AvatarFallback>{report.candidateName?.charAt(0) || 'C'}</AvatarFallback>
                                                 </Avatar>
                                                 <div>
-                                                     <Link href={`/employer/${report.postType}s/${report.postId}/candidates/${report.candidateId}`} className="font-semibold hover:underline">{report.candidateName}</Link>
-                                                    <p className="text-sm text-muted-foreground">Score: {report.score}/100</p>
+                                                     <Link href={`/employer/${report.postType}s/${post?.id}/candidates/${report.candidateId}`} className="font-semibold hover:underline">{report.candidateName}</Link>
+                                                     {report.score !== undefined && <p className="text-sm text-muted-foreground">AI Score: {report.score}/100</p>}
                                                 </div>
                                             </div>
-                                            <Button size="sm" variant="outline" onClick={() => handleViewReport(report)}>
-                                                <Eye className="mr-2 h-4 w-4"/> View Report
-                                            </Button>
+                                            {report.submissionFileUrl ? (
+                                                <Button size="sm" asChild variant="outline">
+                                                    <a href={report.submissionFileUrl} target="_blank" rel="noopener noreferrer">
+                                                        <FileDown className="mr-2 h-4 w-4"/> Download Submission
+                                                    </a>
+                                                </Button>
+                                            ) : report.id ? (
+                                                <Button size="sm" variant="outline" onClick={() => handleViewReport(report)}>
+                                                    <Eye className="mr-2 h-4 w-4"/> View Report
+                                                </Button>
+                                            ) : null}
                                         </CardContent>
                                     </Card>
                                 ))}
@@ -177,12 +174,64 @@ const ViewSubmissionsDialog = ({
     )
 }
 
+const UploadTestDialog = ({ post, open, onOpenChange }: { post: Post | null, open: boolean, onOpenChange: (open: boolean) => void}) => {
+    const { toast } = useToast();
+    const [file, setFile] = useState<File | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const handleUpload = async () => {
+        if (!file || !post) {
+            toast({ title: "Please select a file.", variant: "destructive" });
+            return;
+        }
+        setLoading(true);
+        try {
+            const filePath = `skill-tests/${post.id}/${file.name}`;
+            const fileUrl = await uploadFile(file, filePath);
+            
+            // Update the post document with the test file URL
+            const postRef = doc(db, post.type.toLowerCase() + 's', post.id);
+            const newPipeline = post.pipeline.map(p => p.stage === 'skill_test' ? { ...p, testFileUrl: fileUrl } : p);
+            await updateDoc(postRef, { pipeline: newPipeline });
+
+            toast({ title: "Test uploaded successfully!" });
+            onOpenChange(false);
+        } catch (error) {
+            console.error("Upload failed", error);
+            toast({ title: "Upload Failed", description: "Could not upload the test file.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Upload Traditional Test</DialogTitle>
+                    <DialogDescription>Upload the test document for "{post?.title}". Candidates will be able to download this file.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                    <Button onClick={handleUpload} disabled={loading || !file} className="w-full">
+                        {loading ? <Loader2 className="animate-spin mr-2"/> : <Upload className="mr-2"/>}
+                        Upload Test
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
+  
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
@@ -229,6 +278,11 @@ export default function SkillTestsPage() {
     setSelectedPost(post);
     setIsSubmissionsOpen(true);
   }
+  
+  const handleUploadClick = (post: Post) => {
+    setSelectedPost(post);
+    setIsUploadOpen(true);
+  }
 
   const filteredPosts = useMemo(() => {
     return posts.filter(post => showInternships ? post.type === 'Internship' : post.type === 'Job');
@@ -240,30 +294,35 @@ export default function SkillTestsPage() {
     return format(date, 'MMM d, yyyy');
   }
 
-  const getTestInfo = (pipeline: { stage: string, type?: string }[]) => {
+  const getTestInfo = (pipeline: { stage: string, type?: string, testFileUrl?: string }[]) => {
       const skillTestStage = pipeline?.find(p => p.stage === 'skill_test');
       if (!skillTestStage || !skillTestStage.type) return {
           badge: <Badge variant="outline">Not Set</Badge>,
-          type: 'none'
+          type: 'none',
+          hasFile: false
       };
       
       const type = skillTestStage.type;
+      const hasFile = !!skillTestStage.testFileUrl;
 
       if (type === 'ai') {
           return {
               badge: <Badge>AI Test</Badge>,
-              type: 'ai'
+              type: 'ai',
+              hasFile: false
           }
       }
       if (type === 'traditional') {
           return {
               badge: <Badge variant="secondary">Traditional</Badge>,
-              type: 'traditional'
+              type: 'traditional',
+              hasFile: hasFile
           }
       }
       return {
           badge: <Badge variant="outline">{type}</Badge>,
-          type: 'none'
+          type: 'none',
+          hasFile: false
       }
   }
 
@@ -335,7 +394,7 @@ export default function SkillTestsPage() {
                                     <TableCell className="text-right space-x-2">
                                          <Button variant="outline" size="sm" onClick={() => handleViewTestsClick(post)}>
                                               <Eye className="mr-2 h-3 w-3"/>
-                                              View Tests
+                                              View Submissions
                                         </Button>
                                         {testInfo.type === 'ai' ? (
                                             <Button size="sm" disabled>
@@ -343,16 +402,13 @@ export default function SkillTestsPage() {
                                                 AI Test Enabled
                                             </Button>
                                         ) : testInfo.type === 'traditional' ? (
-                                            <Button size="sm">
-                                                <Upload className="mr-2 h-3 w-3"/>
-                                                Upload Test
+                                             <Button size="sm" onClick={() => handleUploadClick(post)}>
+                                                {testInfo.hasFile ? <CheckCircle className="mr-2 h-3 w-3"/> : <Upload className="mr-2 h-3 w-3"/>}
+                                                {testInfo.hasFile ? 'Test Uploaded' : 'Upload Test'}
                                             </Button>
                                         ) : (
-                                            <Button asChild size="sm">
-                                                <Link href={`/employer/skill-tests/${post.id}/create`}>
-                                                <FilePlus className="mr-2 h-3 w-3"/>
-                                                Create Test
-                                                </Link>
+                                            <Button asChild size="sm" variant="ghost" disabled>
+                                                <span className="text-muted-foreground">Setup in Pipeline</span>
                                             </Button>
                                         )}
                                     </TableCell>
@@ -367,6 +423,11 @@ export default function SkillTestsPage() {
       <ViewSubmissionsDialog 
         isOpen={isSubmissionsOpen}
         onOpenChange={setIsSubmissionsOpen}
+        post={selectedPost}
+      />
+      <UploadTestDialog 
+        open={isUploadOpen}
+        onOpenChange={setIsUploadOpen}
         post={selectedPost}
       />
     </div>

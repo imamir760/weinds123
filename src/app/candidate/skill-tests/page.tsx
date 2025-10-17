@@ -9,28 +9,21 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import CandidateDashboardLayout from '../dashboard/page';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc } from 'firebase/firestore';
-import { Loader2, TestTube2, Building, FileText, FileBarChart2, Star, ThumbsUp, ThumbsDown, AlertTriangle, FileQuestion, CheckCircle, Upload, Download } from 'lucide-react';
+import { collection, onSnapshot, DocumentData, Timestamp, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { Loader2, TestTube2, Building, FileText, FileBarChart2, Star, ThumbsUp, ThumbsDown, AlertTriangle, FileQuestion, CheckCircle, Upload, Download, FileDown } from 'lucide-react';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { EvaluateSkillTestOutput } from '@/ai/dev';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ReportDialog, FullReport } from '@/components/employer/report-dialog';
+import { uploadFile } from '@/lib/storage-actions';
 
 interface ApplicationForTest extends DocumentData {
   id: string; // application id
@@ -40,127 +33,7 @@ interface ApplicationForTest extends DocumentData {
   postType: 'job' | 'internship';
   testType?: 'ai' | 'traditional';
   testFileUrl?: string; // For traditional tests
-}
-
-type ReportEvaluation = Omit<EvaluateSkillTestOutput, 'submission'>;
-
-interface Report extends ReportEvaluation {
-    id: string; // reportId
-    submissionId: string;
-    generatedAt: Timestamp;
-}
-
-interface FullReport extends Report {
-    submission: {
-      questionText: string;
-      candidateAnswer: string;
-      correctAnswer: string;
-    }[];
-}
-
-
-const ReportDialog = ({ report, open, onOpenChange }: { report: FullReport | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
-    if (!report) return null;
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2"><FileBarChart2 /> Skill Test Report</DialogTitle>
-                    <DialogDescription>Generated on {new Date(report.generatedAt.seconds * 1000).toLocaleDateString()}</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Overall Score</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex items-center gap-4">
-                             <div className="relative w-24 h-24">
-                                <svg className="w-full h-full" viewBox="0 0 36 36">
-                                    <path
-                                        className="text-gray-200 dark:text-gray-700"
-                                        stroke="currentColor"
-                                        strokeWidth="2.5"
-                                        fill="none"
-                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                    />
-                                    <path
-                                        className="text-primary"
-                                        stroke="currentColor"
-                                        strokeWidth="2.5"
-                                        strokeDasharray={`${report.score}, 100`}
-                                        strokeLinecap="round"
-                                        fill="none"
-                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                    />
-                                </svg>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-2xl font-bold">{report.score}</span>
-                                </div>
-                            </div>
-                            <p className="flex-1 text-muted-foreground">{report.summary}</p>
-                        </CardContent>
-                    </Card>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card>
-                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><ThumbsUp className="text-green-500"/> Strengths</CardTitle>
-                            </CardHeader>
-                             <CardContent>
-                                <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                                    {report.strengths.map((s, i) => <li key={i}>{s}</li>)}
-                                </ul>
-                            </CardContent>
-                        </Card>
-                         <Card>
-                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><ThumbsDown className="text-destructive"/> Areas for Improvement</CardTitle>
-                            </CardHeader>
-                             <CardContent>
-                                <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                                    {report.areasForImprovement.map((s, i) => <li key={i}>{s}</li>)}
-                                </ul>
-                            </CardContent>
-                        </Card>
-                    </div>
-                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><FileQuestion/> Detailed Analysis</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <Accordion type="single" collapsible className="w-full">
-                                {report.submission?.map((item, index) => {
-                                    const isCorrect = item.candidateAnswer?.trim().toLowerCase() === item.correctAnswer?.trim().toLowerCase();
-                                    return (
-                                        <AccordionItem value={`item-${index}`} key={index}>
-                                            <AccordionTrigger>
-                                                <div className="flex items-center gap-3">
-                                                     {isCorrect ? <CheckCircle className="w-5 h-5 text-green-500"/> : <AlertTriangle className="w-5 h-5 text-destructive"/> }
-                                                     <span className="text-left">Question {index + 1}</span>
-                                                </div>
-                                            </AccordionTrigger>
-                                            <AccordionContent className="space-y-4">
-                                                <p className="font-semibold">{item.questionText}</p>
-                                                <div>
-                                                    <p className="text-sm font-medium">Your Answer:</p>
-                                                    <p className="text-sm text-muted-foreground mt-1 p-2 bg-secondary rounded">{item.candidateAnswer || '(Not answered)'}</p>
-                                                </div>
-                                                {!isCorrect && (
-                                                    <div>
-                                                        <p className="text-sm font-medium">Correct Answer:</p>
-                                                        <p className="text-sm text-muted-foreground mt-1 p-2 bg-secondary rounded">{item.correctAnswer}</p>
-                                                    </div>
-                                                )}
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    )
-                                })}
-                            </Accordion>
-                        </CardContent>
-                    </Card>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
+  submissionFileUrl?: string;
 }
 
 export default function SkillTestsPage() {
@@ -168,11 +41,12 @@ export default function SkillTestsPage() {
   const { toast } = useToast();
   const [skillTests, setSkillTests] = useState<ApplicationForTest[]>([]);
   const [submittedTests, setSubmittedTests] = useState<string[]>([]);
-  const [reports, setReports] = useState<{[key: string]: Report}>({});
+  const [reports, setReports] = useState<{[key: string]: FullReport}>({});
   const [loading, setLoading] = useState(true);
   const [submissionFiles, setSubmissionFiles] = useState<{[key: string]: File | null}>({});
   const [selectedReport, setSelectedReport] = useState<FullReport | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [uploading, setUploading] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     if (user) {
@@ -181,7 +55,17 @@ export default function SkillTestsPage() {
       const submissionsQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid));
       const unsubscribeSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
         const submittedPostIds = snapshot.docs.map(doc => doc.data().postId);
+        const submittedTestsData = snapshot.docs.reduce((acc, doc) => {
+            acc[doc.data().postId] = doc.data().submissionFileUrl;
+            return acc;
+        }, {} as {[key: string]: string});
+        
         setSubmittedTests(submittedPostIds);
+        setSkillTests(prev => prev.map(test => ({
+            ...test,
+            submissionFileUrl: submittedTestsData[test.postId]
+        })));
+
       }, (serverError) => {
           const permissionError = new FirestorePermissionError({
               path: 'skillTestSubmissions',
@@ -194,9 +78,9 @@ export default function SkillTestsPage() {
 
       const reportsQuery = query(collection(db, 'skillTestReports'), where('candidateId', '==', user.uid));
         const unsubscribeReports = onSnapshot(reportsQuery, (snapshot) => {
-            const reportsData: {[key: string]: Report} = {};
+            const reportsData: {[key: string]: FullReport} = {};
             snapshot.docs.forEach(doc => {
-                reportsData[doc.data().postId] = { id: doc.id, ...doc.data() } as Report;
+                reportsData[doc.data().postId] = { id: doc.id, ...doc.data() } as FullReport;
             });
             setReports(reportsData);
         }, (serverError) => {
@@ -232,7 +116,7 @@ export default function SkillTestsPage() {
                     testsWithDetails.push({
                         ...appData,
                         testType: skillTestStage?.type,
-                        testFileUrl: skillTestStage?.type === 'traditional' ? '#' : undefined,
+                        testFileUrl: skillTestStage?.testFileUrl,
                     });
                 } else {
                    testsWithDetails.push(appData);
@@ -270,13 +154,45 @@ export default function SkillTestsPage() {
     }
   }
 
-  const handleSubmitTraditionalTest = (testId: string) => {
-      const file = submissionFiles[testId];
-      if (!file) {
+  const handleSubmitTraditionalTest = async (test: ApplicationForTest) => {
+      const file = submissionFiles[test.id];
+      if (!file || !user) {
           toast({ title: "Please select a file to submit.", variant: "destructive" });
           return;
       }
-      toast({ title: `Submitting ${file.name} for test ${testId}.` });
+      setUploading(prev => ({ ...prev, [test.id]: true }));
+
+      try {
+        const filePath = `test-submissions/${test.postId}/${user.uid}/${file.name}`;
+        const fileUrl = await uploadFile(file, filePath);
+        
+        const submissionRef = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid), where('postId', '==', test.postId));
+        const submissionSnap = await getDocs(submissionRef);
+
+        if (submissionSnap.empty) {
+             toast({ title: "Submission record not found.", variant: "destructive" });
+             throw new Error("Submission record not found");
+        }
+
+        const submissionDocRef = submissionSnap.docs[0].ref;
+        await updateDoc(submissionDocRef, {
+            submissionFileUrl: fileUrl,
+            submittedAt: new Date()
+        });
+
+        toast({ title: "Submission successful!" });
+        setSkillTests(prev => prev.map(t => t.id === test.id ? {...t, submissionFileUrl: fileUrl } : t));
+
+      } catch (error) {
+        console.error("Failed to submit test", error);
+        toast({ title: "Submission failed.", variant: "destructive" });
+         errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'skillTestSubmissions',
+            operation: 'update',
+        }));
+      } finally {
+        setUploading(prev => ({ ...prev, [test.id]: false }));
+      }
   }
   
   const handleViewReport = async (postId: string) => {
@@ -388,21 +304,31 @@ export default function SkillTestsPage() {
                                    <div>
                                         <h4 className="font-semibold mb-2">Step 1: Download Test</h4>
                                         <p className="text-sm text-muted-foreground mb-3">Download the test file provided by the employer.</p>
-                                        <Button asChild variant="outline">
-                                            <a href={test.testFileUrl} download>
-                                                <Download className="mr-2"/> Download Test File
-                                            </a>
-                                        </Button>
+                                        {test.testFileUrl ? (
+                                            <Button asChild variant="outline">
+                                                <a href={test.testFileUrl} download target="_blank" rel="noopener noreferrer">
+                                                    <Download className="mr-2"/> Download Test File
+                                                </a>
+                                            </Button>
+                                        ) : (
+                                            <p className="text-sm font-semibold text-destructive">Employer has not uploaded the test file yet.</p>
+                                        )}
                                    </div>
                                     <div>
                                         <h4 className="font-semibold mb-2">Step 2: Submit Your Work</h4>
-                                        <p className="text-sm text-muted-foreground mb-3">Upload your completed test file (PDF, DOC, or code).</p>
-                                        <div className="flex items-center gap-2">
-                                            <Input id={`file-upload-${test.id}`} type="file" className="max-w-xs" onChange={(e) => handleFileChange(test.id, e)}/>
-                                            <Button onClick={() => handleSubmitTraditionalTest(test.id)} disabled={!submissionFiles[test.id]}>
-                                                <Upload className="mr-2"/> Submit
+                                        <p className="text-sm text-muted-foreground mb-3">Upload your completed test file (PDF, DOC, ZIP, etc.).</p>
+                                        {test.submissionFileUrl ? (
+                                            <Button variant="outline" disabled>
+                                                <CheckCircle className="mr-2 text-green-500" /> Test Submitted
                                             </Button>
-                                        </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <Input id={`file-upload-${test.id}`} type="file" className="max-w-xs" onChange={(e) => handleFileChange(test.id, e)} disabled={!test.testFileUrl}/>
+                                                <Button onClick={() => handleSubmitTraditionalTest(test)} disabled={!submissionFiles[test.id] || uploading[test.id]}>
+                                                    {uploading[test.id] ? <Loader2 className="mr-2 animate-spin"/> : <Upload className="mr-2"/>} Submit
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}

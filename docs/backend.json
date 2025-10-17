@@ -149,7 +149,8 @@
                 "type": "object",
                 "properties": {
                     "stage": { "type": "string" },
-                    "type": { "type": "string" }
+                    "type": { "type": "string" },
+                    "testFileUrl": { "type": "string", "format": "uri" }
                 }
             }
         }
@@ -180,7 +181,8 @@
                 "type": "object",
                 "properties": {
                     "stage": { "type": "string" },
-                    "type": { "type": "string" }
+                    "type": { "type": "string" },
+                    "testFileUrl": { "type": "string", "format": "uri" }
                 }
             }
         }
@@ -241,6 +243,8 @@
         "postType": { "type": "string", "enum": ["job", "internship"] },
         "employerId": { "type": "string" },
         "submittedAt": { "type": "string", "format": "date-time" },
+        "testType": { "type": "string", "enum": ["ai", "traditional"] },
+        "submissionFileUrl": { "type": "string", "format": "uri" },
         "submission": {
           "type": "array",
           "items": {
@@ -253,7 +257,7 @@
           }
         }
       },
-      "required": ["candidateId", "postId", "postType", "employerId", "submittedAt", "submission"]
+      "required": ["candidateId", "postId", "postType", "employerId", "submittedAt", "testType"]
     },
     "SkillTestReport": {
       "title": "Skill Test Report",

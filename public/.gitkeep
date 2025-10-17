@@ -1,6 +1,0 @@
-export interface JobDescription {
-  title: string;
-  description: string;
-  location: string;
-  salary: number;
-}
