@@ -29,6 +29,13 @@ const nextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer }) => {
+    // Exclude gRPC from the client-side bundle
+    if (!isServer) {
+      config.externals.push('@grpc/grpc-js');
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;
