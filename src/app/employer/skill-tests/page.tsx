@@ -209,11 +209,6 @@ const UploadTestDialog = ({
 
       await addDoc(collection(db, 'skill_tests'), skillTestDoc);
       
-      const postRef = doc(db, post.type.toLowerCase() + 's', post.id);
-      const newPipeline = post.pipeline.map(p => p.stage === 'skill_test' ? {...p, testFileUrl: fileUrl} : p);
-      await updateDoc(postRef, { pipeline: newPipeline });
-
-
       toast({ title: 'Test uploaded successfully!' });
       onUploadComplete(post.id, fileUrl);
       onOpenChange(false);
@@ -494,5 +489,3 @@ export default function SkillTestsPage() {
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
-
-    
