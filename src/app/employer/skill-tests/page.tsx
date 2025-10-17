@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -78,6 +77,11 @@ const ViewSubmissionsDialog = ({
 
                     const populatedSubmissions = [];
                     for (const sub of submissionDocs) {
+                        // Fetch candidate name for each submission
+                        const applicationQuery = query(collection(db, 'applications'), where('candidateId', '==', sub.candidateId), where('postId', '==', sub.postId));
+                        const applicationSnap = await getDocs(applicationQuery);
+                        const candidateName = applicationSnap.docs[0]?.data()?.candidateName || sub.candidateId;
+
                         let reportData = null;
                         if (sub.testType === 'ai') {
                              const reportQuery = query(collection(db, 'skillTestReports'), where('submissionId', '==', sub.id));
@@ -86,7 +90,7 @@ const ViewSubmissionsDialog = ({
                                 reportData = { ...reportSnapshot.docs[0].data(), id: reportSnapshot.docs[0].id, submission: sub.submission } as FullReport;
                              }
                         }
-                        populatedSubmissions.push({ ...sub, report: reportData });
+                        populatedSubmissions.push({ ...sub, candidateName, report: reportData });
                     }
                     
                     setSubmissions(populatedSubmissions);
@@ -447,5 +451,3 @@ export default function SkillTestsPage() {
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
-
-    
