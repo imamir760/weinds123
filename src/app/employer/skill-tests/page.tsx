@@ -35,8 +35,13 @@ type Post = DocumentData & {
     type: 'Job' | 'Internship'; 
     title: string, 
     createdAt: Timestamp,
-    pipeline: { stage: string, type?: string, testFileUrl?: string }[];
+    pipeline: { stage: string, type?: string }[];
 };
+
+type TraditionalTest = DocumentData & {
+    id: string;
+    testFileUrl: string;
+}
 
 type ReportWithCandidate = FullReport & {
   candidateName: string;
@@ -180,7 +185,7 @@ const UploadTestDialog = ({
   post: Post | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUploadComplete: (postId: string, testFileUrl: string) => void;
+  onUploadComplete: (postId: string, testId: string, testFileUrl: string) => void;
 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -194,23 +199,22 @@ const UploadTestDialog = ({
     }
     setLoading(true);
     try {
-      const filePath = `skill-tests/${post.id}/${file.name}`;
+      const filePath = `traditional-tests/${post.id}/${file.name}`;
       const fileUrl = await uploadFile(file, filePath);
 
-      const skillTestDoc = {
+      const testDoc = {
           title: `${post.title} - Traditional Test`,
           postId: post.id,
           postType: post.type.toLowerCase(),
           employerId: user.uid,
           createdAt: serverTimestamp(),
           testFileUrl: fileUrl,
-          type: 'traditional'
       };
 
-      await addDoc(collection(db, 'skill_tests'), skillTestDoc);
+      const docRef = await addDoc(collection(db, 'traditional_tests'), testDoc);
       
       toast({ title: 'Test uploaded successfully!' });
-      onUploadComplete(post.id, fileUrl);
+      onUploadComplete(post.id, docRef.id, fileUrl);
       onOpenChange(false);
       setFile(null);
     } catch (error) {
@@ -221,7 +225,7 @@ const UploadTestDialog = ({
         variant: 'destructive',
       });
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: '/skill_tests',
+          path: '/traditional_tests',
           operation: 'create'
       }))
     } finally {
@@ -266,6 +270,7 @@ const UploadTestDialog = ({
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [traditionalTests, setTraditionalTests] = useState<{[key: string]: TraditionalTest}>({});
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
   
@@ -274,7 +279,7 @@ export default function SkillTestsPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchPostsAndTests = async () => {
       if (!user) {
         setLoading(false);
         return;
@@ -285,8 +290,9 @@ export default function SkillTestsPage() {
       try {
         const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
         const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
+        const testsQuery = query(collection(db, 'traditional_tests'), where('employerId', '==', user.uid));
         
-        const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
+        const [jobsSnapshot, internshipsSnapshot, testsSnapshot] = await Promise.all([
           getDocs(jobsQuery).catch(e => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
@@ -294,12 +300,23 @@ export default function SkillTestsPage() {
           getDocs(internshipsQuery).catch(e => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
+          }),
+          getDocs(testsQuery).catch(e => {
+              errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditional_tests', operation: 'list', requestResourceData: { employerId: user.uid}}));
+              return null;
           })
         ]);
 
         const jobsData = jobsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post)) || [];
         const internshipsData = internshipsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post)) || [];
         
+        const testsData: {[key: string]: TraditionalTest} = {};
+        testsSnapshot?.docs.forEach(doc => {
+            const data = doc.data();
+            testsData[data.postId] = { id: doc.id, ...data } as TraditionalTest;
+        });
+        setTraditionalTests(testsData);
+
         let allPosts = [...jobsData, ...internshipsData];
         setPosts(allPosts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
 
@@ -310,21 +327,14 @@ export default function SkillTestsPage() {
       }
     };
 
-    fetchPosts();
+    fetchPostsAndTests();
   }, [user]);
 
-  const handleUploadComplete = (postId: string, testFileUrl: string) => {
-    setPosts(prevPosts => 
-        prevPosts.map(p => {
-            if (p.id === postId) {
-                const newPipeline = p.pipeline ? p.pipeline.map(stage => 
-                    stage.stage === 'skill_test' ? { ...stage, testFileUrl } : stage
-                ) : [{ stage: 'skill_test', type: 'traditional', testFileUrl }];
-                return { ...p, pipeline: newPipeline };
-            }
-            return p;
-        })
-    );
+  const handleUploadComplete = (postId: string, testId: string, testFileUrl: string) => {
+    setTraditionalTests(prev => ({
+        ...prev,
+        [postId]: { id: testId, testFileUrl }
+    }));
   };
 
   const handleViewTestsClick = (post: Post) => {
@@ -347,8 +357,10 @@ export default function SkillTestsPage() {
     return format(date, 'MMM d, yyyy');
   }
 
-  const getTestInfo = (pipeline: { stage: string, type?: string, testFileUrl?: string }[]) => {
-      const skillTestStage = pipeline?.find(p => p.stage === 'skill_test');
+  const getTestInfo = (post: Post) => {
+      const skillTestStage = post.pipeline?.find(p => p.stage === 'skill_test');
+      const traditionalTest = traditionalTests[post.id];
+
       if (!skillTestStage || !skillTestStage.type) return {
           badge: <Badge variant="outline">Not Set</Badge>,
           type: 'none',
@@ -356,7 +368,7 @@ export default function SkillTestsPage() {
       };
       
       const type = skillTestStage.type;
-      const hasFile = !!skillTestStage.testFileUrl;
+      const hasFile = !!traditionalTest?.testFileUrl;
 
       if (type === 'ai') {
           return {
@@ -432,7 +444,7 @@ export default function SkillTestsPage() {
                     </TableHeader>
                     <TableBody>
                         {filteredPosts.map(post => {
-                            const testInfo = getTestInfo(post.pipeline);
+                            const testInfo = getTestInfo(post);
                             return (
                                 <TableRow key={post.id}>
                                     <TableCell className="font-medium">{post.title}</TableCell>
