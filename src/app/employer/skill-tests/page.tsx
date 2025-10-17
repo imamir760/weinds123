@@ -55,8 +55,7 @@ const ViewSubmissionsDialog = ({
     post: Post | null;
 }) => {
     const { user } = useAuth();
-    const { toast } = useToast();
-    const [reports, setReports] = useState<ReportWithCandidate[]>([]);
+    const [submissions, setSubmissions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState<FullReport | null>(null);
     const [isReportOpen, setIsReportOpen] = useState(false);
@@ -65,41 +64,32 @@ const ViewSubmissionsDialog = ({
         if (isOpen && post && user) {
             const fetchSubmissionsAndReports = async () => {
                 setLoading(true);
-                setReports([]);
                 try {
                     const submissionsQuery = query(collection(db, 'skillTestSubmissions'), where('postId', '==', post.id), where('employerId', '==', user.uid));
                     const submissionsSnapshot = await getDocs(submissionsQuery);
 
                     if (submissionsSnapshot.empty) {
-                        setReports([]);
+                        setSubmissions([]);
                         setLoading(false);
                         return;
                     }
                     
                     const submissionDocs = submissionsSnapshot.docs.map(d => ({...d.data(), id: d.id}));
 
-                    const reportsWithDetails: ReportWithCandidate[] = [];
-                    for (const submission of submissionDocs) {
-                        let reportData: FullReport | null = null;
-                        
-                        if (submission.testType === 'ai') {
-                             const reportQuery = query(collection(db, 'skillTestReports'), where('submissionId', '==', submission.id));
+                    const populatedSubmissions = [];
+                    for (const sub of submissionDocs) {
+                        let reportData = null;
+                        if (sub.testType === 'ai') {
+                             const reportQuery = query(collection(db, 'skillTestReports'), where('submissionId', '==', sub.id));
                              const reportSnapshot = await getDocs(reportQuery);
                              if (!reportSnapshot.empty) {
-                                reportData = { id: reportSnapshot.docs[0].id, ...reportSnapshot.docs[0].data() } as FullReport;
+                                reportData = { ...reportSnapshot.docs[0].data(), id: reportSnapshot.docs[0].id, submission: sub.submission } as FullReport;
                              }
                         }
-
-                        reportsWithDetails.push({
-                            ...(reportData as FullReport),
-                            candidateId: submission.candidateId,
-                            candidateName: submission.candidateName,
-                            postType: submission.postType,
-                            submissionFileUrl: submission.submissionFileUrl,
-                        });
+                        populatedSubmissions.push({ ...sub, report: reportData });
                     }
                     
-                    setReports(reportsWithDetails);
+                    setSubmissions(populatedSubmissions);
                 } catch (error) {
                     console.error("Error fetching skill test submissions:", error);
                     errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -114,7 +104,7 @@ const ViewSubmissionsDialog = ({
         }
     }, [isOpen, post, user]);
 
-    const handleViewReport = (report: ReportWithCandidate) => {
+    const handleViewReport = (report: FullReport) => {
         setSelectedReport(report);
         setIsReportOpen(true);
     };
@@ -132,35 +122,37 @@ const ViewSubmissionsDialog = ({
                              <div className="flex items-center justify-center h-48">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                             </div>
-                        ) : reports.length === 0 ? (
+                        ) : submissions.length === 0 ? (
                              <div className="text-center py-12 text-muted-foreground">
                                 <p>No skill tests have been submitted for this post yet.</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {reports.map((report) => (
-                                    <Card key={report.id || report.candidateId}>
+                                {submissions.map((sub) => (
+                                    <Card key={sub.id}>
                                         <CardContent className="p-3 flex justify-between items-center">
                                             <div className="flex items-center gap-4">
                                                 <Avatar>
-                                                    <AvatarFallback>{report.candidateName?.charAt(0) || 'C'}</AvatarFallback>
+                                                    <AvatarFallback>{sub.candidateName?.charAt(0) || 'C'}</AvatarFallback>
                                                 </Avatar>
                                                 <div>
-                                                     <Link href={`/employer/${report.postType}s/${post?.id}/candidates/${report.candidateId}`} className="font-semibold hover:underline">{report.candidateName}</Link>
-                                                     {report.score !== undefined && <p className="text-sm text-muted-foreground">AI Score: {report.score}/100</p>}
+                                                     <Link href={`/employer/${sub.postType}s/${post?.id}/candidates/${sub.candidateId}`} className="font-semibold hover:underline">{sub.candidateName}</Link>
+                                                     {sub.report?.score !== undefined && <p className="text-sm text-muted-foreground">AI Score: {sub.report.score}/100</p>}
                                                 </div>
                                             </div>
-                                            {report.submissionFileUrl ? (
+                                            {sub.submissionFileUrl ? (
                                                 <Button size="sm" asChild variant="outline">
-                                                    <a href={report.submissionFileUrl} target="_blank" rel="noopener noreferrer">
+                                                    <a href={sub.submissionFileUrl} target="_blank" rel="noopener noreferrer">
                                                         <FileDown className="mr-2 h-4 w-4"/> Download Submission
                                                     </a>
                                                 </Button>
-                                            ) : report.id ? (
-                                                <Button size="sm" variant="outline" onClick={() => handleViewReport(report)}>
+                                            ) : sub.report ? (
+                                                <Button size="sm" variant="outline" onClick={() => handleViewReport(sub.report)}>
                                                     <Eye className="mr-2 h-4 w-4"/> View Report
                                                 </Button>
-                                            ) : null}
+                                            ) : (
+                                                <Badge variant="secondary">Pending</Badge>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 ))}
@@ -206,6 +198,7 @@ const UploadTestDialog = ({
             toast({ title: "Test uploaded successfully!" });
             onUploadComplete(post.id, newPipeline);
             onOpenChange(false);
+            setFile(null);
         } catch (error) {
             console.error("Upload failed", error);
             toast({ title: "Upload Failed", description: "Could not upload the test file.", variant: "destructive" });
@@ -454,3 +447,5 @@ export default function SkillTestsPage() {
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
+
+    
