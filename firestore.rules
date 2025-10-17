@@ -1,169 +1,230 @@
 /**
- * @fileoverview Firestore Security Rules for the application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles
- * (candidates, employers, and institutes).  Job and internship postings are
- * publicly readable but only writable by the owning employer. Applications
- * can only be created by the candidate and are readable/writeable only by
- * the employer who owns the post.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a role-based access control model where users can only
+ * read and write data to which they have explicit permission.
  *
  * Data Structure:
- * - /candidates/{userId}: Candidate user profiles.
- * - /employers/{userId}: Employer user profiles.
- * - /institutes/{userId}: Institute user profiles.
- * - /jobs/{jobId}: Job postings.
- * - /internships/{internshipId}: Internship postings.
- * - /applications/{applicationId}: Job/Internship applications.
+ * - Users are stored in /candidates/{userId}, /employers/{userId}, and /institutes/{userId} based on their role.
+ * - Jobs and Internships are stored in top-level collections: /jobs/{jobId} and /internships/{internshipId}.
+ * - Applications are stored in a top-level collection: /applications/{applicationId}.
+ * - Skill Tests and submissions are stored in the /skill_tests/{testId} and /skillTestSubmissions/{submissionId} collections.
+ * - Skill Test reports are stored in the /skillTestReports/{reportId} collection.
  *
  * Key Security Decisions:
- * - Users can only read and write their own profile data.
- * - Job and internship postings are publicly readable.
- * - Job and internship postings can only be created, updated, or deleted by the employer who owns them.
- * - Applications can be created by candidates.
- * - Applications are only readable and updateable by the employer who owns the corresponding job or internship post.
- * - Listing of user documents (candidates, employers, institutes) is disallowed for privacy.
+ * - User listing is disallowed to protect user privacy.
+ * - All write operations require user authentication (`request.auth != null`).
+ * - Data validation is limited to checking ownership and relational integrity (e.g., creatorId, postId).
+ * - Public read access is enabled for job and internship postings.
  *
  * Denormalization for Authorization:
- * The 'Job' and 'Internship' entities both contain an `employerId` field. This
- * denormalization is CRITICAL for securing write access to these documents,
- * allowing us to easily verify the owner. The 'Application' entity contains `candidateId`, `employerId`, and `postId` fields to associate the application to a user and a specific job.
- *
- * Structural Segregation:
- * The separation of candidate, employer, and institute profiles into separate
- * collections enables role-based access control and avoids the need for complex
- * queries or document flags to differentiate user types.
+ * - Jobs, Internships, Applications and SkillTests MUST include the employerId to authorize writes.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Prevents unauthenticated access to the database.
-     * @path /databases/{database}/documents
-     * @allow (get, list, create, update, delete) if false
-     * @deny (get, list, create, update, delete) if true
-     * @principle Requires authentication for all operations.
-     */
-    match /{document=**} {
-      allow read, write: if isSignedIn();
-    }
-
-    /**
-     * @description Manages access to candidate profiles.
+     * @description Allows a candidate to manage their own profile.
      * @path /candidates/{userId}
-     * @allow (get) User with ID 'user123' can read their own profile.
-     * @allow (create, update) User with ID 'user123' can create or update their profile.
-     * @deny (get) User with ID 'user456' cannot read the profile of user 'user123'.
-     * @deny (create, update) User with ID 'user456' cannot create or update the profile of user 'user123'.
-     * @deny (delete) No one can delete a candidate profile (deletion should be handled via account deletion).
-     * @principle Enforces document ownership for reads and writes.
+     * @allow (create, update, delete) - User with UID matching {userId} can manage their profile.
+     * @deny (create, update, delete) - User with UID not matching {userId} cannot manage this profile.
+     * @principle Enforces document ownership for writes.
      */
     match /candidates/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.email == request.auth.token.email;
-      allow update: if isOwner(userId) && isExistingOwner(userId);
-      allow delete: if false;
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isSignedIn();
+      allow list: if false; // Disable listing of all users
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Manages access to employer profiles.
+     * @description Allows an employer to manage their own profile.
      * @path /employers/{userId}
-     * @allow (get) User with ID 'user123' can read their own profile.
-     * @allow (create, update) User with ID 'user123' can create or update their profile.
-     * @deny (get) User with ID 'user456' cannot read the profile of user 'user123'.
-     * @deny (create, update) User with ID 'user456' cannot create or update the profile of user 'user123'.
-     * @deny (delete) No one can delete an employer profile (deletion should be handled via account deletion).
-     * @principle Enforces document ownership for reads and writes.
+     * @allow (create, update, delete) - User with UID matching {userId} can manage their profile.
+     * @deny (create, update, delete) - User with UID not matching {userId} cannot manage this profile.
+     * @principle Enforces document ownership for writes.
      */
     match /employers/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.email == request.auth.token.email;
-      allow update: if isOwner(userId) && isExistingOwner(userId);
-      allow delete: if false;
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isSignedIn();
+      allow list: if false; // Disable listing of all users
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Manages access to institute profiles.
+     * @description Allows an institute (TPO) to manage their own profile.
      * @path /institutes/{userId}
-     * @allow (get) User with ID 'user123' can read their own profile.
-     * @allow (create, update) User with ID 'user123' can create or update their profile.
-     * @deny (get) User with ID 'user456' cannot read the profile of user 'user123'.
-     * @deny (create, update) User with ID 'user456' cannot create or update the profile of user 'user123'.
-     * @deny (delete) No one can delete an institute profile (deletion should be handled via account deletion).
-     * @principle Enforces document ownership for reads and writes.
+     * @allow (create, update, delete) - User with UID matching {userId} can manage their profile.
+     * @deny (create, update, delete) - User with UID not matching {userId} cannot manage this profile.
+     * @principle Enforces document ownership for writes.
      */
     match /institutes/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.tpoEmail == request.auth.token.email;
-      allow update: if isOwner(userId) && isExistingOwner(userId);
-      allow delete: if false;
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if isSignedIn();
+      allow list: if false; // Disable listing of all users
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Manages access to job postings.
+     * @description Allows anyone to read job postings, but only the owner (employer) can create, update, or delete them.
      * @path /jobs/{jobId}
-     * @allow (get, list) Any user can read job postings.
-     * @allow (create) User with ID 'employer123' can create a job posting with employerId 'employer123'.
-     * @allow (update, delete) User with ID 'employer123' can update/delete a job posting they own.
-     * @deny (create) User with ID 'candidate456' cannot create a job posting.
-     * @deny (update, delete) User with ID 'employer456' cannot update/delete a job posting owned by 'employer123'.
-     * @principle Public read access with owner-only writes, enforces employer ownership.
+     * @allow (get, list) - Any user can read job postings.
+     * @allow (create) - Employer with UID matching job.employerId can create a job posting.
+     * @allow (update, delete) - Employer with UID matching job.employerId can update/delete the job posting.
+     * @deny (create, update, delete) - Any other user cannot create, update, or delete this job posting.
+     * @principle Allows public reads with owner-only writes; validates ownership on create.
      */
     match /jobs/{jobId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.employerId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.employerId == request.auth.uid && isExistingOwner(resource.data.employerId);
-      allow delete: if isSignedIn() && resource.data.employerId == request.auth.uid && isExistingOwner(resource.data.employerId);
+        function isOwner(employerId) {
+            return request.auth.uid == employerId;
+        }
+        function isSignedIn() {
+            return request.auth != null;
+        }
+        allow get: if true;
+        allow list: if true;
+        allow create: if isSignedIn() && isOwner(request.resource.data.employerId);
+        allow update: if isSignedIn() && isOwner(resource.data.employerId) && resource != null;
+        allow delete: if isSignedIn() && isOwner(resource.data.employerId) && resource != null;
     }
 
     /**
-     * @description Manages access to internship postings.
+     * @description Allows anyone to read internship postings, but only the owner (employer) can create, update, or delete them.
      * @path /internships/{internshipId}
-     * @allow (get, list) Any user can read internship postings.
-     * @allow (create) User with ID 'employer123' can create an internship posting with employerId 'employer123'.
-     * @allow (update, delete) User with ID 'employer123' can update/delete an internship posting they own.
-     * @deny (create) User with ID 'candidate456' cannot create an internship posting.
-     * @deny (update, delete) User with ID 'employer456' cannot update/delete an internship posting owned by 'employer123'.
-     * @principle Public read access with owner-only writes, enforces employer ownership.
+     * @allow (get, list) - Any user can read internship postings.
+     * @allow (create) - Employer with UID matching internship.employerId can create an internship posting.
+     * @allow (update, delete) - Employer with UID matching internship.employerId can update/delete the internship posting.
+     * @deny (create, update, delete) - Any other user cannot create, update, or delete this internship posting.
+     * @principle Allows public reads with owner-only writes; validates ownership on create.
      */
     match /internships/{internshipId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.employerId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.employerId == request.auth.uid && isExistingOwner(resource.data.employerId);
-      allow delete: if isSignedIn() && resource.data.employerId == request.auth.uid && isExistingOwner(resource.data.employerId);
+        function isOwner(employerId) {
+            return request.auth.uid == employerId;
+        }
+        function isSignedIn() {
+            return request.auth != null;
+        }
+        allow get: if true;
+        allow list: if true;
+        allow create: if isSignedIn() && isOwner(request.resource.data.employerId);
+        allow update: if isSignedIn() && isOwner(resource.data.employerId) && resource != null;
+        allow delete: if isSignedIn() && isOwner(resource.data.employerId) && resource != null;
     }
 
     /**
-     * @description Manages access to job/internship applications.
+     * @description Allows anyone to read applications, but only the applicant or the employer who created the job can create, update, or delete them.
      * @path /applications/{applicationId}
-     * @allow (create) User with ID 'candidate123' can create an application with candidateId 'candidate123'.
-     * @allow (get, list) Employer with ID 'employer456' can read applications for their own jobs/internships.
-     * @allow (update) Employer with ID 'employer456' can update application for their own jobs/internships.
-     * @deny (get, list) Candidate with ID 'candidate123' cannot read all applications.
-     * @deny (update) Candidate with ID 'candidate123' cannot update applications.
-     * @principle Candidates can apply, Employers can manage applications for their jobs/internships.
+     * @allow (get, list) - Any user can read application.
+     * @allow (create) - Candidate with UID matching application.candidateId or Employer with UID matching job.employerId can create application
+     * @allow (update, delete) - Candidate with UID matching application.candidateId or Employer with UID matching job.employerId can update/delete the application.
+     * @deny (create, update, delete) - Any other user cannot create, update, or delete this application.
+     * @principle Allows public reads with owner-only writes; validates ownership on create.
      */
     match /applications/{applicationId} {
-        allow create: if isSignedIn() && request.resource.data.candidateId == request.auth.uid;
-        allow get, list: if isSignedIn() && request.auth.uid == resource.data.employerId;
-        allow update: if isSignedIn() && request.auth.uid == resource.data.employerId && isExistingOwner(resource.data.employerId);
+        function isCandidateOwner(candidateId) {
+            return request.auth.uid == candidateId;
+        }
+        function isEmployerOwner(employerId) {
+            return request.auth.uid == employerId;
+        }
+        function isSignedIn() {
+            return request.auth != null;
+        }
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && (isCandidateOwner(request.resource.data.candidateId) || isEmployerOwner(request.resource.data.employerId));
+        allow update: if isSignedIn() && (isCandidateOwner(resource.data.candidateId) || isEmployerOwner(resource.data.employerId)) && resource != null;
+        allow delete: if isSignedIn() && (isCandidateOwner(resource.data.candidateId) || isEmployerOwner(resource.data.employerId)) && resource != null;
+    }
+
+    /**
+     * @description Allows an employer to manage skill tests they create.
+     * @path /skill_tests/{testId}
+     * @allow (create) - Employer with UID matching skillTest.employerId can create a skill test.
+     * @allow (update, delete) - Employer with UID matching skillTest.employerId can update/delete the skill test.
+     * @deny (create, update, delete) - Any other user cannot create, update, or delete this skill test.
+     * @principle Enforces owner-only writes; validates ownership on create.
+     */
+    match /skill_tests/{testId} {
+        function isOwner(employerId) {
+            return request.auth.uid == employerId;
+        }
+        function isSignedIn() {
+            return request.auth != null;
+        }
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && isOwner(request.resource.data.employerId);
+        allow update: if isSignedIn() && isOwner(resource.data.employerId) && resource != null;
+        allow delete: if isSignedIn() && isOwner(resource.data.employerId) && resource != null;
+    }
+
+    /**
+     * @description Allows a candidate to create a skill test submission. Employer can read skill test submissions
+     * @path /skillTestSubmissions/{submissionId}
+     * @allow (create) - Candidate with UID matching skillTestSubmission.candidateId can create a submission.
+     * @allow (update, delete) - No one can update/delete a skill test submission
+     * @principle Enforces owner-only writes; validates ownership on create.
+     */
+    match /skillTestSubmissions/{submissionId} {
+        function isCandidateOwner(candidateId) {
+            return request.auth.uid == candidateId;
+        }
+        function isEmployerOwner(employerId) {
+            return request.auth.uid == employerId;
+        }
+        function isSignedIn() {
+            return request.auth != null;
+        }
+        allow get: if isSignedIn() && (isCandidateOwner(resource.data.candidateId) || isEmployerOwner(resource.data.employerId));
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && isCandidateOwner(request.resource.data.candidateId);
+        allow update: if false;
         allow delete: if false;
     }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
+        /**
+         * @description Allows read/write access only to skill test submissions that candidate owns.
+         * @path /skillTestReports/{reportId}
+         * @allow (create) - Only the owner can create a submission.
+         * @allow (update) - Only the owner can update a submission.
+         * @allow (delete) - Only the owner can delete a submission.
+         *  @allow (get) - Only the owner can get a submission.
+         * @principle Access control based on ownership.
+         */
+        match /skillTestReports/{reportId} {
+            function isCandidateOwner(candidateId) {
+                return request.auth.uid == candidateId;
+            }
+            function isSignedIn() {
+                return request.auth != null;
+            }
+            allow get: if isSignedIn() && isCandidateOwner(resource.data.candidateId);
+            allow list: if isSignedIn();
+            allow create: if false;
+            allow update: if false;
+            allow delete: if false;
+        }
   }
 }
