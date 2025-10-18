@@ -14,7 +14,7 @@ import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload 
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp, doc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -164,7 +164,7 @@ const ViewSubmissionsDialog = ({
     )
 }
 
-const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user: User, onUploadComplete: (postId: string, testFileUrl: string) => void }) => {
+const DirectUploadButton = ({ post, user }: { post: Post, user: User }) => {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,7 +189,6 @@ const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user
             await addDoc(collection(db, 'traditionalTests'), testData);
             
             toast({ title: 'Test uploaded successfully!' });
-            onUploadComplete(post.id, testFileUrl);
 
         } catch (error) {
             console.error('Upload failed', error);
@@ -239,56 +238,53 @@ export default function SkillTestsPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
-    const fetchPostsAndTests = async () => {
-      if (!user) {
+    if (!user) {
         setLoading(false);
         return;
-      };
-      
-      setLoading(true);
-      
-      try {
-        const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
-        const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-        const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
-        
-        const [jobsSnapshot, internshipsSnapshot, testsSnapshot] = await Promise.all([
-          getDocs(jobsQuery).catch(e => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
-            return null;
-          }),
-          getDocs(internshipsQuery).catch(e => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
-            return null;
-          }),
-          getDocs(testsQuery).catch(e => {
-              errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
-              return null;
-          })
-        ]);
+    }
+    setLoading(true);
 
-        const jobsData = jobsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post)) || [];
-        const internshipsData = internshipsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post)) || [];
-        const testsData = testsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest)) || [];
-        
-        const allPosts = [...jobsData, ...internshipsData];
-        setPosts(allPosts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
-        setTraditionalTests(testsData);
+    const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
+    const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
 
-      } catch (error) {
-        console.error("Error fetching posts:", error);
-      } finally {
-        setLoading(false);
-      }
+    const fetchPosts = async () => {
+        try {
+            const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
+                getDocs(jobsQuery).catch(e => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
+                    return null;
+                }),
+                getDocs(internshipsQuery).catch(e => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
+                    return null;
+                })
+            ]);
+
+            const jobsData = jobsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post)) || [];
+            const internshipsData = internshipsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post)) || [];
+            
+            const allPosts = [...jobsData, ...internshipsData];
+            setPosts(allPosts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
+        } catch (error) {
+            console.error("Error fetching posts:", error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    fetchPostsAndTests();
+    fetchPosts();
+
+    const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
+    const unsubscribeTests = onSnapshot(testsQuery, (snapshot) => {
+        const testsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest)) || [];
+        setTraditionalTests(testsData);
+    }, (e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid } }));
+        return null;
+    });
+
+    return () => unsubscribeTests();
   }, [user]);
-  
-  const onUploadComplete = (postId: string, testFileUrl: string) => {
-    // Add the new test to the state to trigger a re-render
-    setTraditionalTests(prev => [...prev, { id: 'temp-' + Date.now(), postId, testFileUrl }]);
-  };
 
 
   const handleViewTestsClick = (post: Post) => {
@@ -418,7 +414,7 @@ export default function SkillTestsPage() {
                                                         Test Uploaded
                                                     </Button>
                                                 ) : (
-                                                    <DirectUploadButton post={post} user={user} onUploadComplete={onUploadComplete} />
+                                                    <DirectUploadButton post={post} user={user} />
                                                 )
                                             ) : (
                                                 <Button asChild size="sm" variant="ghost" disabled>
