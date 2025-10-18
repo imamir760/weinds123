@@ -185,22 +185,26 @@ export default function SkillTestsPage() {
           submittedAt: serverTimestamp(),
         };
 
+        // Check if a submission already exists to decide whether to add or update
         const submissionQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid), where('postId', '==', test.postId));
         const submissionSnap = await getDocs(submissionQuery);
 
         if (!submissionSnap.empty) {
+            // Update existing submission
             const submissionDocRef = submissionSnap.docs[0].ref;
             await updateDoc(submissionDocRef, submissionData);
         } else {
+            // Add new submission
             await addDoc(collection(db, 'skillTestSubmissions'), submissionData);
         }
         
         toast({ title: "Submission successful!" });
+        // Update local state to reflect submission
         setSkillTests(prev => prev.map(t => t.id === test.id ? {...t, submissionFileUrl: fileUrl } : t));
 
       } catch (error) {
         console.error("Failed to submit test", error);
-        toast({ title: "Submission failed.", variant: "destructive" });
+        toast({ title: "Submission failed.", description: "Please try again.", variant: "destructive" });
          errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'skillTestSubmissions',
             operation: 'create', // or 'update'
@@ -363,5 +367,3 @@ export default function SkillTestsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
-
-    
