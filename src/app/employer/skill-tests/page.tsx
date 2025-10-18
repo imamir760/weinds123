@@ -10,7 +10,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
@@ -167,56 +167,14 @@ const ViewSubmissionsDialog = ({
     )
 }
 
-const DirectUploadButton = ({
-  post,
-  onUpload
-}: {
-  post: Post;
-  onUpload: (file: File) => void;
-}) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onUpload(file);
-    }
-    // Reset file input to allow re-uploading the same file
-    if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-    }
-  };
-
-  return (
-    <>
-      <Input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        onChange={handleFileChange}
-        accept=".pdf,.doc,.docx,.zip"
-      />
-      <Button size="sm" onClick={() => fileInputRef.current?.click()}>
-        <Upload className="mr-2 h-3 w-3" />
-        Upload Test
-      </Button>
-    </>
-  );
-};
-
-
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [traditionalTests, setTraditionalTests] = useState<TraditionalTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
-  const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!user) {
@@ -227,7 +185,6 @@ export default function SkillTestsPage() {
 
     const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
     const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-    const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
     
     const unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
         const jobsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
@@ -246,40 +203,12 @@ export default function SkillTestsPage() {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
         setLoading(false);
     });
-    
-    const unsubTests = onSnapshot(testsQuery, (snapshot) => {
-        const testsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest));
-        setTraditionalTests(testsData);
-    }, e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
-    });
 
     return () => {
         unsubJobs();
         unsubInternships();
-        unsubTests();
     };
   }, [user]);
-
-  const handleUpload = async (postId: string, file: File) => {
-    if (!user) return;
-    setUploadingState(prev => ({ ...prev, [postId]: true }));
-    setUploadProgress(prev => ({...prev, [postId]: 0}));
-    try {
-        const newTest = await uploadTraditionalTest(postId, user.uid, file, (progress) => {
-            setUploadProgress(prev => ({ ...prev, [postId]: progress }));
-        });
-        setTraditionalTests(prev => [...prev, newTest as TraditionalTest]);
-        toast({ title: 'Test uploaded successfully!' });
-    } catch (error) {
-        console.error("Upload failed in component", error);
-        toast({ title: 'Upload Failed', description: 'Could not upload the test file.', variant: 'destructive' });
-    } finally {
-        setUploadingState(prev => ({ ...prev, [postId]: false }));
-        setUploadProgress(prev => ({...prev, [postId]: 0}));
-    }
-  };
-
 
   const handleViewTestsClick = (post: Post) => {
     setSelectedPost(post);
@@ -302,30 +231,25 @@ export default function SkillTestsPage() {
       if (!skillTestStage || !skillTestStage.type) return {
           badge: <Badge variant="outline">Not Set</Badge>,
           type: 'none',
-          testFileUrl: null
       };
       
       const type = skillTestStage.type;
-      const traditionalTest = traditionalTests.find(t => t.postId === post.id);
 
       if (type === 'ai') {
           return {
               badge: <Badge>AI Test</Badge>,
               type: 'ai',
-              testFileUrl: null
           }
       }
       if (type === 'traditional') {
           return {
               badge: <Badge variant="secondary">Traditional</Badge>,
               type: 'traditional',
-              testFileUrl: traditionalTest?.testFileUrl || null
           }
       }
       return {
           badge: <Badge variant="outline">{type}</Badge>,
           type: 'none',
-          testFileUrl: null
       }
   }
 
@@ -380,8 +304,6 @@ export default function SkillTestsPage() {
                         <TableBody>
                             {filteredPosts.map(post => {
                                 const testInfo = getTestInfo(post);
-                                const isLoading = uploadingState[post.id];
-                                const progress = uploadProgress[post.id];
                                 return (
                                     <TableRow key={post.id}>
                                         <TableCell className="font-medium">{post.title}</TableCell>
@@ -403,31 +325,13 @@ export default function SkillTestsPage() {
                                                     <CheckCircle className="mr-2 h-3 w-3"/>
                                                     AI Test Enabled
                                                 </Button>
-                                            ) : testInfo.type === 'traditional' && user ? (
-                                                isLoading ? (
-                                                    <div className='flex items-center justify-end gap-2'>
-                                                        <Progress value={progress} className="w-24 h-2" />
-                                                        <span className='text-xs text-muted-foreground'>{Math.round(progress || 0)}%</span>
-                                                    </div>
-                                                ) : testInfo.testFileUrl ? (
-                                                    <>
-                                                        <Button size="sm" disabled>
-                                                            <CheckCircle className="mr-2 h-3 w-3" />
-                                                            Test Uploaded
-                                                        </Button>
-                                                         <Button asChild size="sm" variant="outline">
-                                                            <a href={testInfo.testFileUrl} target="_blank" rel="noopener noreferrer">
-                                                                <FileDown className="mr-2 h-3 w-3" />
-                                                                View File
-                                                            </a>
-                                                        </Button>
-                                                    </>
-                                                ) : (
-                                                    <DirectUploadButton
-                                                        post={post}
-                                                        onUpload={(file) => handleUpload(post.id, file)}
-                                                    />
-                                                )
+                                            ) : testInfo.type === 'traditional' ? (
+                                                <Button asChild size="sm">
+                                                    <Link href={`/employer/skill-tests/${post.id}/create`}>
+                                                      <Pencil className="mr-2 h-3 w-3" />
+                                                      Create Test
+                                                    </Link>
+                                                </Button>
                                             ) : (
                                                 <Button asChild size="sm" variant="ghost" disabled>
                                                     <span className="text-muted-foreground">Setup in Pipeline</span>
