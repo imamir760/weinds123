@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -40,6 +41,7 @@ type Post = DocumentData & {
 type TraditionalTest = DocumentData & {
     id: string;
     testFileUrl: string;
+    postId: string;
 }
 
 const ViewSubmissionsDialog = ({ 
@@ -170,34 +172,35 @@ const ViewSubmissionsDialog = ({
 
 const UploadTestDialog = ({
   post,
+  user,
   open,
   onOpenChange,
   onUploadComplete,
 }: {
   post: Post | null;
+  user: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUploadComplete: (postId: string, testId: string, testFileUrl: string) => void;
 }) => {
   const { toast } = useToast();
-  const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleUpload = async (postToUpload: Post) => {
-    if (!file || !user) {
-      toast({ title: 'Please select a file.', variant: 'destructive' });
+  const handleUpload = async () => {
+    if (!file || !user || !post) {
+      toast({ title: 'Please select a file and ensure you are logged in.', variant: 'destructive' });
       return;
     }
     setLoading(true);
     try {
-      const filePath = `traditionalTests/${postToUpload.id}/${user.uid}/${file.name}`;
+      const filePath = `traditionalTests/${post.id}/${user.uid}/${file.name}`;
       const fileUrl = await uploadFile(file, filePath);
 
       const testDoc = {
-          title: `${postToUpload.title} - Traditional Test`,
-          postId: postToUpload.id,
-          postType: postToUpload.type.toLowerCase(),
+          title: `${post.title} - Traditional Test`,
+          postId: post.id,
+          postType: post.type.toLowerCase(),
           employerId: user.uid,
           createdAt: serverTimestamp(),
           testFileUrl: fileUrl,
@@ -206,7 +209,7 @@ const UploadTestDialog = ({
       const docRef = await addDoc(collection(db, 'traditionalTests'), testDoc);
       
       toast({ title: 'Test uploaded successfully!' });
-      onUploadComplete(postToUpload.id, docRef.id, fileUrl);
+      onUploadComplete(post.id, docRef.id, fileUrl);
       onOpenChange(false);
       setFile(null);
     } catch (error) {
@@ -242,7 +245,7 @@ const UploadTestDialog = ({
             onChange={(e) => setFile(e.target.files?.[0] || null)}
           />
           <Button
-            onClick={() => post && handleUpload(post)}
+            onClick={handleUpload}
             disabled={loading || !file || !post}
             className="w-full"
           >
@@ -305,8 +308,8 @@ export default function SkillTestsPage() {
         
         const testsData: {[key: string]: TraditionalTest} = {};
         testsSnapshot?.docs.forEach(doc => {
-            const data = doc.data();
-            testsData[data.postId] = { id: doc.id, ...data } as TraditionalTest;
+            const data = doc.data() as TraditionalTest;
+            testsData[data.postId] = { id: doc.id, ...data };
         });
         setTraditionalTests(testsData);
 
@@ -326,7 +329,7 @@ export default function SkillTestsPage() {
   const handleUploadComplete = (postId: string, testId: string, testFileUrl: string) => {
     setTraditionalTests(prev => ({
         ...prev,
-        [postId]: { id: testId, testFileUrl, ...prev[postId] }
+        [postId]: { id: testId, testFileUrl, postId }
     }));
   };
 
@@ -483,6 +486,7 @@ export default function SkillTestsPage() {
         open={isUploadOpen}
         onOpenChange={setIsUploadOpen}
         post={selectedPost}
+        user={user}
         onUploadComplete={handleUploadComplete}
       />
     </div>
@@ -490,3 +494,5 @@ export default function SkillTestsPage() {
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
+
+    
