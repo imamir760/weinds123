@@ -14,7 +14,7 @@ import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload,
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp, doc, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, onSnapshot } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -28,7 +28,8 @@ import { FullReport, ReportDialog } from '@/components/employer/report-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
-import { uploadFile } from '@/lib/storage-actions';
+import { uploadTraditionalTest } from '@/lib/test-actions';
+
 
 type Post = DocumentData & { 
     id: string; 
@@ -224,12 +225,11 @@ export default function SkillTestsPage() {
         return;
     }
     setLoading(true);
-    
+
     const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
     const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-    const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
 
-    const unsubPosts = onSnapshot(jobsQuery, (snapshot) => {
+    const unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
         setPosts(prev => {
             const jobsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
             const otherPosts = prev.filter(p => p.type !== 'Job');
@@ -252,19 +252,19 @@ export default function SkillTestsPage() {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
         setLoading(false);
     });
-
-    const unsubscribeTests = onSnapshot(testsQuery, (snapshot) => {
-        const testsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest)) || [];
+    
+    const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
+    const unsubTests = onSnapshot(testsQuery, (snapshot) => {
+        const testsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest));
         setTraditionalTests(testsData);
-    }, (e) => {
+    }, e => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid } }));
-        return null;
     });
 
     return () => {
-        unsubPosts();
+        unsubJobs();
         unsubInternships();
-        unsubscribeTests();
+        unsubTests();
     };
   }, [user]);
 
@@ -273,18 +273,7 @@ export default function SkillTestsPage() {
     setUploadingState((prev) => ({ ...prev, [postId]: true }));
 
     try {
-      const filePath = `skill-tests/${postId}/${file.name}`;
-      const testFileUrl = await uploadFile(file, filePath);
-
-      const testData = {
-        postId: postId,
-        employerId: user.uid,
-        testFileUrl: testFileUrl,
-        createdAt: serverTimestamp(),
-      };
-
-      await addDoc(collection(db, 'traditionalTests'), testData);
-
+      await uploadTraditionalTest(postId, user.uid, file);
       toast({ title: 'Test uploaded successfully!' });
     } catch (error) {
       console.error('Upload failed', error);
@@ -293,13 +282,6 @@ export default function SkillTestsPage() {
         description: 'Could not upload the test file.',
         variant: 'destructive',
       });
-       if (error instanceof Error && error.message.includes('permission')) {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: `/traditionalTests`,
-                operation: 'create',
-                requestResourceData: { postId: postId, employerId: user.uid }
-            }));
-       }
     } finally {
       setUploadingState((prev) => ({ ...prev, [postId]: false }));
     }
