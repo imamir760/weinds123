@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, DocumentData, Timestamp, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
@@ -163,92 +163,68 @@ const ViewSubmissionsDialog = ({
     )
 }
 
-const UploadTestDialog = ({
-  post,
-  user,
-  open,
-  onOpenChange,
-  onUploadComplete,
-}: {
-  post: Post | null;
-  user: any;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onUploadComplete: (postId: string, testFileUrl: string) => void;
-}) => {
-  const { toast } = useToast();
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
+const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user: User, onUploadComplete: (postId: string, testFileUrl: string) => void }) => {
+    const { toast } = useToast();
+    const [loading, setLoading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = async () => {
-    if (!file || !user || !post) {
-      toast({ title: 'Please select a file.', variant: 'destructive' });
-      return;
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user || !post) {
+            return;
+        }
+        setLoading(true);
+        try {
+            const filePath = `skill-tests/${post.id}/${file.name}`;
+            const fileUrl = await uploadFile(file, filePath);
+
+            const postRef = doc(db, post.type === 'Job' ? 'jobs' : 'internships', post.id);
+
+            const newPipeline = post.pipeline.map(p =>
+                p.stage === 'skill_test' ? { ...p, testFileUrl: fileUrl } : p
+            );
+
+            await updateDoc(postRef, { pipeline: newPipeline });
+
+            toast({ title: 'Test uploaded successfully!' });
+            onUploadComplete(post.id, fileUrl);
+        } catch (error) {
+            console.error('Upload failed', error);
+            toast({
+                title: 'Upload Failed',
+                description: 'Could not upload the test file. Check permissions.',
+                variant: 'destructive',
+            });
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: `/${post.type === 'Job' ? 'jobs' : 'internships'}/${post.id}`,
+                operation: 'update',
+                requestResourceData: { pipeline: '...' }
+            }))
+        } finally {
+            setLoading(false);
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+        }
     }
-    setLoading(true);
-    try {
-      const filePath = `skill-tests/${post.id}/${file.name}`;
-      const fileUrl = await uploadFile(file, filePath);
 
-      const postRef = doc(db, post.type === 'Job' ? 'jobs' : 'internships', post.id);
-      
-      const newPipeline = post.pipeline.map(p => 
-          p.stage === 'skill_test' ? { ...p, testFileUrl: fileUrl } : p
-      );
-
-      await updateDoc(postRef, { pipeline: newPipeline });
-      
-      toast({ title: 'Test uploaded successfully!' });
-      onUploadComplete(post.id, fileUrl);
-      onOpenChange(false);
-      setFile(null);
-    } catch (error) {
-      console.error('Upload failed', error);
-      toast({
-        title: 'Upload Failed',
-        description: 'Could not upload the test file. Check permissions.',
-        variant: 'destructive',
-      });
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: `/${post.type === 'Job' ? 'jobs' : 'internships'}/${post.id}`,
-          operation: 'update',
-          requestResourceData: { pipeline: '...' }
-      }))
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!loading) onOpenChange(isOpen); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Upload Traditional Test</DialogTitle>
-          <DialogDescription>
-            Upload the test document for "{post?.title}". Candidates will be
-            able to download this file.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-4 space-y-4">
-          <Input
-            type="file"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            disabled={loading}
-          />
-          <Button
-            onClick={handleUpload}
-            disabled={loading || !file}
-            className="w-full"
-          >
-            {loading ? <Loader2 className="animate-spin mr-2" /> : <Upload className="mr-2" />}
-            Upload Test
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
+    return (
+        <>
+            <Input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                onChange={handleFileChange}
+                accept=".pdf,.doc,.docx,.zip"
+            />
+             <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <Upload className="mr-2 h-3 w-3"/>}
+                {loading ? 'Uploading...' : 'Upload Test'}
+             </Button>
+        </>
+    )
+}
 
 export default function SkillTestsPage() {
   const { user } = useAuth();
@@ -257,7 +233,6 @@ export default function SkillTestsPage() {
   const [showInternships, setShowInternships] = useState(false);
   
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
@@ -315,11 +290,6 @@ export default function SkillTestsPage() {
   const handleViewTestsClick = (post: Post) => {
     setSelectedPost(post);
     setIsSubmissionsOpen(true);
-  }
-  
-  const handleUploadClick = (post: Post) => {
-    setSelectedPost(post);
-    setIsUploadOpen(true);
   }
 
   const filteredPosts = useMemo(() => {
@@ -437,11 +407,15 @@ export default function SkillTestsPage() {
                                                     <CheckCircle className="mr-2 h-3 w-3"/>
                                                     AI Test Enabled
                                                 </Button>
-                                            ) : testInfo.type === 'traditional' ? (
-                                                <Button size="sm" onClick={() => handleUploadClick(post)} disabled={testInfo.hasFile}>
-                                                    {testInfo.hasFile ? <CheckCircle className="mr-2 h-3 w-3"/> : <Upload className="mr-2 h-3 w-3"/>}
-                                                    {testInfo.hasFile ? 'Test Uploaded' : 'Upload Test'}
-                                                </Button>
+                                            ) : testInfo.type === 'traditional' && user ? (
+                                                testInfo.hasFile ? (
+                                                    <Button size="sm" disabled>
+                                                        <CheckCircle className="mr-2 h-3 w-3" />
+                                                        Test Uploaded
+                                                    </Button>
+                                                ) : (
+                                                    <DirectUploadButton post={post} user={user} onUploadComplete={onUploadComplete} />
+                                                )
                                             ) : (
                                                 <Button asChild size="sm" variant="ghost" disabled>
                                                     <span className="text-muted-foreground">Setup in Pipeline</span>
@@ -462,15 +436,10 @@ export default function SkillTestsPage() {
         onOpenChange={setIsSubmissionsOpen}
         post={selectedPost}
       />
-      <UploadTestDialog 
-        open={isUploadOpen}
-        onOpenChange={setIsUploadOpen}
-        post={selectedPost}
-        user={user}
-        onUploadComplete={onUploadComplete}
-      />
     </div>
   );
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
+
+    
