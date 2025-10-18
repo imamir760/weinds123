@@ -14,7 +14,7 @@ import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload 
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -37,6 +37,12 @@ type Post = DocumentData & {
     createdAt: Timestamp,
     pipeline: { stage: string, type?: string, testFileUrl?: string }[];
 };
+
+type TraditionalTest = {
+    id: string;
+    postId: string;
+    testFileUrl: string;
+}
 
 
 const ViewSubmissionsDialog = ({ 
@@ -171,17 +177,19 @@ const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user
         setLoading(true);
         try {
             const filePath = `skill-tests/${post.id}/${file.name}`;
-            const fileUrl = await uploadFile(file, filePath);
+            const testFileUrl = await uploadFile(file, filePath);
             
-            const postRef = doc(db, post.type === 'Job' ? 'jobs' : 'internships', post.id);
-            const newPipeline = post.pipeline.map(p => 
-                p.stage === 'skill_test' ? { ...p, testFileUrl: fileUrl } : p
-            );
+            const testData = {
+                postId: post.id,
+                employerId: user.uid,
+                testFileUrl: testFileUrl,
+                createdAt: serverTimestamp(),
+            };
 
-            await updateDoc(postRef, { pipeline: newPipeline });
-
+            await addDoc(collection(db, 'traditionalTests'), testData);
+            
             toast({ title: 'Test uploaded successfully!' });
-            onUploadComplete(post.id, fileUrl);
+            onUploadComplete(post.id, testFileUrl);
 
         } catch (error) {
             console.error('Upload failed', error);
@@ -191,9 +199,9 @@ const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user
                 variant: 'destructive',
             });
             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: `/${post.type.toLowerCase()}s/${post.id}`,
-                operation: 'update',
-                requestResourceData: { pipeline: '...' }
+                path: `/traditionalTests`,
+                operation: 'create',
+                requestResourceData: { postId: post.id, employerId: user.uid }
             }))
         } finally {
             setLoading(false);
@@ -223,6 +231,7 @@ const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [traditionalTests, setTraditionalTests] = useState<TraditionalTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
   
@@ -230,7 +239,7 @@ export default function SkillTestsPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchPostsAndTests = async () => {
       if (!user) {
         setLoading(false);
         return;
@@ -241,8 +250,9 @@ export default function SkillTestsPage() {
       try {
         const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
         const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
+        const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
         
-        const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
+        const [jobsSnapshot, internshipsSnapshot, testsSnapshot] = await Promise.all([
           getDocs(jobsQuery).catch(e => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
@@ -250,14 +260,20 @@ export default function SkillTestsPage() {
           getDocs(internshipsQuery).catch(e => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
+          }),
+          getDocs(testsQuery).catch(e => {
+              errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
+              return null;
           })
         ]);
 
         const jobsData = jobsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post)) || [];
         const internshipsData = internshipsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post)) || [];
+        const testsData = testsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest)) || [];
         
         const allPosts = [...jobsData, ...internshipsData];
         setPosts(allPosts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
+        setTraditionalTests(testsData);
 
       } catch (error) {
         console.error("Error fetching posts:", error);
@@ -266,25 +282,14 @@ export default function SkillTestsPage() {
       }
     };
 
-    fetchPosts();
+    fetchPostsAndTests();
   }, [user]);
-
+  
   const onUploadComplete = (postId: string, testFileUrl: string) => {
-    setPosts(prevPosts =>
-      prevPosts.map(p =>
-        p.id === postId
-          ? {
-              ...p,
-              pipeline: p.pipeline.map(stage =>
-                stage.stage === 'skill_test'
-                  ? { ...stage, testFileUrl: testFileUrl }
-                  : stage
-              ),
-            }
-          : p
-      )
-    );
+    // Add the new test to the state to trigger a re-render
+    setTraditionalTests(prev => [...prev, { id: 'temp-' + Date.now(), postId, testFileUrl }]);
   };
+
 
   const handleViewTestsClick = (post: Post) => {
     setSelectedPost(post);
@@ -311,7 +316,7 @@ export default function SkillTestsPage() {
       };
       
       const type = skillTestStage.type;
-      const hasFile = !!skillTestStage.testFileUrl;
+      const hasFile = !!traditionalTests.find(t => t.postId === post.id);
 
       if (type === 'ai') {
           return {
