@@ -172,28 +172,27 @@ export default function SkillTestsPage() {
       setUploading(prev => ({ ...prev, [test.id]: true }));
 
       try {
-        const filePath = `test-submissions/${test.postId}/${user.uid}/${file.name}`;
+        const filePath = `submissions/${test.postId}/${user.uid}/${file.name}`;
         const fileUrl = await uploadFile(file, filePath);
         
+        const submissionData = {
+          candidateId: user.uid,
+          postId: test.postId,
+          postType: test.postType,
+          employerId: test.employerId,
+          testType: 'traditional',
+          submissionFileUrl: fileUrl,
+          submittedAt: serverTimestamp(),
+        };
+
         const submissionQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid), where('postId', '==', test.postId));
         const submissionSnap = await getDocs(submissionQuery);
 
         if (!submissionSnap.empty) {
             const submissionDocRef = submissionSnap.docs[0].ref;
-            await updateDoc(submissionDocRef, {
-                submissionFileUrl: fileUrl,
-                submittedAt: serverTimestamp()
-            });
+            await updateDoc(submissionDocRef, submissionData);
         } else {
-            await addDoc(collection(db, 'skillTestSubmissions'), {
-              candidateId: user.uid,
-              postId: test.postId,
-              postType: test.postType,
-              employerId: test.employerId,
-              testType: 'traditional',
-              submissionFileUrl: fileUrl,
-              submittedAt: serverTimestamp(),
-            });
+            await addDoc(collection(db, 'skillTestSubmissions'), submissionData);
         }
         
         toast({ title: "Submission successful!" });
@@ -204,7 +203,7 @@ export default function SkillTestsPage() {
         toast({ title: "Submission failed.", variant: "destructive" });
          errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: 'skillTestSubmissions',
-            operation: 'update',
+            operation: 'create', // or 'update'
         }));
       } finally {
         setUploading(prev => ({ ...prev, [test.id]: false }));
@@ -364,3 +363,5 @@ export default function SkillTestsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
+    
