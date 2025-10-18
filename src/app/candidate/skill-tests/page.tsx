@@ -92,11 +92,21 @@ export default function SkillTestsPage() {
                     const postData = postSnap.data();
                     const pipeline = postData.pipeline || [];
                     const skillTestStage = pipeline.find((p: any) => p.stage === 'skill_test');
+                    let testFileUrl = skillTestStage?.testFileUrl;
+
+                    // If it's a traditional test, we need to fetch the URL from the `traditionalTests` collection
+                    if (skillTestStage?.type === 'traditional' && !testFileUrl) {
+                        const traditionalTestQuery = query(collection(db, 'traditionalTests'), where('postId', '==', appData.postId));
+                        const traditionalTestSnap = await getDocs(traditionalTestQuery);
+                        if (!traditionalTestSnap.empty) {
+                            testFileUrl = traditionalTestSnap.docs[0].data().testFileUrl;
+                        }
+                    }
                     
                     testsWithDetails.push({
                         ...appData,
                         testType: skillTestStage?.type,
-                        testFileUrl: skillTestStage?.testFileUrl,
+                        testFileUrl: testFileUrl,
                         submissionFileUrl: submissionFileUrl
                     });
                 } else {
