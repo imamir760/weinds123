@@ -2,7 +2,7 @@
 
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
-import { uploadFile } from './storage-actions';
+import { uploadFileWithProgress } from './storage-actions';
 import { errorEmitter } from './error-emitter';
 import { FirestorePermissionError } from './errors';
 
@@ -13,8 +13,14 @@ import { FirestorePermissionError } from './errors';
  * @param postId The ID of the job/internship post.
  * @param employerId The ID of the employer.
  * @param file The test file to upload.
+ * @param onProgress Callback to report upload progress.
  */
-export async function uploadTraditionalTest(postId: string, employerId: string, file: File) {
+export async function uploadTraditionalTest(
+  postId: string,
+  employerId: string,
+  file: File,
+  onProgress: (progress: number) => void
+) {
   if (!file) {
     throw new Error('No file provided for upload.');
   }
@@ -23,9 +29,9 @@ export async function uploadTraditionalTest(postId: string, employerId: string, 
   }
   
   try {
-    // 1. Upload file to Storage in the specified folder
+    // 1. Upload file to Storage in the specified folder with progress
     const filePath = `traditional-tests/${employerId}/${postId}/${file.name}`;
-    const testFileUrl = await uploadFile(file, filePath);
+    const testFileUrl = await uploadFileWithProgress(file, filePath, onProgress);
 
     // 2. Create document in Firestore
     const testData = {

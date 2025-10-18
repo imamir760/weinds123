@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { uploadTraditionalTest } from '@/lib/test-actions';
+import { Progress } from '@/components/ui/progress';
 
 
 type Post = DocumentData & { 
@@ -168,29 +169,20 @@ const ViewSubmissionsDialog = ({
 
 const DirectUploadButton = ({
   post,
-  onUploadStart,
-  onUploadComplete
+  onUpload
 }: {
   post: Post;
-  onUploadStart: (postId: string) => void;
-  onUploadComplete: (postId: string, newTest: TraditionalTest | null) => void;
+  onUpload: (file: File) => void;
 }) => {
-  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && user) {
-        onUploadStart(post.id);
-        try {
-            const newTest = await uploadTraditionalTest(post.id, user.uid, file);
-            onUploadComplete(post.id, newTest as TraditionalTest);
-        } catch (error) {
-            console.error("Upload failed in component", error);
-            onUploadComplete(post.id, null);
-        }
+    if (file) {
+      onUpload(file);
     }
-     if (fileInputRef.current) {
+    // Reset file input to allow re-uploading the same file
+    if (fileInputRef.current) {
         fileInputRef.current.value = "";
     }
   };
@@ -220,6 +212,7 @@ export default function SkillTestsPage() {
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
   const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -268,17 +261,22 @@ export default function SkillTestsPage() {
     };
   }, [user]);
 
-  const handleUploadStart = (postId: string) => {
+  const handleUpload = async (postId: string, file: File) => {
+    if (!user) return;
     setUploadingState(prev => ({ ...prev, [postId]: true }));
-  };
-
-  const handleUploadComplete = (postId: string, newTest: TraditionalTest | null) => {
-    setUploadingState(prev => ({ ...prev, [postId]: false }));
-    if (newTest) {
-        setTraditionalTests(prev => [...prev, newTest]);
+    setUploadProgress(prev => ({...prev, [postId]: 0}));
+    try {
+        const newTest = await uploadTraditionalTest(postId, user.uid, file, (progress) => {
+            setUploadProgress(prev => ({ ...prev, [postId]: progress }));
+        });
+        setTraditionalTests(prev => [...prev, newTest as TraditionalTest]);
         toast({ title: 'Test uploaded successfully!' });
-    } else {
+    } catch (error) {
+        console.error("Upload failed in component", error);
         toast({ title: 'Upload Failed', description: 'Could not upload the test file.', variant: 'destructive' });
+    } finally {
+        setUploadingState(prev => ({ ...prev, [postId]: false }));
+        setUploadProgress(prev => ({...prev, [postId]: 0}));
     }
   };
 
@@ -383,6 +381,7 @@ export default function SkillTestsPage() {
                             {filteredPosts.map(post => {
                                 const testInfo = getTestInfo(post);
                                 const isLoading = uploadingState[post.id];
+                                const progress = uploadProgress[post.id];
                                 return (
                                     <TableRow key={post.id}>
                                         <TableCell className="font-medium">{post.title}</TableCell>
@@ -406,10 +405,10 @@ export default function SkillTestsPage() {
                                                 </Button>
                                             ) : testInfo.type === 'traditional' && user ? (
                                                 isLoading ? (
-                                                    <Button size="sm" disabled>
-                                                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                                        Uploading...
-                                                    </Button>
+                                                    <div className='flex items-center justify-end gap-2'>
+                                                        <Progress value={progress} className="w-24 h-2" />
+                                                        <span className='text-xs text-muted-foreground'>{Math.round(progress || 0)}%</span>
+                                                    </div>
                                                 ) : testInfo.testFileUrl ? (
                                                     <>
                                                         <Button size="sm" disabled>
@@ -426,8 +425,7 @@ export default function SkillTestsPage() {
                                                 ) : (
                                                     <DirectUploadButton
                                                         post={post}
-                                                        onUploadStart={handleUploadStart}
-                                                        onUploadComplete={handleUploadComplete}
+                                                        onUpload={(file) => handleUpload(post.id, file)}
                                                     />
                                                 )
                                             ) : (

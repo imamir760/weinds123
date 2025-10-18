@@ -1,7 +1,6 @@
-
 'use client';
 
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes, uploadBytesResumable, UploadTaskSnapshot } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 
 /**
@@ -28,4 +27,43 @@ export async function uploadFile(file: File, filePath: string): Promise<string> 
         // This will be caught by the calling function's try/catch block
         throw new Error("File upload failed. Please check your storage rules and network connection.");
     }
+}
+
+
+/**
+ * Uploads a file to Firebase Storage with progress tracking.
+ * @param file The file to upload.
+ * @param filePath The path in the storage bucket.
+ * @param onProgress A callback function that receives the upload progress percentage.
+ * @returns A promise that resolves with the download URL.
+ */
+export function uploadFileWithProgress(
+  file: File,
+  filePath: string,
+  onProgress: (progress: number) => void
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const storageRef = ref(storage, filePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot: UploadTaskSnapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        onProgress(progress);
+      },
+      (error) => {
+        console.error('Upload failed:', error);
+        reject(new Error('File upload failed. Please check your storage rules and network connection.'));
+      },
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadURL);
+        } catch (error) {
+          reject(new Error('Could not get download URL.'));
+        }
+      }
+    );
+  });
 }
