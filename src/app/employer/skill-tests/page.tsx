@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -192,29 +191,29 @@ const UploadTestDialog = ({
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleUpload = async () => {
-    if (!file || !post || !user) {
+  const handleUpload = async (postToUpload: Post) => {
+    if (!file || !user) {
       toast({ title: 'Please select a file.', variant: 'destructive' });
       return;
     }
     setLoading(true);
     try {
-      const filePath = `traditional-tests/${post.id}/${user.uid}/${file.name}`;
+      const filePath = `traditionalTests/${postToUpload.id}/${user.uid}/${file.name}`;
       const fileUrl = await uploadFile(file, filePath);
 
       const testDoc = {
-          title: `${post.title} - Traditional Test`,
-          postId: post.id,
-          postType: post.type.toLowerCase(),
+          title: `${postToUpload.title} - Traditional Test`,
+          postId: postToUpload.id,
+          postType: postToUpload.type.toLowerCase(),
           employerId: user.uid,
           createdAt: serverTimestamp(),
           testFileUrl: fileUrl,
       };
 
-      const docRef = await addDoc(collection(db, 'traditional_tests'), testDoc);
+      const docRef = await addDoc(collection(db, 'traditionalTests'), testDoc);
       
       toast({ title: 'Test uploaded successfully!' });
-      onUploadComplete(post.id, docRef.id, fileUrl);
+      onUploadComplete(postToUpload.id, docRef.id, fileUrl);
       onOpenChange(false);
       setFile(null);
     } catch (error) {
@@ -225,7 +224,7 @@ const UploadTestDialog = ({
         variant: 'destructive',
       });
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: '/traditional_tests',
+          path: '/traditionalTests',
           operation: 'create'
       }))
     } finally {
@@ -234,7 +233,7 @@ const UploadTestDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!loading) onOpenChange(isOpen); }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Upload Traditional Test</DialogTitle>
@@ -249,8 +248,8 @@ const UploadTestDialog = ({
             onChange={(e) => setFile(e.target.files?.[0] || null)}
           />
           <Button
-            onClick={handleUpload}
-            disabled={loading || !file}
+            onClick={() => post && handleUpload(post)}
+            disabled={loading || !file || !post}
             className="w-full"
           >
             {loading ? (
@@ -290,7 +289,7 @@ export default function SkillTestsPage() {
       try {
         const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
         const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-        const testsQuery = query(collection(db, 'traditional_tests'), where('employerId', '==', user.uid));
+        const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
         
         const [jobsSnapshot, internshipsSnapshot, testsSnapshot] = await Promise.all([
           getDocs(jobsQuery).catch(e => {
@@ -302,7 +301,7 @@ export default function SkillTestsPage() {
             return null;
           }),
           getDocs(testsQuery).catch(e => {
-              errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditional_tests', operation: 'list', requestResourceData: { employerId: user.uid}}));
+              errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
               return null;
           })
         ]);
@@ -333,7 +332,7 @@ export default function SkillTestsPage() {
   const handleUploadComplete = (postId: string, testId: string, testFileUrl: string) => {
     setTraditionalTests(prev => ({
         ...prev,
-        [postId]: { id: testId, testFileUrl }
+        [postId]: { id: testId, testFileUrl, ...prev[postId] }
     }));
   };
 
