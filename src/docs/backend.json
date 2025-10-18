@@ -150,8 +150,7 @@
                 "type": "object",
                 "properties": {
                     "stage": { "type": "string" },
-                    "type": { "type": "string" },
-                    "testFileUrl": { "type": "string", "format": "uri" }
+                    "type": { "type": "string" }
                 }
             }
         }
@@ -182,8 +181,7 @@
                 "type": "object",
                 "properties": {
                     "stage": { "type": "string" },
-                    "type": { "type": "string" },
-                    "testFileUrl": { "type": "string", "format": "uri" }
+                    "type": { "type": "string" }
                 }
             }
         }
@@ -295,7 +293,7 @@
       "schema": { "$ref": "#/entities/Application" },
       "description": "Stores all applications for jobs and internships."
     },
-    "/traditional_tests/{testId}": {
+    "/traditionalTests/{testId}": {
       "schema": { "$ref": "#/entities/TraditionalTest" },
       "description": "Stores all traditional skill tests created by employers."
     },
@@ -309,5 +307,3 @@
     }
   }
 }
-
-    
