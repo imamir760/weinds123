@@ -14,7 +14,7 @@ import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload,
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp, doc, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -28,7 +28,7 @@ import { FullReport, ReportDialog } from '@/components/employer/report-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
-import { uploadTraditionalTest } from '@/lib/test-actions';
+import { uploadFile } from '@/lib/storage-actions';
 
 
 type Post = DocumentData & { 
@@ -42,6 +42,7 @@ type Post = DocumentData & {
 type TraditionalTest = {
     id: string;
     postId: string;
+    employerId: string;
     testFileUrl: string;
 }
 
@@ -273,7 +274,18 @@ export default function SkillTestsPage() {
     setUploadingState((prev) => ({ ...prev, [postId]: true }));
 
     try {
-      await uploadTraditionalTest(postId, user.uid, file);
+        const filePath = `skill-tests/${postId}/${user.uid}/${file.name}`;
+        const testFileUrl = await uploadFile(file, filePath);
+        
+        const testData = {
+          postId,
+          employerId: user.uid,
+          testFileUrl,
+          createdAt: serverTimestamp(),
+        };
+
+        await addDoc(collection(db, 'traditionalTests'), testData);
+      
       toast({ title: 'Test uploaded successfully!' });
     } catch (error) {
       console.error('Upload failed', error);
@@ -282,6 +294,13 @@ export default function SkillTestsPage() {
         description: 'Could not upload the test file.',
         variant: 'destructive',
       });
+      // Emit a specific error if it's a permission issue from Firestore
+      if (error instanceof Error && error.message.includes('permission-denied')) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: '/traditionalTests',
+            operation: 'create'
+        }));
+      }
     } finally {
       setUploadingState((prev) => ({ ...prev, [postId]: false }));
     }

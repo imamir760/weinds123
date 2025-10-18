@@ -3,6 +3,9 @@
     "rules": "firestore.rules",
     "database": "(default)"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "apphosting": {
     "backendId": "weinds123",
     "run": {

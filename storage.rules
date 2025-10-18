@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check ownership
+    function isOwner(employerId) {
+      return request.auth != null && request.auth.uid == employerId;
+    }
+
+    // Rules for traditional skill test submissions
+    // Path: test-submissions/{postId}/{candidateId}/{fileName}
+    match /test-submissions/{postId}/{candidateId}/{fileName} {
+       // Candidates can upload their own submissions
+       allow create: if isOwner(candidateId) && request.resource.size < 5 * 1024 * 1024; // Max 5MB
+       // Employers can read submissions for their posts
+       allow read: if request.auth != null && get(/databases/(default)/documents/applications/$(applicationId)).data.employerId == request.auth.uid;
+    }
+
+    // Rules for employers uploading test files for traditional tests
+    // Path: skill-tests/{postId}/{employerId}/{fileName}
+    match /skill-tests/{postId}/{employerId}/{fileName} {
+        allow create: if isOwner(employerId) && request.resource.size < 5 * 1024 * 1024; // Max 5MB
+        allow read: if isOwner(employerId);
+    }
+  }
+}
