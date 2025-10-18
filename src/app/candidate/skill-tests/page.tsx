@@ -338,5 +338,3 @@ export default function SkillTestsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
-
-    

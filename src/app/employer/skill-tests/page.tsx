@@ -35,14 +35,8 @@ type Post = DocumentData & {
     type: 'Job' | 'Internship'; 
     title: string, 
     createdAt: Timestamp,
-    pipeline: { stage: string, type?: string }[];
+    pipeline: { stage: string, type?: string, testFileUrl?: string }[];
 };
-
-type TraditionalTest = DocumentData & {
-    id: string;
-    testFileUrl: string;
-    postId: string;
-}
 
 const ViewSubmissionsDialog = ({ 
     isOpen, 
@@ -181,7 +175,7 @@ const UploadTestDialog = ({
   user: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUploadComplete: (postId: string, testId: string, testFileUrl: string) => void;
+  onUploadComplete: (postId: string, testFileUrl: string) => void;
 }) => {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
@@ -194,22 +188,19 @@ const UploadTestDialog = ({
     }
     setLoading(true);
     try {
-      const filePath = `traditionalTests/${post.id}/${user.uid}/${file.name}`;
+      const filePath = `skill-tests/${post.id}/${file.name}`;
       const fileUrl = await uploadFile(file, filePath);
 
-      const testDoc = {
-          title: `${post.title} - Traditional Test`,
-          postId: post.id,
-          postType: post.type.toLowerCase(),
-          employerId: user.uid,
-          createdAt: serverTimestamp(),
-          testFileUrl: fileUrl,
-      };
+      const postRef = doc(db, post.type === 'Job' ? 'jobs' : 'internships', post.id);
+      
+      const newPipeline = post.pipeline.map(p => 
+          p.stage === 'skill_test' ? { ...p, testFileUrl: fileUrl } : p
+      );
 
-      const docRef = await addDoc(collection(db, 'traditionalTests'), testDoc);
+      await updateDoc(postRef, { pipeline: newPipeline });
       
       toast({ title: 'Test uploaded successfully!' });
-      onUploadComplete(post.id, docRef.id, fileUrl);
+      onUploadComplete(post.id, fileUrl);
       onOpenChange(false);
       setFile(null);
     } catch (error) {
@@ -220,9 +211,9 @@ const UploadTestDialog = ({
         variant: 'destructive',
       });
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: '/traditionalTests',
-          operation: 'create',
-          requestResourceData: {postId: post?.id, employerId: user?.uid}
+          path: `/${post.type === 'Job' ? 'jobs' : 'internships'}/${post.id}`,
+          operation: 'update',
+          requestResourceData: { pipeline: '...' }
       }))
     } finally {
       setLoading(false);
@@ -266,7 +257,6 @@ const UploadTestDialog = ({
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [traditionalTests, setTraditionalTests] = useState<{[key: string]: TraditionalTest}>({});
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
   
@@ -275,7 +265,7 @@ export default function SkillTestsPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
-    const fetchPostsAndTests = async () => {
+    const fetchPosts = async () => {
       if (!user) {
         setLoading(false);
         return;
@@ -286,9 +276,8 @@ export default function SkillTestsPage() {
       try {
         const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
         const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-        const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
         
-        const [jobsSnapshot, internshipsSnapshot, testsSnapshot] = await Promise.all([
+        const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
           getDocs(jobsQuery).catch(e => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
@@ -296,23 +285,12 @@ export default function SkillTestsPage() {
           getDocs(internshipsQuery).catch(e => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
-          }),
-          getDocs(testsQuery).catch(e => {
-              errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
-              return null;
           })
         ]);
 
         const jobsData = jobsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post)) || [];
         const internshipsData = internshipsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post)) || [];
         
-        const testsData: {[key: string]: TraditionalTest} = {};
-        testsSnapshot?.docs.forEach(doc => {
-            const data = doc.data() as TraditionalTest;
-            testsData[data.postId] = { id: doc.id, ...data };
-        });
-        setTraditionalTests(testsData);
-
         let allPosts = [...jobsData, ...internshipsData];
         setPosts(allPosts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
 
@@ -323,13 +301,18 @@ export default function SkillTestsPage() {
       }
     };
 
-    fetchPostsAndTests();
+    fetchPosts();
   }, [user]);
 
-  const handleUploadComplete = (postId: string, testId: string, testFileUrl: string) => {
-    setTraditionalTests(prev => ({
-        ...prev,
-        [postId]: { id: testId, testFileUrl, postId }
+  const onUploadComplete = (postId: string, testFileUrl: string) => {
+    setPosts(prevPosts => prevPosts.map(p => {
+        if (p.id === postId) {
+            const newPipeline = p.pipeline.map(stage => 
+                stage.stage === 'skill_test' ? { ...stage, testFileUrl } : stage
+            );
+            return { ...p, pipeline: newPipeline };
+        }
+        return p;
     }));
   };
 
@@ -355,7 +338,6 @@ export default function SkillTestsPage() {
 
   const getTestInfo = (post: Post) => {
       const skillTestStage = post.pipeline?.find(p => p.stage === 'skill_test');
-      const traditionalTest = traditionalTests[post.id];
 
       if (!skillTestStage || !skillTestStage.type) return {
           badge: <Badge variant="outline">Not Set</Badge>,
@@ -364,7 +346,7 @@ export default function SkillTestsPage() {
       };
       
       const type = skillTestStage.type;
-      const hasFile = !!traditionalTest?.testFileUrl;
+      const hasFile = !!skillTestStage.testFileUrl;
 
       if (type === 'ai') {
           return {
@@ -424,56 +406,58 @@ export default function SkillTestsPage() {
                      </Button>
                 </div>
             ) : (
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Test Type</TableHead>
-                            <TableHead>Created On</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredPosts.map(post => {
-                            const testInfo = getTestInfo(post);
-                            return (
-                                <TableRow key={post.id}>
-                                    <TableCell className="font-medium">{post.title}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={post.type === 'Job' ? 'default' : 'secondary'} className="flex items-center gap-1 w-fit">
-                                          {post.type === 'Job' ? <Briefcase className="w-3 h-3"/> : <GraduationCap className="w-3 h-3"/>}
-                                          {post.type}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{testInfo.badge}</TableCell>
-                                    <TableCell>{formatDate(post.createdAt)}</TableCell>
-                                    <TableCell className="text-right space-x-2">
-                                         <Button variant="outline" size="sm" onClick={() => handleViewTestsClick(post)}>
-                                              <Eye className="mr-2 h-3 w-3"/>
-                                              View Submissions
-                                        </Button>
-                                        {testInfo.type === 'ai' ? (
-                                            <Button size="sm" disabled>
-                                                <CheckCircle className="mr-2 h-3 w-3"/>
-                                                AI Test Enabled
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Title</TableHead>
+                                <TableHead>Type</TableHead>
+                                <TableHead>Test Type</TableHead>
+                                <TableHead>Created On</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredPosts.map(post => {
+                                const testInfo = getTestInfo(post);
+                                return (
+                                    <TableRow key={post.id}>
+                                        <TableCell className="font-medium">{post.title}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={post.type === 'Job' ? 'default' : 'secondary'} className="flex items-center gap-1 w-fit">
+                                              {post.type === 'Job' ? <Briefcase className="w-3 h-3"/> : <GraduationCap className="w-3 h-3"/>}
+                                              {post.type}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>{testInfo.badge}</TableCell>
+                                        <TableCell>{formatDate(post.createdAt)}</TableCell>
+                                        <TableCell className="text-right space-x-2">
+                                            <Button variant="outline" size="sm" onClick={() => handleViewTestsClick(post)}>
+                                                <Eye className="mr-2 h-3 w-3"/>
+                                                View Submissions
                                             </Button>
-                                        ) : testInfo.type === 'traditional' ? (
-                                             <Button size="sm" onClick={() => handleUploadClick(post)} disabled={testInfo.hasFile}>
-                                                {testInfo.hasFile ? <CheckCircle className="mr-2 h-3 w-3"/> : <Upload className="mr-2 h-3 w-3"/>}
-                                                {testInfo.hasFile ? 'Test Uploaded' : 'Upload Test'}
-                                            </Button>
-                                        ) : (
-                                            <Button asChild size="sm" variant="ghost" disabled>
-                                                <span className="text-muted-foreground">Setup in Pipeline</span>
-                                            </Button>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            )
-                        })}
-                    </TableBody>
-                </Table>
+                                            {testInfo.type === 'ai' ? (
+                                                <Button size="sm" disabled>
+                                                    <CheckCircle className="mr-2 h-3 w-3"/>
+                                                    AI Test Enabled
+                                                </Button>
+                                            ) : testInfo.type === 'traditional' ? (
+                                                <Button size="sm" onClick={() => handleUploadClick(post)} disabled={testInfo.hasFile}>
+                                                    {testInfo.hasFile ? <CheckCircle className="mr-2 h-3 w-3"/> : <Upload className="mr-2 h-3 w-3"/>}
+                                                    {testInfo.hasFile ? 'Test Uploaded' : 'Upload Test'}
+                                                </Button>
+                                            ) : (
+                                                <Button asChild size="sm" variant="ghost" disabled>
+                                                    <span className="text-muted-foreground">Setup in Pipeline</span>
+                                                </Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
             )}
         </CardContent>
       </Card>
@@ -487,12 +471,10 @@ export default function SkillTestsPage() {
         onOpenChange={setIsUploadOpen}
         post={selectedPost}
         user={user}
-        onUploadComplete={handleUploadComplete}
+        onUploadComplete={onUploadComplete}
       />
     </div>
   );
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
-
-    
