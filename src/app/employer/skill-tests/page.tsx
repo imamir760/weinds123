@@ -9,11 +9,11 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap, TestTube2, FilePlus, Eye, CheckCircle, Upload, FileDown } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp, doc, getDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -41,13 +41,6 @@ type TraditionalTest = DocumentData & {
     id: string;
     testFileUrl: string;
 }
-
-type ReportWithCandidate = FullReport & {
-  candidateName: string;
-  candidateId: string;
-  postType: 'job' | 'internship';
-  submissionFileUrl?: string;
-};
 
 const ViewSubmissionsDialog = ({ 
     isOpen, 
@@ -225,7 +218,8 @@ const UploadTestDialog = ({
       });
       errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: '/traditionalTests',
-          operation: 'create'
+          operation: 'create',
+          requestResourceData: {postId: post?.id, employerId: user?.uid}
       }))
     } finally {
       setLoading(false);
@@ -392,12 +386,13 @@ export default function SkillTestsPage() {
 
   const PageContent = (
      <div className="container mx-auto py-8 px-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-8">
-          <div>
-              <h1 className="text-3xl font-bold font-headline flex items-center gap-2"><TestTube2 className="w-8 h-8" /> Skill Tests</h1>
+      <Card>
+        <CardHeader className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-2xl flex items-center gap-2"><TestTube2 className="w-6 h-6" /> Skill Tests</CardTitle>
               <CardDescription>Create and manage skill assessments for your job and internship postings.</CardDescription>
-          </div>
-           <div className="flex items-center space-x-2">
+            </div>
+            <div className="flex items-center space-x-2">
               <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
                 <Briefcase className={!showInternships ? 'text-primary' : ''}/>
                 <span>Jobs</span>
@@ -412,11 +407,6 @@ export default function SkillTestsPage() {
                 <span>Internships</span>
               </Label>
             </div>
-      </div>
-      <Card>
-        <CardHeader>
-            <CardTitle>Your {showInternships ? 'Internship' : 'Job'} Postings</CardTitle>
-            <CardDescription>Select a posting to create or view its skill tests.</CardDescription>
         </CardHeader>
         <CardContent>
             {loading ? (
