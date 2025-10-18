@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -132,7 +133,7 @@ const ViewSubmissionsDialog = ({
                                                     <AvatarFallback>{sub.candidateName?.charAt(0) || 'C'}</AvatarFallback>
                                                 </Avatar>
                                                 <div>
-                                                     <Link href={`/employer/${sub.postType}s/${post?.id}/candidates/${sub.candidateId}`} className="font-semibold hover:underline">{sub.candidateName}</Link>
+                                                     <Link href={`/employer/${sub.postType === 'job' ? 'jobs' : 'internships'}/${post?.id}/candidates/${sub.candidateId}`} className="font-semibold hover:underline">{sub.candidateName}</Link>
                                                      {sub.report?.score !== undefined && <p className="text-sm text-muted-foreground">AI Score: {sub.report.score}/100</p>}
                                                 </div>
                                             </div>
@@ -232,6 +233,7 @@ const UploadTestDialog = ({
           <Input
             type="file"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
+            disabled={loading}
           />
           <Button
             onClick={handleUpload}
