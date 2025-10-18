@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, DocumentData, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Loader2, Briefcase, GraduationCap, ChevronsRight } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
+import { useToast } from '@/hooks/use-toast';
 
 interface Applicant extends DocumentData {
     id: string; // application ID
@@ -38,6 +39,7 @@ interface Applicant extends DocumentData {
 
 export default function AllCandidatesPage() {
     const { user } = useAuth();
+    const { toast } = useToast();
     const [loading, setLoading] = useState(true);
     const [allApplicants, setAllApplicants] = useState<Applicant[]>([]);
     const [showInternships, setShowInternships] = useState(false);
@@ -95,6 +97,31 @@ export default function AllCandidatesPage() {
         return 'View';
     }
 
+    const handleUpdateStatus = async (applicationId: string, newStatus: string) => {
+      if (newStatus === 'View') return;
+      const appRef = doc(db, 'applications', applicationId);
+      try {
+          await updateDoc(appRef, { status: newStatus });
+          setAllApplicants(prev => prev.map(app => app.id === applicationId ? {...app, status: newStatus} : app));
+          toast({
+              title: "Status Updated",
+              description: `Candidate has been moved to ${newStatus}.`
+          });
+      } catch (error) {
+          console.error("Failed to update status", error);
+          toast({
+              title: "Update Failed",
+              description: "Could not update candidate status.",
+              variant: "destructive"
+          });
+           errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: appRef.path,
+                operation: 'update',
+                requestResourceData: { status: newStatus }
+           }));
+      }
+    }
+
 
     return (
         <div className="container mx-auto py-8 px-4">
@@ -143,7 +170,9 @@ export default function AllCandidatesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {displayedApplicants.map((app) => (
+                            {displayedApplicants.map((app) => {
+                                const nextStage = getNextStage(app.status);
+                                return (
                                 <TableRow key={app.id}>
                                     <TableCell className="font-medium">
                                          <div className="flex items-center gap-3">
@@ -166,12 +195,17 @@ export default function AllCandidatesPage() {
                                         <Badge variant="secondary" className="capitalize">{app.status.replace(/_/g, ' ')}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="outline" size="sm">
-                                            {getNextStage(app.status)} <ChevronsRight className="w-3 h-3 ml-2"/>
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm"
+                                            onClick={() => handleUpdateStatus(app.id, nextStage)}
+                                            disabled={nextStage === 'View'}
+                                        >
+                                            {nextStage} <ChevronsRight className="w-3 h-3 ml-2"/>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                     </Table>
                 )}
