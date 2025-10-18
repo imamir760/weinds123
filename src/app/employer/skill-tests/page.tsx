@@ -28,7 +28,7 @@ import { FullReport, ReportDialog } from '@/components/employer/report-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
-import { uploadFile } from '@/lib/storage-actions';
+import { uploadTraditionalTest } from '@/lib/test-actions';
 
 
 type Post = DocumentData & { 
@@ -167,18 +167,28 @@ const ViewSubmissionsDialog = ({
 }
 
 const DirectUploadButton = ({
-  isLoading,
-  onUpload,
+  post,
+  onUploadStart,
+  onUploadComplete
 }: {
-  isLoading: boolean;
-  onUpload: (file: File) => void;
+  post: Post;
+  onUploadStart: (postId: string) => void;
+  onUploadComplete: (postId: string, newTest: TraditionalTest | null) => void;
 }) => {
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      onUpload(file);
+    if (file && user) {
+        onUploadStart(post.id);
+        try {
+            const newTest = await uploadTraditionalTest(post.id, user.uid, file);
+            onUploadComplete(post.id, newTest as TraditionalTest);
+        } catch (error) {
+            console.error("Upload failed in component", error);
+            onUploadComplete(post.id, null);
+        }
     }
      if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -193,15 +203,10 @@ const DirectUploadButton = ({
         className="hidden"
         onChange={handleFileChange}
         accept=".pdf,.doc,.docx,.zip"
-        disabled={isLoading}
       />
-      <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
-        {isLoading ? (
-          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-        ) : (
-          <Upload className="mr-2 h-3 w-3" />
-        )}
-        {isLoading ? 'Uploading...' : 'Upload Test'}
+      <Button size="sm" onClick={() => fileInputRef.current?.click()}>
+        <Upload className="mr-2 h-3 w-3" />
+        Upload Test
       </Button>
     </>
   );
@@ -229,13 +234,11 @@ export default function SkillTestsPage() {
 
     const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
     const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-
+    const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
+    
     const unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
-        setPosts(prev => {
-            const jobsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
-            const otherPosts = prev.filter(p => p.type !== 'Job');
-            return [...jobsData, ...otherPosts].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-        });
+        const jobsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
+        setPosts(prev => [...prev.filter(p => p.type !== 'Job'), ...jobsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
         setLoading(false);
     }, e => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
@@ -243,23 +246,19 @@ export default function SkillTestsPage() {
     });
     
     const unsubInternships = onSnapshot(internshipsQuery, (snapshot) => {
-        setPosts(prev => {
-            const internshipsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post));
-            const otherPosts = prev.filter(p => p.type !== 'Internship');
-            return [...internshipsData, ...otherPosts].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-        });
+        const internshipsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post));
+        setPosts(prev => [...prev.filter(p => p.type !== 'Internship'), ...internshipsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
         setLoading(false);
     }, e => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
         setLoading(false);
     });
     
-    const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
     const unsubTests = onSnapshot(testsQuery, (snapshot) => {
         const testsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest));
         setTraditionalTests(testsData);
     }, e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid } }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
     });
 
     return () => {
@@ -269,40 +268,17 @@ export default function SkillTestsPage() {
     };
   }, [user]);
 
-  const handleUpload = async (postId: string, file: File) => {
-    if (!user) return;
-    setUploadingState((prev) => ({ ...prev, [postId]: true }));
+  const handleUploadStart = (postId: string) => {
+    setUploadingState(prev => ({ ...prev, [postId]: true }));
+  };
 
-    try {
-        const filePath = `skill-tests/${postId}/${user.uid}/${file.name}`;
-        const testFileUrl = await uploadFile(file, filePath);
-        
-        const testData = {
-          postId,
-          employerId: user.uid,
-          testFileUrl,
-          createdAt: serverTimestamp(),
-        };
-
-        await addDoc(collection(db, 'traditionalTests'), testData);
-      
-      toast({ title: 'Test uploaded successfully!' });
-    } catch (error) {
-      console.error('Upload failed', error);
-      toast({
-        title: 'Upload Failed',
-        description: 'Could not upload the test file.',
-        variant: 'destructive',
-      });
-      // Emit a specific error if it's a permission issue from Firestore
-      if (error instanceof Error && error.message.includes('permission-denied')) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: '/traditionalTests',
-            operation: 'create'
-        }));
-      }
-    } finally {
-      setUploadingState((prev) => ({ ...prev, [postId]: false }));
+  const handleUploadComplete = (postId: string, newTest: TraditionalTest | null) => {
+    setUploadingState(prev => ({ ...prev, [postId]: false }));
+    if (newTest) {
+        setTraditionalTests(prev => [...prev, newTest]);
+        toast({ title: 'Test uploaded successfully!' });
+    } else {
+        toast({ title: 'Upload Failed', description: 'Could not upload the test file.', variant: 'destructive' });
     }
   };
 
@@ -406,6 +382,7 @@ export default function SkillTestsPage() {
                         <TableBody>
                             {filteredPosts.map(post => {
                                 const testInfo = getTestInfo(post);
+                                const isLoading = uploadingState[post.id];
                                 return (
                                     <TableRow key={post.id}>
                                         <TableCell className="font-medium">{post.title}</TableCell>
@@ -428,7 +405,12 @@ export default function SkillTestsPage() {
                                                     AI Test Enabled
                                                 </Button>
                                             ) : testInfo.type === 'traditional' && user ? (
-                                                testInfo.testFileUrl ? (
+                                                isLoading ? (
+                                                    <Button size="sm" disabled>
+                                                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                                        Uploading...
+                                                    </Button>
+                                                ) : testInfo.testFileUrl ? (
                                                     <>
                                                         <Button size="sm" disabled>
                                                             <CheckCircle className="mr-2 h-3 w-3" />
@@ -443,8 +425,9 @@ export default function SkillTestsPage() {
                                                     </>
                                                 ) : (
                                                     <DirectUploadButton
-                                                        isLoading={uploadingState[post.id] || false}
-                                                        onUpload={(file) => handleUpload(post.id, file)}
+                                                        post={post}
+                                                        onUploadStart={handleUploadStart}
+                                                        onUploadComplete={handleUploadComplete}
                                                     />
                                                 )
                                             ) : (

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -9,7 +8,7 @@ import { FirestorePermissionError } from './errors';
 
 /**
  * Handles the complete process of uploading a traditional test.
- * 1. Uploads the file to Firebase Storage.
+ * 1. Uploads the file to Firebase Storage under the 'traditional-tests' folder.
  * 2. Creates a corresponding document in the 'traditionalTests' collection.
  * @param postId The ID of the job/internship post.
  * @param employerId The ID of the employer.
@@ -24,8 +23,8 @@ export async function uploadTraditionalTest(postId: string, employerId: string, 
   }
   
   try {
-    // 1. Upload file to Storage
-    const filePath = `skill-tests/${postId}/${employerId}/${file.name}`;
+    // 1. Upload file to Storage in the specified folder
+    const filePath = `traditional-tests/${employerId}/${postId}/${file.name}`;
     const testFileUrl = await uploadFile(file, filePath);
 
     // 2. Create document in Firestore
@@ -39,7 +38,7 @@ export async function uploadTraditionalTest(postId: string, employerId: string, 
     const collectionRef = collection(db, 'traditionalTests');
     
     // Using .catch() for permission error handling
-    await addDoc(collectionRef, testData).catch(serverError => {
+    const docRef = await addDoc(collectionRef, testData).catch(serverError => {
         const permissionError = new FirestorePermissionError({
             path: '/traditionalTests',
             operation: 'create',
@@ -49,6 +48,8 @@ export async function uploadTraditionalTest(postId: string, employerId: string, 
         // Re-throw to be caught by the outer try/catch
         throw serverError;
     });
+
+    return { id: docRef.id, ...testData };
 
   } catch (error) {
     console.error('Failed to upload traditional test:', error);

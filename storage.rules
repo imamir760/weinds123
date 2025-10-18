@@ -2,25 +2,22 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Helper function to check ownership
-    function isOwner(employerId) {
-      return request.auth != null && request.auth.uid == employerId;
+    // Matches any file in the `traditional-tests` folder
+    match /traditional-tests/{employerId}/{postId}/{fileName} {
+      // Only the authenticated user whose UID matches the {employerId} in the path
+      // can upload files to their own folder.
+      allow create: if request.auth != null && request.auth.uid == employerId;
+
+      // Anyone can read the test files (e.g., candidates with the URL)
+      allow read: if true;
     }
 
-    // Rules for traditional skill test submissions
-    // Path: test-submissions/{postId}/{candidateId}/{fileName}
+     // Matches any file in the `test-submissions` folder
     match /test-submissions/{postId}/{candidateId}/{fileName} {
-       // Candidates can upload their own submissions
-       allow create: if isOwner(candidateId) && request.resource.size < 5 * 1024 * 1024; // Max 5MB
-       // Employers can read submissions for their posts
-       allow read: if request.auth != null && get(/databases/(default)/documents/applications/$(applicationId)).data.employerId == request.auth.uid;
-    }
-
-    // Rules for employers uploading test files for traditional tests
-    // Path: skill-tests/{postId}/{employerId}/{fileName}
-    match /skill-tests/{postId}/{employerId}/{fileName} {
-        allow create: if isOwner(employerId) && request.resource.size < 5 * 1024 * 1024; // Max 5MB
-        allow read: if isOwner(employerId);
+        // A candidate can only upload to their own submission path
+        allow create: if request.auth != null && request.auth.uid == candidateId;
+        // The candidate and the employer who owns the post can read the submission
+        allow read: if request.auth != null && (request.auth.uid == candidateId || exists(/databases/(default)/documents/jobs/$(postId)) && get(/databases/(default)/documents/jobs/$(postId)).data.employerId == request.auth.uid || exists(/databases/(default)/documents/internships/$(postId)) && get(/databases/(default)/documents/internships/$(postId)).data.employerId == request.auth.uid);
     }
   }
 }
