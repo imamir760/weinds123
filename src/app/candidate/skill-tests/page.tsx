@@ -37,6 +37,12 @@ interface ApplicationForTest extends DocumentData {
   submissionFileUrl?: string;
 }
 
+interface TraditionalTest {
+  id: string;
+  postId: string;
+  testFileUrl: string;
+}
+
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -79,6 +85,20 @@ export default function SkillTestsPage() {
             return;
         }
 
+        const employerIds = [...new Set(appsData.map(app => app.employerId))];
+        let traditionalTests: TraditionalTest[] = [];
+
+        if (employerIds.length > 0) {
+            const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', 'in', employerIds));
+            try {
+                const testsSnapshot = await getDocs(testsQuery);
+                traditionalTests = testsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest));
+            } catch (e) {
+                console.error("Could not fetch traditional tests", e);
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'traditionalTests', operation: 'list'}));
+            }
+        }
+
         const testsWithDetails: ApplicationForTest[] = [];
         for (const appData of appsData) {
             const postRef = doc(db, appData.postType === 'job' ? 'jobs' : 'internships', appData.postId);
@@ -92,19 +112,11 @@ export default function SkillTestsPage() {
                     const postData = postSnap.data();
                     const pipeline = postData.pipeline || [];
                     const skillTestStage = pipeline.find((p: any) => p.stage === 'skill_test');
-                    let testFileUrl = skillTestStage?.testFileUrl;
-
-                    // If it's a traditional test, we need to fetch the URL from the `traditionalTests` collection
-                    if (skillTestStage?.type === 'traditional' && !testFileUrl) {
-                        try {
-                            const traditionalTestQuery = query(collection(db, 'traditionalTests'), where('postId', '==', appData.postId));
-                            const traditionalTestSnap = await getDocs(traditionalTestQuery);
-                            if (!traditionalTestSnap.empty) {
-                                testFileUrl = traditionalTestSnap.docs[0].data().testFileUrl;
-                            }
-                        } catch (e) {
-                             console.error(`Could not fetch traditional test file for post ${appData.postId}`, e);
-                        }
+                    
+                    let testFileUrl: string | undefined = undefined;
+                    if (skillTestStage?.type === 'traditional') {
+                       const foundTest = traditionalTests.find(t => t.postId === appData.postId);
+                       testFileUrl = foundTest?.testFileUrl;
                     }
                     
                     testsWithDetails.push({
@@ -352,3 +364,4 @@ export default function SkillTestsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
