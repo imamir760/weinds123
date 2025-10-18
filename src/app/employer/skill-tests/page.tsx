@@ -249,9 +249,8 @@ export default function SkillTestsPage() {
       try {
         const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
         const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-        const testsQuery = query(collection(db, "traditionalTests"), where("employerId", "==", user.uid));
         
-        const [jobsSnapshot, internshipsSnapshot, testsSnapshot] = await Promise.all([
+        const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
           getDocs(jobsQuery).catch(e => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
@@ -259,10 +258,6 @@ export default function SkillTestsPage() {
           getDocs(internshipsQuery).catch(e => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
             return null;
-          }),
-          getDocs(testsQuery).catch(e => {
-              errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
-              return null;
           })
         ]);
 
@@ -272,7 +267,21 @@ export default function SkillTestsPage() {
         const allPosts = [...jobsData, ...internshipsData];
         setPosts(allPosts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
 
-        const testsData = testsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() }) as TraditionalTest) || [];
+        // Alternative Fetching Strategy: Fetch tests one by one for each post
+        const testsData: TraditionalTest[] = [];
+        for (const post of allPosts) {
+            const testQuery = query(collection(db, "traditionalTests"), where("postId", "==", post.id));
+            try {
+                const testSnapshot = await getDocs(testQuery);
+                if (!testSnapshot.empty) {
+                    const testDoc = testSnapshot.docs[0];
+                    testsData.push({ id: testDoc.id, ...testDoc.data() } as TraditionalTest);
+                }
+            } catch (e) {
+                 // Emit a non-fatal error, the UI will just show "Upload Test"
+                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'traditionalTests', operation: 'get', requestResourceData: { postId: post.id } }));
+            }
+        }
         setTraditionalTests(testsData);
 
       } catch (error) {
@@ -292,6 +301,9 @@ export default function SkillTestsPage() {
         getDocs(testsQuery).then(snapshot => {
             const testsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as TraditionalTest) || [];
             setTraditionalTests(testsData);
+        }).catch(e => {
+            // This is a refetch, so a non-fatal error is acceptable
+            console.error("Failed to refetch traditional tests after upload", e);
         })
     }
   };
