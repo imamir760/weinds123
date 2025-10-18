@@ -10,7 +10,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown, Pencil } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
@@ -151,6 +151,12 @@ const ViewSubmissionsDialog = ({
                                                 <Button size="sm" variant="outline" onClick={() => handleViewReport(sub.report)}>
                                                     <Eye className="mr-2 h-4 w-4"/> View Report
                                                 </Button>
+                                            ) : sub.submissionFileUrl ? (
+                                                 <Button asChild size="sm" variant="outline">
+                                                    <a href={sub.submissionFileUrl} target="_blank" rel="noopener noreferrer">
+                                                        <FileDown className="mr-2 h-4 w-4"/> Download Submission
+                                                    </a>
+                                                </Button>
                                             ) : (
                                                 <Badge variant="secondary">Pending</Badge>
                                             )}
@@ -167,14 +173,75 @@ const ViewSubmissionsDialog = ({
     )
 }
 
+const UploadTestDialog = ({ post, open, onOpenChange }: { post: Post | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [progress, setProgress] = useState(0);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            setFile(e.target.files[0]);
+        }
+    }
+
+    const handleUpload = async () => {
+        if (!file || !post || !user) {
+            toast({ title: "Please select a file.", variant: "destructive" });
+            return;
+        }
+        setUploading(true);
+        setProgress(0);
+        try {
+            await uploadTraditionalTest(post.id, user.uid, file, setProgress);
+            toast({ title: "Test uploaded successfully!" });
+            onOpenChange(false);
+        } catch (error: any) {
+            toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+        } finally {
+            setUploading(false);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Upload Traditional Test</DialogTitle>
+                    <DialogDescription>
+                        Upload the test file for the post: <span className="font-semibold">{post?.title}</span>
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <Input type="file" onChange={handleFileChange} disabled={uploading}/>
+                    {uploading && <Progress value={progress} className="w-full" />}
+                </div>
+                 <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>Cancel</Button>
+                    <Button onClick={handleUpload} disabled={!file || uploading}>
+                        {uploading ? <Loader2 className="mr-2 animate-spin"/> : <Upload className="mr-2"/>}
+                        Upload
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+
 export default function SkillTestsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
   
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+  const [traditionalTests, setTraditionalTests] = useState<TraditionalTest[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -185,7 +252,8 @@ export default function SkillTestsPage() {
 
     const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
     const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-    
+    const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
+
     const unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
         const jobsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
         setPosts(prev => [...prev.filter(p => p.type !== 'Job'), ...jobsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
@@ -204,15 +272,28 @@ export default function SkillTestsPage() {
         setLoading(false);
     });
 
+    const unsubTests = onSnapshot(testsQuery, (snapshot) => {
+        const testsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest));
+        setTraditionalTests(testsData);
+    }, e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
+    });
+
     return () => {
         unsubJobs();
         unsubInternships();
+        unsubTests();
     };
   }, [user]);
 
-  const handleViewTestsClick = (post: Post) => {
+  const handleViewSubmissionsClick = (post: Post) => {
     setSelectedPost(post);
     setIsSubmissionsOpen(true);
+  }
+  
+  const handleUploadClick = (post: Post) => {
+    setSelectedPost(post);
+    setIsUploadOpen(true);
   }
 
   const filteredPosts = useMemo(() => {
@@ -231,25 +312,30 @@ export default function SkillTestsPage() {
       if (!skillTestStage || !skillTestStage.type) return {
           badge: <Badge variant="outline">Not Set</Badge>,
           type: 'none',
+          uploaded: false
       };
       
       const type = skillTestStage.type;
+      const uploaded = traditionalTests.some(t => t.postId === post.id);
 
       if (type === 'ai') {
           return {
               badge: <Badge>AI Test</Badge>,
               type: 'ai',
+              uploaded: true // AI tests are always "ready"
           }
       }
       if (type === 'traditional') {
           return {
               badge: <Badge variant="secondary">Traditional</Badge>,
               type: 'traditional',
+              uploaded: uploaded,
           }
       }
       return {
           badge: <Badge variant="outline">{type}</Badge>,
           type: 'none',
+          uploaded: false,
       }
   }
 
@@ -316,23 +402,30 @@ export default function SkillTestsPage() {
                                         <TableCell>{testInfo.badge}</TableCell>
                                         <TableCell>{formatDate(post.createdAt)}</TableCell>
                                         <TableCell className="text-right space-x-2">
-                                            <Button variant="outline" size="sm" onClick={() => handleViewTestsClick(post)}>
+                                            <Button variant="outline" size="sm" onClick={() => handleViewSubmissionsClick(post)}>
                                                 <Eye className="mr-2 h-3 w-3"/>
                                                 View Submissions
                                             </Button>
-                                            {testInfo.type === 'ai' ? (
+                                            {testInfo.type === 'ai' && (
                                                 <Button size="sm" disabled>
                                                     <CheckCircle className="mr-2 h-3 w-3"/>
                                                     AI Test Enabled
                                                 </Button>
-                                            ) : testInfo.type === 'traditional' ? (
-                                                <Button asChild size="sm">
-                                                    <Link href={`/employer/skill-tests/${post.id}/create`}>
-                                                      <Pencil className="mr-2 h-3 w-3" />
-                                                      Create Test
-                                                    </Link>
-                                                </Button>
-                                            ) : (
+                                            )}
+                                            {testInfo.type === 'traditional' && (
+                                                testInfo.uploaded ? (
+                                                     <Button size="sm" variant="secondary" disabled>
+                                                        <CheckCircle className="mr-2 h-3 w-3"/>
+                                                        Test Uploaded
+                                                    </Button>
+                                                ) : (
+                                                    <Button size="sm" onClick={() => handleUploadClick(post)}>
+                                                        <Upload className="mr-2 h-3 w-3" />
+                                                        Upload Test
+                                                    </Button>
+                                                )
+                                            )}
+                                            {testInfo.type === 'none' && (
                                                 <Button asChild size="sm" variant="ghost" disabled>
                                                     <span className="text-muted-foreground">Setup in Pipeline</span>
                                                 </Button>
@@ -350,6 +443,11 @@ export default function SkillTestsPage() {
       <ViewSubmissionsDialog 
         isOpen={isSubmissionsOpen}
         onOpenChange={setIsSubmissionsOpen}
+        post={selectedPost}
+      />
+      <UploadTestDialog
+        open={isUploadOpen}
+        onOpenChange={setIsUploadOpen}
         post={selectedPost}
       />
     </div>
