@@ -10,7 +10,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
@@ -224,38 +224,35 @@ export default function SkillTestsPage() {
         return;
     }
     setLoading(true);
-
+    
     const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
     const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-
-    const fetchPosts = async () => {
-        try {
-            const [jobsSnapshot, internshipsSnapshot] = await Promise.all([
-                getDocs(jobsQuery).catch(e => {
-                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
-                    return null;
-                }),
-                getDocs(internshipsQuery).catch(e => {
-                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
-                    return null;
-                })
-            ]);
-
-            const jobsData = jobsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post)) || [];
-            const internshipsData = internshipsSnapshot?.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post)) || [];
-            
-            const allPosts = [...jobsData, ...internshipsData];
-            setPosts(allPosts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
-        } catch (error) {
-            console.error("Error fetching posts:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    fetchPosts();
-
     const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
+
+    const unsubPosts = onSnapshot(jobsQuery, (snapshot) => {
+        setPosts(prev => {
+            const jobsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
+            const otherPosts = prev.filter(p => p.type !== 'Job');
+            return [...jobsData, ...otherPosts].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+        });
+        setLoading(false);
+    }, e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
+        setLoading(false);
+    });
+    
+    const unsubInternships = onSnapshot(internshipsQuery, (snapshot) => {
+        setPosts(prev => {
+            const internshipsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post));
+            const otherPosts = prev.filter(p => p.type !== 'Internship');
+            return [...internshipsData, ...otherPosts].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+        });
+        setLoading(false);
+    }, e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
+        setLoading(false);
+    });
+
     const unsubscribeTests = onSnapshot(testsQuery, (snapshot) => {
         const testsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest)) || [];
         setTraditionalTests(testsData);
@@ -264,7 +261,11 @@ export default function SkillTestsPage() {
         return null;
     });
 
-    return () => unsubscribeTests();
+    return () => {
+        unsubPosts();
+        unsubInternships();
+        unsubscribeTests();
+    };
   }, [user]);
 
   const handleUpload = async (postId: string, file: File) => {
@@ -326,30 +327,30 @@ export default function SkillTestsPage() {
       if (!skillTestStage || !skillTestStage.type) return {
           badge: <Badge variant="outline">Not Set</Badge>,
           type: 'none',
-          hasFile: false
+          testFileUrl: null
       };
       
       const type = skillTestStage.type;
-      const hasFile = !!traditionalTests.find(t => t.postId === post.id);
+      const traditionalTest = traditionalTests.find(t => t.postId === post.id);
 
       if (type === 'ai') {
           return {
               badge: <Badge>AI Test</Badge>,
               type: 'ai',
-              hasFile: false
+              testFileUrl: null
           }
       }
       if (type === 'traditional') {
           return {
               badge: <Badge variant="secondary">Traditional</Badge>,
               type: 'traditional',
-              hasFile: hasFile
+              testFileUrl: traditionalTest?.testFileUrl || null
           }
       }
       return {
           badge: <Badge variant="outline">{type}</Badge>,
           type: 'none',
-          hasFile: false
+          testFileUrl: null
       }
   }
 
@@ -426,11 +427,19 @@ export default function SkillTestsPage() {
                                                     AI Test Enabled
                                                 </Button>
                                             ) : testInfo.type === 'traditional' && user ? (
-                                                testInfo.hasFile ? (
-                                                    <Button size="sm" disabled>
-                                                        <CheckCircle className="mr-2 h-3 w-3" />
-                                                        Test Uploaded
-                                                    </Button>
+                                                testInfo.testFileUrl ? (
+                                                    <>
+                                                        <Button size="sm" disabled>
+                                                            <CheckCircle className="mr-2 h-3 w-3" />
+                                                            Test Uploaded
+                                                        </Button>
+                                                         <Button asChild size="sm" variant="outline">
+                                                            <a href={testInfo.testFileUrl} target="_blank" rel="noopener noreferrer">
+                                                                <FileDown className="mr-2 h-3 w-3" />
+                                                                View File
+                                                            </a>
+                                                        </Button>
+                                                    </>
                                                 ) : (
                                                     <DirectUploadButton
                                                         isLoading={uploadingState[post.id] || false}
