@@ -164,68 +164,47 @@ const ViewSubmissionsDialog = ({
     )
 }
 
-const DirectUploadButton = ({ post, user }: { post: Post, user: User }) => {
-    const { toast } = useToast();
-    const [loading, setLoading] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+const DirectUploadButton = ({
+  isLoading,
+  onUpload,
+}: {
+  isLoading: boolean;
+  onUpload: (file: File) => void;
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !user || !post) {
-            return;
-        }
-        setLoading(true);
-        try {
-            const filePath = `skill-tests/${post.id}/${file.name}`;
-            const testFileUrl = await uploadFile(file, filePath);
-            
-            const testData = {
-                postId: post.id,
-                employerId: user.uid,
-                testFileUrl: testFileUrl,
-                createdAt: serverTimestamp(),
-            };
-
-            await addDoc(collection(db, 'traditionalTests'), testData);
-            
-            toast({ title: 'Test uploaded successfully!' });
-
-        } catch (error) {
-            console.error('Upload failed', error);
-            toast({
-                title: 'Upload Failed',
-                description: 'Could not upload the test file.',
-                variant: 'destructive',
-            });
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: `/traditionalTests`,
-                operation: 'create',
-                requestResourceData: { postId: post.id, employerId: user.uid }
-            }))
-        } finally {
-            setLoading(false);
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-            }
-        }
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onUpload(file);
     }
+     if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+    }
+  };
 
-    return (
-        <>
-            <Input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                onChange={handleFileChange}
-                accept=".pdf,.doc,.docx,.zip"
-            />
-             <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={loading}>
-                {loading ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <Upload className="mr-2 h-3 w-3"/>}
-                {loading ? 'Uploading...' : 'Upload Test'}
-             </Button>
-        </>
-    )
-}
+  return (
+    <>
+      <Input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={handleFileChange}
+        accept=".pdf,.doc,.docx,.zip"
+        disabled={isLoading}
+      />
+      <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
+        {isLoading ? (
+          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+        ) : (
+          <Upload className="mr-2 h-3 w-3" />
+        )}
+        {isLoading ? 'Uploading...' : 'Upload Test'}
+      </Button>
+    </>
+  );
+};
+
 
 export default function SkillTestsPage() {
   const { user } = useAuth();
@@ -233,9 +212,11 @@ export default function SkillTestsPage() {
   const [traditionalTests, setTraditionalTests] = useState<TraditionalTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
+  const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
   
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!user) {
@@ -285,6 +266,43 @@ export default function SkillTestsPage() {
 
     return () => unsubscribeTests();
   }, [user]);
+
+  const handleUpload = async (postId: string, file: File) => {
+    if (!user) return;
+    setUploadingState((prev) => ({ ...prev, [postId]: true }));
+
+    try {
+      const filePath = `skill-tests/${postId}/${file.name}`;
+      const testFileUrl = await uploadFile(file, filePath);
+
+      const testData = {
+        postId: postId,
+        employerId: user.uid,
+        testFileUrl: testFileUrl,
+        createdAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(db, 'traditionalTests'), testData);
+
+      toast({ title: 'Test uploaded successfully!' });
+    } catch (error) {
+      console.error('Upload failed', error);
+      toast({
+        title: 'Upload Failed',
+        description: 'Could not upload the test file.',
+        variant: 'destructive',
+      });
+       if (error instanceof Error && error.message.includes('permission')) {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: `/traditionalTests`,
+                operation: 'create',
+                requestResourceData: { postId: postId, employerId: user.uid }
+            }));
+       }
+    } finally {
+      setUploadingState((prev) => ({ ...prev, [postId]: false }));
+    }
+  };
 
 
   const handleViewTestsClick = (post: Post) => {
@@ -414,7 +432,10 @@ export default function SkillTestsPage() {
                                                         Test Uploaded
                                                     </Button>
                                                 ) : (
-                                                    <DirectUploadButton post={post} user={user} />
+                                                    <DirectUploadButton
+                                                        isLoading={uploadingState[post.id] || false}
+                                                        onUpload={(file) => handleUpload(post.id, file)}
+                                                    />
                                                 )
                                             ) : (
                                                 <Button asChild size="sm" variant="ghost" disabled>
