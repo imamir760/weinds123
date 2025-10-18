@@ -150,7 +150,8 @@
                 "type": "object",
                 "properties": {
                     "stage": { "type": "string" },
-                    "type": { "type": "string" }
+                    "type": { "type": "string" },
+                    "testFileUrl": { "type": "string", "format": "uri" }
                 }
             }
         }
@@ -181,7 +182,8 @@
                 "type": "object",
                 "properties": {
                     "stage": { "type": "string" },
-                    "type": { "type": "string" }
+                    "type": { "type": "string" },
+                    "testFileUrl": { "type": "string", "format": "uri" }
                 }
             }
         }
@@ -207,20 +209,6 @@
             "candidateSkills": { "type": "array", "items": { "type": "string" } }
         },
         "required": ["candidateId", "employerId", "postId", "postType", "postTitle", "companyName", "appliedOn", "status", "candidateName", "candidateEmail"]
-    },
-    "TraditionalTest": {
-      "title": "Traditional Test",
-      "description": "Represents a traditional, document-based skill test created by an employer.",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "postId": { "type": "string", "description": "The ID of the job or internship posting." },
-        "postType": { "type": "string", "enum": ["job", "internship"] },
-        "employerId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "testFileUrl": { "type": "string", "format": "uri", "description": "The URL to the test document uploaded by the employer." }
-      },
-      "required": ["title", "postId", "postType", "employerId", "createdAt", "testFileUrl"]
     },
     "SkillTestSubmission": {
       "title": "Skill Test Submission",
@@ -292,10 +280,6 @@
     "/applications/{applicationId}": {
       "schema": { "$ref": "#/entities/Application" },
       "description": "Stores all applications for jobs and internships."
-    },
-    "/traditionalTests/{testId}": {
-      "schema": { "$ref": "#/entities/TraditionalTest" },
-      "description": "Stores all traditional skill tests created by employers."
     },
     "/skillTestSubmissions/{submissionId}": {
       "schema": { "$ref": "#/entities/SkillTestSubmission" },

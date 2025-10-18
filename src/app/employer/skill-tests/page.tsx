@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -13,7 +14,7 @@ import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload 
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -34,14 +35,9 @@ type Post = DocumentData & {
     type: 'Job' | 'Internship'; 
     title: string, 
     createdAt: Timestamp,
-    pipeline: { stage: string, type?: string }[];
+    pipeline: { stage: string, type?: string, testFileUrl?: string }[];
 };
 
-type TraditionalTest = DocumentData & {
-  id: string;
-  postId: string;
-  testFileUrl: string;
-}
 
 const ViewSubmissionsDialog = ({ 
     isOpen, 
@@ -162,7 +158,7 @@ const ViewSubmissionsDialog = ({
     )
 }
 
-const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user: User, onUploadComplete: (postId: string) => void }) => {
+const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user: User, onUploadComplete: (postId: string, testFileUrl: string) => void }) => {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -176,31 +172,28 @@ const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user
         try {
             const filePath = `skill-tests/${post.id}/${file.name}`;
             const fileUrl = await uploadFile(file, filePath);
+            
+            const postRef = doc(db, post.type === 'Job' ? 'jobs' : 'internships', post.id);
+            const newPipeline = post.pipeline.map(p => 
+                p.stage === 'skill_test' ? { ...p, testFileUrl: fileUrl } : p
+            );
 
-            const testData = {
-                title: post.title,
-                postId: post.id,
-                postType: post.type.toLowerCase() as 'job' | 'internship',
-                employerId: user.uid,
-                createdAt: serverTimestamp(),
-                testFileUrl: fileUrl,
-            };
-
-            await addDoc(collection(db, 'traditionalTests'), testData);
+            await updateDoc(postRef, { pipeline: newPipeline });
 
             toast({ title: 'Test uploaded successfully!' });
-            onUploadComplete(post.id);
+            onUploadComplete(post.id, fileUrl);
+
         } catch (error) {
             console.error('Upload failed', error);
             toast({
                 title: 'Upload Failed',
-                description: 'Could not upload the test file. Check permissions.',
+                description: 'Could not upload the test file.',
                 variant: 'destructive',
             });
             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: '/traditionalTests',
-                operation: 'create',
-                requestResourceData: { postId: post.id }
+                path: `/${post.type.toLowerCase()}s/${post.id}`,
+                operation: 'update',
+                requestResourceData: { pipeline: '...' }
             }))
         } finally {
             setLoading(false);
@@ -230,7 +223,6 @@ const DirectUploadButton = ({ post, user, onUploadComplete }: { post: Post, user
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [traditionalTests, setTraditionalTests] = useState<TraditionalTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInternships, setShowInternships] = useState(false);
   
@@ -238,7 +230,7 @@ export default function SkillTestsPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
-    const fetchPostsAndTests = async () => {
+    const fetchPosts = async () => {
       if (!user) {
         setLoading(false);
         return;
@@ -267,23 +259,6 @@ export default function SkillTestsPage() {
         const allPosts = [...jobsData, ...internshipsData];
         setPosts(allPosts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
 
-        // Alternative Fetching Strategy: Fetch tests one by one for each post
-        const testsData: TraditionalTest[] = [];
-        for (const post of allPosts) {
-            const testQuery = query(collection(db, "traditionalTests"), where("postId", "==", post.id));
-            try {
-                const testSnapshot = await getDocs(testQuery);
-                if (!testSnapshot.empty) {
-                    const testDoc = testSnapshot.docs[0];
-                    testsData.push({ id: testDoc.id, ...testDoc.data() } as TraditionalTest);
-                }
-            } catch (e) {
-                 // Emit a non-fatal error, the UI will just show "Upload Test"
-                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'traditionalTests', operation: 'get', requestResourceData: { postId: post.id } }));
-            }
-        }
-        setTraditionalTests(testsData);
-
       } catch (error) {
         console.error("Error fetching posts:", error);
       } finally {
@@ -291,21 +266,24 @@ export default function SkillTestsPage() {
       }
     };
 
-    fetchPostsAndTests();
+    fetchPosts();
   }, [user]);
 
-  const onUploadComplete = (postId: string) => {
-    // Re-fetch tests to update the UI state
-    if (user) {
-        const testsQuery = query(collection(db, "traditionalTests"), where("employerId", "==", user.uid));
-        getDocs(testsQuery).then(snapshot => {
-            const testsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as TraditionalTest) || [];
-            setTraditionalTests(testsData);
-        }).catch(e => {
-            // This is a refetch, so a non-fatal error is acceptable
-            console.error("Failed to refetch traditional tests after upload", e);
-        })
-    }
+  const onUploadComplete = (postId: string, testFileUrl: string) => {
+    setPosts(prevPosts =>
+      prevPosts.map(p =>
+        p.id === postId
+          ? {
+              ...p,
+              pipeline: p.pipeline.map(stage =>
+                stage.stage === 'skill_test'
+                  ? { ...stage, testFileUrl: testFileUrl }
+                  : stage
+              ),
+            }
+          : p
+      )
+    );
   };
 
   const handleViewTestsClick = (post: Post) => {
@@ -333,7 +311,7 @@ export default function SkillTestsPage() {
       };
       
       const type = skillTestStage.type;
-      const hasFile = traditionalTests.some(t => t.postId === post.id);
+      const hasFile = !!skillTestStage.testFileUrl;
 
       if (type === 'ai') {
           return {
