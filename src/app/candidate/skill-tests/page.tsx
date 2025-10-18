@@ -40,7 +40,7 @@ interface ApplicationForTest extends DocumentData {
 export default function SkillTestsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [skillTests, setSkillTests] = useState<ApplicationForTest[]>([]);
+  const [skillTests, set_skillTests] = useState<ApplicationForTest[]>([]);
   const [reports, setReports] = useState<{[key: string]: FullReport}>({});
   const [loading, setLoading] = useState(true);
   const [submissionFiles, setSubmissionFiles] = useState<{[key: string]: File | null}>({});
@@ -74,7 +74,7 @@ export default function SkillTestsPage() {
       const unsubscribeApps = onSnapshot(q, async (snapshot) => {
         const appsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ApplicationForTest));
         if (appsData.length === 0) {
-            setSkillTests([]);
+            set_skillTests([]);
             setLoading(false);
             return;
         }
@@ -96,10 +96,14 @@ export default function SkillTestsPage() {
 
                     // If it's a traditional test, we need to fetch the URL from the `traditionalTests` collection
                     if (skillTestStage?.type === 'traditional' && !testFileUrl) {
-                        const traditionalTestQuery = query(collection(db, 'traditionalTests'), where('postId', '==', appData.postId));
-                        const traditionalTestSnap = await getDocs(traditionalTestQuery);
-                        if (!traditionalTestSnap.empty) {
-                            testFileUrl = traditionalTestSnap.docs[0].data().testFileUrl;
+                        try {
+                            const traditionalTestQuery = query(collection(db, 'traditionalTests'), where('postId', '==', appData.postId));
+                            const traditionalTestSnap = await getDocs(traditionalTestQuery);
+                            if (!traditionalTestSnap.empty) {
+                                testFileUrl = traditionalTestSnap.docs[0].data().testFileUrl;
+                            }
+                        } catch (e) {
+                             console.error(`Could not fetch traditional test file for post ${appData.postId}`, e);
                         }
                     }
                     
@@ -121,7 +125,7 @@ export default function SkillTestsPage() {
                 testsWithDetails.push(appData);
             }
         }
-        setSkillTests(testsWithDetails);
+        set_skillTests(testsWithDetails);
         setLoading(false);
       }, (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -181,7 +185,7 @@ export default function SkillTestsPage() {
         }
         
         toast({ title: "Submission successful!" });
-        setSkillTests(prev => prev.map(t => t.id === test.id ? {...t, submissionFileUrl: fileUrl } : t));
+        set_skillTests(prev => prev.map(t => t.id === test.id ? {...t, submissionFileUrl: fileUrl } : t));
 
       } catch (error) {
         console.error("Failed to submit test", error);
@@ -244,7 +248,7 @@ export default function SkillTestsPage() {
             <div className="flex justify-center items-center h-48">
               <Loader2 className="w-8 h-8 animate-spin" />
             </div>
-          ) : skillTests.length === 0 ? (
+          ) : set_skillTests.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium">No skill tests</h3>
@@ -252,7 +256,7 @@ export default function SkillTestsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-                {skillTests.map((test) => {
+                {set_skillTests.map((test) => {
                     const isAiSubmitted = !!reports[test.postId];
                     const isTraditionalSubmitted = !!test.submissionFileUrl;
                     const isSubmitted = isAiSubmitted || isTraditionalSubmitted;
@@ -348,3 +352,5 @@ export default function SkillTestsPage() {
 
   return <CandidateDashboardLayout>{PageContent}</CandidateDashboardLayout>;
 }
+
+    
