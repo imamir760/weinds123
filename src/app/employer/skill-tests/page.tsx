@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -14,7 +13,7 @@ import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload,
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, DocumentData, Timestamp, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, DocumentData, Timestamp, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -71,7 +70,6 @@ const ViewSubmissionsDialog = ({
 
                     const populatedSubmissions = [];
                     for (const sub of submissionDocs) {
-                        // Fetch candidate name for each submission
                         const applicationQuery = query(collection(db, 'applications'), where('candidateId', '==', sub.candidateId), where('postId', '==', sub.postId));
                         const applicationSnap = await getDocs(applicationQuery);
                         const candidateName = applicationSnap.docs[0]?.data()?.candidateName || sub.candidateId;
@@ -183,7 +181,7 @@ const UploadTestDialog = ({
 
   const handleUpload = async () => {
     if (!file || !user || !post) {
-      toast({ title: 'Please select a file and ensure you are logged in.', variant: 'destructive' });
+      toast({ title: 'Please select a file.', variant: 'destructive' });
       return;
     }
     setLoading(true);
@@ -207,7 +205,7 @@ const UploadTestDialog = ({
       console.error('Upload failed', error);
       toast({
         title: 'Upload Failed',
-        description: 'Could not upload the test file.',
+        description: 'Could not upload the test file. Check permissions.',
         variant: 'destructive',
       });
       errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -237,14 +235,10 @@ const UploadTestDialog = ({
           />
           <Button
             onClick={handleUpload}
-            disabled={loading || !file || !post}
+            disabled={loading || !file}
             className="w-full"
           >
-            {loading ? (
-              <Loader2 className="animate-spin mr-2" />
-            ) : (
-              <Upload className="mr-2" />
-            )}
+            {loading ? <Loader2 className="animate-spin mr-2" /> : <Upload className="mr-2" />}
             Upload Test
           </Button>
         </div>
