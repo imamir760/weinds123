@@ -1,3 +1,4 @@
+
 'use client';
 
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
@@ -24,6 +25,7 @@ export async function uploadFile(file: File, filePath: string): Promise<string> 
 
     } catch (error) {
         console.error("Error uploading file to Firebase Storage:", error);
+        // This will be caught by the calling function's try/catch block
         throw new Error("File upload failed. Please check your storage rules and network connection.");
     }
 }

@@ -199,7 +199,7 @@ const UploadTestDialog = ({
     }
     setLoading(true);
     try {
-      const filePath = `traditional-tests/${post.id}/${file.name}`;
+      const filePath = `traditional-tests/${post.id}/${user.uid}/${file.name}`;
       const fileUrl = await uploadFile(file, filePath);
 
       const testDoc = {
