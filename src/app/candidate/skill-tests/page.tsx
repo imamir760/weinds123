@@ -164,14 +164,14 @@ export default function SkillTestsPage() {
   }
 
   const handleSubmitTraditionalTest = async (test: ApplicationForTest) => {
-      const file = submissionFiles[test.id];
-      if (!file || !user) {
-          toast({ title: "Please select a file to submit.", variant: "destructive" });
-          return;
-      }
-      setUploading(prev => ({ ...prev, [test.id]: true }));
+    const file = submissionFiles[test.id];
+    if (!file || !user) {
+        toast({ title: "Please select a file to submit.", variant: "destructive" });
+        return;
+    }
+    setUploading(prev => ({ ...prev, [test.id]: true }));
 
-      try {
+    try {
         const filePath = `submissions/${test.postId}/${user.uid}/${file.name}`;
         const fileUrl = await uploadFile(file, filePath);
         
@@ -185,33 +185,25 @@ export default function SkillTestsPage() {
           submittedAt: serverTimestamp(),
         };
 
-        // Check if a submission already exists to decide whether to add or update
         const submissionQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid), where('postId', '==', test.postId));
         const submissionSnap = await getDocs(submissionQuery);
 
         if (!submissionSnap.empty) {
-            // Update existing submission
             const submissionDocRef = submissionSnap.docs[0].ref;
             await updateDoc(submissionDocRef, submissionData);
         } else {
-            // Add new submission
             await addDoc(collection(db, 'skillTestSubmissions'), submissionData);
         }
         
         toast({ title: "Submission successful!" });
-        // Update local state to reflect submission
         setSkillTests(prev => prev.map(t => t.id === test.id ? {...t, submissionFileUrl: fileUrl } : t));
 
-      } catch (error) {
+    } catch (error: any) {
         console.error("Failed to submit test", error);
-        toast({ title: "Submission failed.", description: "Please try again.", variant: "destructive" });
-         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: 'skillTestSubmissions',
-            operation: 'create', // or 'update'
-        }));
-      } finally {
+        toast({ title: "Submission failed.", description: error.message || "Please try again.", variant: "destructive" });
+    } finally {
         setUploading(prev => ({ ...prev, [test.id]: false }));
-      }
+    }
   }
   
   const handleViewReport = async (postId: string) => {
