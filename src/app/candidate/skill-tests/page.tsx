@@ -103,11 +103,11 @@ export default function SkillTestsPage() {
         for (const appData of appsData) {
             const postRef = doc(db, appData.postType === 'job' ? 'jobs' : 'internships', appData.postId);
             try {
-                const postSnap = await getDoc(postRef);
                 const submissionQuery = query(collection(db, 'skillTestSubmissions'), where('candidateId', '==', user.uid), where('postId', '==', appData.postId));
                 const submissionSnap = await getDocs(submissionQuery);
                 const submissionFileUrl = submissionSnap.docs[0]?.data().submissionFileUrl;
-
+                
+                const postSnap = await getDoc(postRef);
                 if (postSnap.exists()) {
                     const postData = postSnap.data();
                     const pipeline = postData.pipeline || [];
