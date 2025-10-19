@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Inter, Source_Code_Pro } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
@@ -7,6 +8,18 @@ import { AuthModal } from '@/components/auth/auth-modal';
 import { ConditionalHeader } from '@/components/conditional-header';
 import { ConditionalFooter } from '@/components/conditional-footer';
 import { FirebaseProvider } from '@/components/firebase-provider';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+const sourceCodePro = Source_Code_Pro({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-source-code-pro',
+});
 
 export const metadata: Metadata = {
   title: 'Weinds - Your AI-Powered Career OS',
@@ -20,18 +33,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className={cn('h-full', inter.variable, sourceCodePro.variable)}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body
         className={cn(
