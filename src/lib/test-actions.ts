@@ -4,6 +4,7 @@
 import { auth } from './firebase';
 import { errorEmitter } from './error-emitter';
 import { FirestorePermissionError } from './errors';
+import { uploadFileWithProgress } from './storage-actions';
 
 /**
  * Handles the complete process of uploading a traditional test.
@@ -33,7 +34,7 @@ export async function uploadTraditionalTest(
 
   let idToken;
   try {
-    // Force refresh the token to ensure it's not expired and valid
+    // Force refresh the token to ensure it's not expired
     idToken = await user.getIdToken(true);
   } catch (error) {
     console.error("Error getting authentication token:", error);
@@ -48,8 +49,6 @@ export async function uploadTraditionalTest(
   formData.append('fileName', file.name);
 
   try {
-    onProgress(10); 
-
     const response = await fetch('/api/upload', {
         method: 'POST',
         headers: {
@@ -58,18 +57,17 @@ export async function uploadTraditionalTest(
         body: formData,
     });
     
-    onProgress(100);
 
     if (!response.ok) {
         const errorResponse = await response.json().catch(() => ({ error: 'An unknown error occurred during upload.' }));
-        
+        // Specifically emit a permission error for the dev overlay
         if (response.status === 403 || response.status === 401) {
              errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: '/traditionalTests or /storage',
                 operation: 'create',
             }));
         }
-        
+        // Throw the specific error message from the server
         throw new Error(errorResponse.error || `Upload failed with status: ${response.status}`);
     }
 
@@ -77,6 +75,6 @@ export async function uploadTraditionalTest(
 
   } catch (error: any) {
     console.error('File upload error:', error);
-    throw error;
+    throw error; // Re-throw the error to be caught by the calling component
   }
 }
