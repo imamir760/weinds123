@@ -38,8 +38,10 @@ export async function uploadTraditionalTest(
   const filePath = `traditional-tests/${employerId}/${postId}/${file.name}`;
 
   try {
+    // 1. Upload the file and get its URL, with progress reporting
     const testFileUrl = await uploadFileWithProgress(file, filePath, onProgress);
 
+    // 2. Once upload is successful, create the Firestore document
     const testData = {
       postId,
       employerId,
@@ -67,3 +69,4 @@ export async function uploadTraditionalTest(
     throw error;
   }
 }
+

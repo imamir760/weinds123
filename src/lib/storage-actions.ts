@@ -1,4 +1,3 @@
-
 'use client';
 
 import { getDownloadURL, ref, uploadBytesResumable, UploadTaskSnapshot } from 'firebase/storage';
@@ -47,4 +46,16 @@ export function uploadFileWithProgress(
             }
         );
     });
+}
+
+/**
+ * Uploads a file without progress tracking.
+ * @param file The file to upload.
+ * @param filePath The path in the storage bucket.
+ * @returns The download URL.
+ */
+export async function uploadFile(file: File, filePath: string): Promise<string> {
+    const storageRef = ref(storage, filePath);
+    await uploadBytesResumable(storageRef, file);
+    return await getDownloadURL(storageRef);
 }
