@@ -340,7 +340,7 @@ export default function SkillTestsPage() {
   }
 
   const PageContent = (
-     <div className="container mx-auto py-8 px-4">
+     <div className="p-4 md:p-6">
       <Card>
         <CardHeader>
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
@@ -460,5 +460,3 @@ export default function SkillTestsPage() {
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
-
-    
