@@ -19,16 +19,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Unauthorized: Invalid token.' }, { status: 403 });
     }
     
-    // --- START: NEW EMPLOYER VERIFICATION ---
-    // Verify that the user is actually an employer
-    const employerRef = doc(db, 'employers', decodedToken.uid);
-    const employerDoc = await getDoc(employerRef);
-
-    if (!employerDoc.exists()) {
-        return NextResponse.json({ error: 'Forbidden: User is not a registered employer.' }, { status: 403 });
-    }
-    // --- END: NEW EMPLOYER VERIFICATION ---
-
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const postId = formData.get('postId') as string | null;
@@ -38,6 +28,16 @@ export async function POST(req: Request) {
     if (!file || !postId || !employerId || !fileName) {
         return NextResponse.json({ error: 'Missing required form fields.' }, { status: 400 });
     }
+    
+    // --- START: NEW EMPLOYER VERIFICATION ---
+    // Verify that the user is actually an employer
+    const employerRef = doc(db, 'employers', decodedToken.uid);
+    const employerDoc = await getDoc(employerRef);
+
+    if (!employerDoc.exists()) {
+        return NextResponse.json({ error: 'Forbidden: User is not a registered employer.' }, { status: 403 });
+    }
+    // --- END: NEW EMPLOYER VERIFICATION ---
     
     // Security check: ensure the user uploading is the employerId from the form
     if (decodedToken.uid !== employerId) {
