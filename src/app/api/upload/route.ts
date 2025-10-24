@@ -3,10 +3,6 @@
 import { NextResponse } from 'next/server';
 import { db, storage, auth as adminAuth } from '@/lib/firebase/admin';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { promises as fs } from 'fs';
-import { tmpdir } from 'os';
-import path from 'path';
-
 
 export async function POST(req: Request) {
   try {
