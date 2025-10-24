@@ -15,6 +15,7 @@ export async function POST(req: Request) {
     try {
         decodedToken = await adminAuth.verifyIdToken(idToken);
     } catch (error) {
+        console.error("Error verifying token:", error);
         return NextResponse.json({ error: 'Unauthorized: Invalid token.' }, { status: 403 });
     }
     

@@ -31,14 +31,19 @@ export async function uploadTraditionalTest(
     throw new Error('No authenticated user found.');
   }
 
+  let idToken;
+  try {
+    idToken = await user.getIdToken(true); // Force refresh the token
+  } catch (error) {
+    console.error("Error getting authentication token:", error);
+    throw new Error("Could not authenticate user. Please try logging in again.");
+  }
+
   const formData = new FormData();
   formData.append('file', file);
   formData.append('postId', postId);
   formData.append('employerId', employerId);
   formData.append('fileName', file.name);
-
-  // Get the Firebase ID token for the current user.
-  const idToken = await user.getIdToken();
 
   try {
     onProgress(50); // Simulate progress since fetch doesn't support it
@@ -60,6 +65,7 @@ export async function uploadTraditionalTest(
                 operation: 'create',
             }));
         }
+        // Use the specific error from the server if available
         throw new Error(errorResponse.error || `Upload failed with status: ${response.status}`);
     }
 
@@ -67,6 +73,7 @@ export async function uploadTraditionalTest(
 
   } catch (error: any) {
     console.error('File upload error:', error);
+    // Re-throw the error so the UI component can catch it and display a toast
     throw error;
   }
 }
