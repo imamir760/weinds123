@@ -5,7 +5,7 @@ import { auth, db } from './firebase';
 import { errorEmitter } from './error-emitter';
 import { FirestorePermissionError } from './errors';
 import { uploadFileWithProgress } from './storage-actions';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
 
 /**
  * Handles the complete process of uploading a traditional test with progress.
@@ -35,28 +35,41 @@ export async function uploadTraditionalTest(
     });
   }
 
-  const filePath = `traditional-tests/${employerId}/${postId}/${file.name}`;
+  // Use the specified 'tradTest' folder
+  const filePath = `tradTest/${employerId}/${postId}/${file.name}`;
 
   try {
     // 1. Upload the file and get its URL, with progress reporting
     const testFileUrl = await uploadFileWithProgress(file, filePath, onProgress);
 
-    // 2. Once upload is successful, create the Firestore document
-    const testData = {
-      postId,
-      employerId,
-      testFileUrl,
-      createdAt: serverTimestamp(),
-    };
-    
-    const docRef = await addDoc(collection(db, 'traditionalTests'), testData);
+    // 2. Check if a test document for this post already exists
+    const testsQuery = query(collection(db, 'traditionalTests'), where('postId', '==', postId), where('employerId', '==', employerId));
+    const querySnapshot = await getDocs(testsQuery);
 
-    return { id: docRef.id, testFileUrl };
+    let docId;
+
+    if (!querySnapshot.empty) {
+        // Update existing document
+        const docRef = querySnapshot.docs[0].ref;
+        await updateDoc(docRef, { testFileUrl: testFileUrl, updatedAt: serverTimestamp() });
+        docId = docRef.id;
+    } else {
+        // Create new document
+        const testData = {
+          postId,
+          employerId,
+          testFileUrl,
+          createdAt: serverTimestamp(),
+        };
+        const docRef = await addDoc(collection(db, 'traditionalTests'), testData);
+        docId = docRef.id;
+    }
+
+    return { id: docId, testFileUrl };
 
   } catch (error: any) {
     console.error('Traditional Test upload process failed:', error);
     
-    // Re-throw FirestorePermissionError specifically if it comes from storage-actions
     if (error instanceof FirestorePermissionError) {
         errorEmitter.emit('permission-error', error);
     } else {
@@ -69,4 +82,3 @@ export async function uploadTraditionalTest(
     throw error;
   }
 }
-

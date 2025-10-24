@@ -10,7 +10,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown, FileIcon, X } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
@@ -197,7 +197,6 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
             await uploadTraditionalTest(post.id, user.uid, selectedFile, setProgress);
             toast({ title: "Test uploaded successfully!" });
             onUploadComplete();
-            onOpenChange(false);
         } catch (error: any) {
             toast({ title: "Upload failed", description: error.message, variant: "destructive" });
         } finally {
@@ -219,7 +218,20 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                    <Input type="file" onChange={handleFileChange} disabled={uploading}/>
+                    {!selectedFile && <Input type="file" onChange={handleFileChange} disabled={uploading}/>}
+
+                    {selectedFile && (
+                        <div className="flex items-center justify-between p-2 border rounded-md">
+                            <div className='flex items-center gap-2'>
+                                <FileIcon className="w-5 h-5 text-muted-foreground"/>
+                                <span className="text-sm">{selectedFile.name}</span>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setSelectedFile(null)} disabled={uploading}>
+                                <X className="w-4 h-4"/>
+                            </Button>
+                        </div>
+                    )}
+                    
                     {uploading && <Progress value={progress} className="w-full h-2" />}
                 </div>
                  <DialogFooter>

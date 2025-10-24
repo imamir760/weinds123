@@ -1,3 +1,4 @@
+
 'use client';
 
 import { getDownloadURL, ref, uploadBytesResumable, UploadTaskSnapshot } from 'firebase/storage';
@@ -27,7 +28,7 @@ export function uploadFileWithProgress(
             },
             (error) => {
                 console.error("Firebase Storage Upload Error:", error);
-                if (error.code === 'storage/unauthorized' || error.code === 'storage/object-not-found') {
+                if (error.code === 'storage/unauthorized' || error.code === 'storage/object-not-found' || error.code === 'storage/unknown') {
                      reject(new FirestorePermissionError({
                         path: filePath,
                         operation: 'write',
