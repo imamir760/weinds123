@@ -178,6 +178,7 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
     const { toast } = useToast();
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [progress, setProgress] = useState(0);
     
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -191,15 +192,17 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
             return;
         }
         setUploading(true);
+        setProgress(0);
         try {
-            await uploadTraditionalTest(post.id, user.uid, file);
+            await uploadTraditionalTest(post.id, user.uid, file, setProgress);
             toast({ title: "Test uploaded successfully!" });
-            onUploadComplete(); // Refresh parent component
+            onUploadComplete();
             onOpenChange(false);
         } catch (error: any) {
             toast({ title: "Upload failed", description: error.message, variant: "destructive" });
         } finally {
             setUploading(false);
+            setProgress(0);
         }
     }
 
@@ -214,13 +217,13 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <Input type="file" onChange={handleFileChange} disabled={uploading}/>
-                    {uploading && <Progress value={100} className="w-full h-2 animate-pulse" />}
+                    {uploading && <Progress value={progress} className="w-full h-2" />}
                 </div>
                  <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>Cancel</Button>
                     <Button onClick={handleUpload} disabled={!file || uploading}>
                         {uploading ? <Loader2 className="mr-2 animate-spin"/> : <Upload className="mr-2"/>}
-                        Upload
+                        {uploading ? `Uploading... ${Math.round(progress)}%` : 'Upload'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
