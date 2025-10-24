@@ -178,8 +178,7 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
     const { toast } = useToast();
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
-    const [progress, setProgress] = useState(0);
-
+    
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             setFile(e.target.files[0]);
@@ -192,9 +191,8 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
             return;
         }
         setUploading(true);
-        setProgress(0);
         try {
-            await uploadTraditionalTest(post.id, user.uid, file, setProgress);
+            await uploadTraditionalTest(post.id, user.uid, file);
             toast({ title: "Test uploaded successfully!" });
             onUploadComplete(); // Refresh parent component
             onOpenChange(false);
@@ -216,7 +214,7 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <Input type="file" onChange={handleFileChange} disabled={uploading}/>
-                    {uploading && <Progress value={progress} className="w-full" />}
+                    {uploading && <Progress value={100} className="w-full h-2 animate-pulse" />}
                 </div>
                  <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>Cancel</Button>

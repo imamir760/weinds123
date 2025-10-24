@@ -14,13 +14,11 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
  * @param postId The ID of the job/internship post.
  * @param employerId The ID of the employer.
  * @param file The test file to upload.
- * @param onProgress Callback to report upload progress (will be implemented if needed).
  */
 export async function uploadTraditionalTest(
   postId: string,
   employerId: string,
   file: File,
-  onProgress: (progress: number) => void // Kept for future use, but not implemented in this simplified version
 ): Promise<{ id: string; testFileUrl: string }> {
   if (!file) {
     throw new Error('No file provided for upload.');
