@@ -2,7 +2,7 @@
 // src/app/api/upload/route.ts
 import { NextResponse } from 'next/server';
 import { db, storage, auth as adminAuth } from '@/lib/firebase/admin';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 
 export async function POST(req: Request) {
   try {
@@ -19,6 +19,16 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Unauthorized: Invalid token.' }, { status: 403 });
     }
     
+    // --- START: NEW EMPLOYER VERIFICATION ---
+    // Verify that the user is actually an employer
+    const employerRef = doc(db, 'employers', decodedToken.uid);
+    const employerDoc = await getDoc(employerRef);
+
+    if (!employerDoc.exists()) {
+        return NextResponse.json({ error: 'Forbidden: User is not a registered employer.' }, { status: 403 });
+    }
+    // --- END: NEW EMPLOYER VERIFICATION ---
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const postId = formData.get('postId') as string | null;
