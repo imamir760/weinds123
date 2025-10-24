@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     try {
         decodedToken = await adminAuth.verifyIdToken(idToken);
     } catch (error) {
-        return NextResponse.json({ error: 'Unauthorized: Invalid token.' }, { status: 401 });
+        return NextResponse.json({ error: 'Unauthorized: Invalid token.' }, { status: 403 });
     }
     
     const formData = await req.formData();
