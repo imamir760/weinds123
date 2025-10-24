@@ -1,4 +1,5 @@
 
+
 {
   "entities": {
     "User": {
@@ -250,6 +251,18 @@
         "areasForImprovement": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["submissionId", "candidateId", "postId", "generatedAt", "score", "summary"]
+    },
+    "TraditionalTest": {
+      "title": "Traditional Test",
+      "description": "Stores the uploaded file for a traditional skill test.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string", "description": "The ID of the job or internship post." },
+        "employerId": { "type": "string", "description": "The ID of the employer who created the test." },
+        "testFileUrl": { "type": "string", "format": "uri", "description": "The URL of the uploaded test file." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "employerId", "testFileUrl", "createdAt"]
     }
   },
   "auth": {
@@ -287,6 +300,11 @@
     "/skillTestReports/{reportId}": {
         "schema": { "$ref": "#/entities/SkillTestReport" },
         "description": "Stores AI-generated reports for skill test submissions."
+    },
+    "/traditionalTests/{testId}": {
+      "schema": { "$ref": "#/entities/TraditionalTest" },
+      "description": "Stores uploaded files for traditional skill tests."
     }
   }
 }
+

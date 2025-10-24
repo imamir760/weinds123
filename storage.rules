@@ -1,24 +1,16 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Allow employers to upload their own traditional tests
+    // Allow public read access to test files if needed (adjust as necessary)
     match /traditional-tests/{employerId}/{postId}/{fileName} {
-      allow write: if request.auth != null && request.auth.uid == employerId;
       allow read;
+      // Allow write only if the user is authenticated and is the owner (employer)
+      allow write: if request.auth != null && request.auth.uid == employerId;
     }
-
-    // Allow candidates to submit their test solutions
+    
     match /test-submissions/{postId}/{candidateId}/{fileName} {
-      allow write: if request.auth != null && request.auth.uid == candidateId;
-      allow read: if request.auth != null; // Allow employer and candidate to read
-    }
-
-    // Default deny all other paths
-    match /{allPaths=**} {
-      allow read, write: if false;
+      allow read, write: if request.auth != null && request.auth.uid == candidateId;
     }
   }
 }

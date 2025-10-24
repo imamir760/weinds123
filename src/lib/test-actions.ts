@@ -29,7 +29,10 @@ export async function uploadTraditionalTest(
   
   const user = auth.currentUser;
   if (!user || user.uid !== employerId) {
-    throw new Error('You are not authorized to perform this action.');
+    throw new FirestorePermissionError({
+        path: '/traditionalTests or /storage',
+        operation: 'create',
+    });
   }
 
   const filePath = `traditional-tests/${employerId}/${postId}/${file.name}`;
@@ -51,9 +54,12 @@ export async function uploadTraditionalTest(
   } catch (error: any) {
     console.error('Traditional Test upload process failed:', error);
     
-    if (error.name === 'FirebaseError' && error.code?.includes('permission-denied')) {
+    // Re-throw FirestorePermissionError specifically if it comes from storage-actions
+    if (error instanceof FirestorePermissionError) {
+        errorEmitter.emit('permission-error', error);
+    } else {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: '/traditionalTests',
+            path: 'traditionalTests or storage',
             operation: 'create',
         }));
     }
