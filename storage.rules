@@ -1,33 +1,21 @@
 
 rules_version = '2';
 
-// Default deny all access
 service firebase.storage {
   match /b/{bucket}/o {
-    // Deny all reads and writes by default
-    match /{allPaths=**} {
-      allow read, write: if false;
+    // Allow authenticated users to write to a folder matching their user ID
+    match /tradTest/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Allow employers to upload their traditional tests
-    // The path must match: tradTest/{employerId}/{postId}/{fileName}
-    match /tradTest/{employerId}/{postId}/{fileName} {
-      allow write: if request.auth != null && request.auth.uid == employerId;
-    }
-
-    // Allow authenticated users to read submitted test files from a specific path
-    // Assumes test files are public or readable by any logged-in user.
-    // For stricter rules, you might check if the user is the candidate or the relevant employer.
-    match /test-submissions/{postId}/{candidateId}/{fileName} {
-       allow read: if request.auth != null;
-       allow write: if request.auth != null && request.auth.uid == candidateId;
+    // Allow public read access to uploaded test files so candidates can download them
+    match /tradTest/{userId}/{allPaths=**} {
+      allow read;
     }
     
-    // Allow public read access to traditional test files uploaded by employers,
-    // so candidates can download them.
-    match /traditional-tests/{employerId}/{postId}/{fileName} {
-        allow read: if true;
-        allow write: if request.auth != null && request.auth.uid == employerId;
+    // Allow candidates to upload their submissions
+    match /test-submissions/{postId}/{candidateId}/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == candidateId;
     }
   }
 }
