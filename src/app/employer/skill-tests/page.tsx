@@ -173,7 +173,7 @@ const ViewSubmissionsDialog = ({
     )
 }
 
-const UploadTestDialog = ({ post, open, onOpenChange }: { post: Post | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
+const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post: Post | null, open: boolean, onOpenChange: (open: boolean) => void, onUploadComplete: () => void }) => {
     const { user } = useAuth();
     const { toast } = useToast();
     const [file, setFile] = useState<File | null>(null);
@@ -196,6 +196,7 @@ const UploadTestDialog = ({ post, open, onOpenChange }: { post: Post | null, ope
         try {
             await uploadTraditionalTest(post.id, user.uid, file, setProgress);
             toast({ title: "Test uploaded successfully!" });
+            onUploadComplete(); // Refresh parent component
             onOpenChange(false);
         } catch (error: any) {
             toast({ title: "Upload failed", description: error.message, variant: "destructive" });
@@ -242,48 +243,41 @@ export default function SkillTestsPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const [traditionalTests, setTraditionalTests] = useState<TraditionalTest[]>([]);
+  
+  const fetchPosts = async (currentUser: User) => {
+    setLoading(true);
+    try {
+        const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", currentUser.uid));
+        const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", currentUser.uid));
+        const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', currentUser.uid));
+
+        const [jobsSnapshot, internshipsSnapshot, testsSnapshot] = await Promise.all([
+            getDocs(jobsQuery),
+            getDocs(internshipsQuery),
+            getDocs(testsQuery)
+        ]);
+
+        const jobsData = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
+        const internshipsData = internshipsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post));
+        const testsData = testsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest));
+
+        setPosts([...jobsData, ...internshipsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
+        setTraditionalTests(testsData);
+
+    } catch (e) {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs, internships, or traditionalTests', operation: 'list'}));
+    } finally {
+        setLoading(false);
+    }
+  }
+
 
   useEffect(() => {
-    if (!user) {
+    if (user) {
+      fetchPosts(user);
+    } else {
         setLoading(false);
-        return;
     }
-    setLoading(true);
-
-    const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
-    const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-    const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
-
-    const unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
-        const jobsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
-        setPosts(prev => [...prev.filter(p => p.type !== 'Job'), ...jobsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
-        setLoading(false);
-    }, e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
-        setLoading(false);
-    });
-    
-    const unsubInternships = onSnapshot(internshipsQuery, (snapshot) => {
-        const internshipsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post));
-        setPosts(prev => [...prev.filter(p => p.type !== 'Internship'), ...internshipsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
-        setLoading(false);
-    }, e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
-        setLoading(false);
-    });
-
-    const unsubTests = onSnapshot(testsQuery, (snapshot) => {
-        const testsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest));
-        setTraditionalTests(testsData);
-    }, e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
-    });
-
-    return () => {
-        unsubJobs();
-        unsubInternships();
-        unsubTests();
-    };
   }, [user]);
 
   const handleViewSubmissionsClick = (post: Post) => {
@@ -454,6 +448,9 @@ export default function SkillTestsPage() {
         open={isUploadOpen}
         onOpenChange={setIsUploadOpen}
         post={selectedPost}
+        onUploadComplete={() => {
+            if(user) fetchPosts(user);
+        }}
       />
     </div>
   );

@@ -10,11 +10,16 @@ const firebaseConfig = {
   appId: "1:877736539149:web:1fc0d5406a63615b7ad144"
 };
 
+// Initialize Firebase Admin
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-    storageBucket: firebaseConfig.storageBucket,
-  });
+    try {
+        admin.initializeApp({
+            credential: admin.credential.applicationDefault(),
+            storageBucket: firebaseConfig.storageBucket,
+        });
+    } catch (error) {
+        console.error('Firebase admin initialization error', error);
+    }
 }
 
 

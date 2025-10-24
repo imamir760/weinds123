@@ -2,16 +2,20 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Allow read access to all files by default
+    // Allow public read access to all files
     match /{allPaths=**} {
       allow read;
     }
 
-    // Secure the traditional tests folder
-    // Allow an authenticated user to write to a path that contains their UID
-    match /traditional-tests/{userId}/{allPaths=**} {
+    // Allow authenticated users to write to their own folder in 'test-submissions'
+    match /test-submissions/{postId}/{userId}/{fileName} {
       allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated employers to write to the 'traditional-tests' folder
+    // The request must contain the employerId in its metadata.
+    match /traditional-tests/{employerId}/{postId}/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == employerId;
     }
   }
 }
