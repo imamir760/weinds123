@@ -11,7 +11,7 @@ import { FirestorePermissionError } from './errors';
  * @param postId The ID of the job/internship post.
  * @param employerId The ID of the employer.
  * @param file The test file to upload.
- * @param onProgress Callback to report upload progress (note: fetch does not support progress).
+ * @param onProgress Callback to report upload progress.
  */
 export async function uploadTraditionalTest(
   postId: string,
@@ -28,16 +28,18 @@ export async function uploadTraditionalTest(
   
   const user = auth.currentUser;
   if (!user) {
-    throw new Error('No authenticated user found.');
+    throw new Error('No authenticated user found. Please log in again.');
   }
 
   let idToken;
   try {
-    idToken = await user.getIdToken(true); // Force refresh the token
+    // Force refresh the token to ensure it's not expired
+    idToken = await user.getIdToken(true);
   } catch (error) {
     console.error("Error getting authentication token:", error);
-    throw new Error("Could not authenticate user. Please try logging in again.");
+    throw new Error("Could not authenticate your session. Please try logging in again.");
   }
+
 
   const formData = new FormData();
   formData.append('file', file);
@@ -46,7 +48,9 @@ export async function uploadTraditionalTest(
   formData.append('fileName', file.name);
 
   try {
-    onProgress(50); // Simulate progress since fetch doesn't support it
+    // Simulate initial progress
+    onProgress(10); 
+
     const response = await fetch('/api/upload', {
         method: 'POST',
         headers: {
@@ -54,18 +58,20 @@ export async function uploadTraditionalTest(
         },
         body: formData,
     });
-
+    
+    // Simulate final progress
     onProgress(100);
 
     if (!response.ok) {
-        const errorResponse = await response.json();
+        const errorResponse = await response.json().catch(() => ({ error: 'An unknown error occurred during upload.' }));
+        // Specifically emit a permission error for the dev overlay
         if (response.status === 403 || response.status === 401) {
              errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: '/traditionalTests',
+                path: '/traditionalTests or /storage',
                 operation: 'create',
             }));
         }
-        // Use the specific error from the server if available
+        // Throw the specific error message from the server
         throw new Error(errorResponse.error || `Upload failed with status: ${response.status}`);
     }
 
@@ -73,7 +79,7 @@ export async function uploadTraditionalTest(
 
   } catch (error: any) {
     console.error('File upload error:', error);
-    // Re-throw the error so the UI component can catch it and display a toast
+    // Re-throw the caught error so the UI component can display a toast
     throw error;
   }
 }
