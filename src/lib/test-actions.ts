@@ -2,7 +2,7 @@
 'use client';
 
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase';
+import { auth, db } from './firebase';
 import { errorEmitter } from './error-emitter';
 import { FirestorePermissionError } from './errors';
 
@@ -26,6 +26,11 @@ export async function uploadTraditionalTest(
   if (!postId || !employerId) {
     throw new Error('Post ID or Employer ID is missing.');
   }
+  
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('No authenticated user found.');
+  }
 
   const formData = new FormData();
   formData.append('file', file);
@@ -33,10 +38,15 @@ export async function uploadTraditionalTest(
   formData.append('employerId', employerId);
   formData.append('fileName', file.name);
 
+  // Get the Firebase ID token for the current user.
+  const idToken = await user.getIdToken();
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/upload', true);
+
+    // Set the Authorization header with the Bearer token.
+    xhr.setRequestHeader('Authorization', `Bearer ${idToken}`);
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {

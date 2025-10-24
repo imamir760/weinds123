@@ -5,27 +5,30 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { IncomingForm } from 'formidable';
 import { promises as fs } from 'fs';
 
-import type { NextApiRequest } from 'next';
-
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-// Helper function to get the raw body
-async function getRawBody(req: Request) {
-    const reader = req.body?.getReader();
-    if (!reader) {
-        throw new Error('Could not read request body');
-    }
-    const chunks: Uint8Array[] = [];
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-    }
-    return Buffer.concat(chunks);
+// Helper function to parse the form data from the request
+async function parseFormData(req: Request) {
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
+    const postId = formData.get('postId') as string;
+    const employerId = formData.get('employerId') as string;
+    const fileName = formData.get('fileName') as string;
+    
+    // formidable expects a file path, so we need to write the file to a temporary location
+    const tempDir = '/tmp';
+    await fs.mkdir(tempDir, { recursive: true });
+    const tempFilePath = `${tempDir}/${file.name}`;
+    await fs.writeFile(tempFilePath, Buffer.from(await file.arrayBuffer()));
+
+    return { 
+        fields: { postId: [postId], employerId: [employerId], fileName: [fileName] },
+        files: { file: [{ filepath: tempFilePath, mimetype: file.type }] }
+    };
 }
 
 
@@ -46,7 +49,8 @@ export async function POST(req: Request) {
     // Use formidable to parse the multipart form data
     const data: { fields: any; files: any } = await new Promise((resolve, reject) => {
         const form = new IncomingForm();
-        form.parse(req as unknown as NextApiRequest, (err, fields, files) => {
+        // @ts-ignore
+        form.parse(req, (err, fields, files) => {
             if (err) return reject(err);
             resolve({ fields, files });
         });
