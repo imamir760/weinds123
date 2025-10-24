@@ -176,17 +176,12 @@ const ViewSubmissionsDialog = ({
 const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post: Post | null, open: boolean, onOpenChange: (open: boolean) => void, onUploadComplete: () => void }) => {
     const { user } = useAuth();
     const { toast } = useToast();
-    const [file, setFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setFile(e.target.files[0]);
-        }
-    }
-
     const handleUpload = async () => {
+        const file = fileInputRef.current?.files?.[0];
         if (!file || !post || !user) {
             toast({ title: "Please select a file.", variant: "destructive" });
             return;
@@ -207,7 +202,9 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(isOpen) => {
+          if (!uploading) onOpenChange(isOpen);
+        }}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Upload Traditional Test</DialogTitle>
@@ -216,12 +213,12 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                    <Input type="file" onChange={handleFileChange} disabled={uploading}/>
+                    <Input type="file" ref={fileInputRef} disabled={uploading}/>
                     {uploading && <Progress value={progress} className="w-full h-2" />}
                 </div>
                  <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>Cancel</Button>
-                    <Button onClick={handleUpload} disabled={!file || uploading}>
+                    <Button onClick={handleUpload} disabled={uploading}>
                         {uploading ? <Loader2 className="mr-2 animate-spin"/> : <Upload className="mr-2"/>}
                         {uploading ? `Uploading... ${Math.round(progress)}%` : 'Upload'}
                     </Button>

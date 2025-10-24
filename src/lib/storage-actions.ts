@@ -1,7 +1,7 @@
 
 'use client';
 
-import { getDownloadURL, ref, uploadBytesResumable, UploadTaskSnapshot } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes, uploadBytesResumable, UploadTaskSnapshot } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 
 /**
@@ -45,6 +45,7 @@ export function uploadFileWithProgress(
     });
 }
 
+
 /**
  * Uploads a file to Firebase Storage without progress tracking.
  * @param file The file to upload.
@@ -54,7 +55,7 @@ export function uploadFileWithProgress(
 export async function uploadFile(file: File, filePath: string): Promise<string> {
     try {
         const storageRef = ref(storage, filePath);
-        const snapshot = await uploadBytesResumable(storageRef, file);
+        const snapshot = await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(snapshot.ref);
         return downloadURL;
     } catch (error: any) {
