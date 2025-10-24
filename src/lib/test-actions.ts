@@ -33,7 +33,7 @@ export async function uploadTraditionalTest(
 
   let idToken;
   try {
-    // Force refresh the token to ensure it's not expired
+    // Force refresh the token to ensure it's not expired and valid
     idToken = await user.getIdToken(true);
   } catch (error) {
     console.error("Error getting authentication token:", error);
@@ -48,7 +48,6 @@ export async function uploadTraditionalTest(
   formData.append('fileName', file.name);
 
   try {
-    // Simulate initial progress
     onProgress(10); 
 
     const response = await fetch('/api/upload', {
@@ -59,19 +58,18 @@ export async function uploadTraditionalTest(
         body: formData,
     });
     
-    // Simulate final progress
     onProgress(100);
 
     if (!response.ok) {
         const errorResponse = await response.json().catch(() => ({ error: 'An unknown error occurred during upload.' }));
-        // Specifically emit a permission error for the dev overlay
+        
         if (response.status === 403 || response.status === 401) {
              errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: '/traditionalTests or /storage',
                 operation: 'create',
             }));
         }
-        // Throw the specific error message from the server
+        
         throw new Error(errorResponse.error || `Upload failed with status: ${response.status}`);
     }
 
@@ -79,7 +77,6 @@ export async function uploadTraditionalTest(
 
   } catch (error: any) {
     console.error('File upload error:', error);
-    // Re-throw the caught error so the UI component can display a toast
     throw error;
   }
 }
