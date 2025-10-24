@@ -4,6 +4,7 @@
 import { getDownloadURL, ref, uploadBytesResumable, UploadTaskSnapshot } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 import { FirestorePermissionError } from './errors';
+import { errorEmitter } from './error-emitter';
 
 /**
  * Uploads a file to Firebase Storage with progress tracking.
@@ -28,13 +29,14 @@ export function uploadFileWithProgress(
             },
             (error) => {
                 console.error("Firebase Storage Upload Error:", error);
+                // Let the caller handle emitting the permission error
                 if (error.code === 'storage/unauthorized' || error.code === 'storage/object-not-found' || error.code === 'storage/unknown') {
                      reject(new FirestorePermissionError({
                         path: filePath,
                         operation: 'write',
                     }));
                 } else {
-                    reject(new Error("File upload failed. Please check your network connection and try again."));
+                    reject(new Error("File upload failed. Please check your network and storage rules."));
                 }
             },
             async () => {
@@ -42,21 +44,10 @@ export function uploadFileWithProgress(
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
                     resolve(downloadURL);
                 } catch (error) {
+                    console.error("Failed to get download URL", error);
                     reject(error);
                 }
             }
         );
     });
-}
-
-/**
- * Uploads a file without progress tracking.
- * @param file The file to upload.
- * @param filePath The path in the storage bucket.
- * @returns The download URL.
- */
-export async function uploadFile(file: File, filePath: string): Promise<string> {
-    const storageRef = ref(storage, filePath);
-    await uploadBytesResumable(storageRef, file);
-    return await getDownloadURL(storageRef);
 }

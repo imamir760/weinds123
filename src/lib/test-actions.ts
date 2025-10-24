@@ -29,13 +29,15 @@ export async function uploadTraditionalTest(
   
   const user = auth.currentUser;
   if (!user || user.uid !== employerId) {
-    throw new FirestorePermissionError({
-        path: '/traditionalTests or /storage',
+    const permissionError = new FirestorePermissionError({
+        path: '/tradTest or /traditionalTests',
         operation: 'create',
     });
+    errorEmitter.emit('permission-error', permissionError);
+    throw permissionError;
   }
 
-  // Use the specified 'tradTest' folder
+  // Define the storage path
   const filePath = `tradTest/${employerId}/${postId}/${file.name}`;
 
   try {
@@ -70,6 +72,7 @@ export async function uploadTraditionalTest(
   } catch (error: any) {
     console.error('Traditional Test upload process failed:', error);
     
+    // Ensure permission errors are always emitted for the dev overlay
     if (error instanceof FirestorePermissionError) {
         errorEmitter.emit('permission-error', error);
     } else {
@@ -79,6 +82,7 @@ export async function uploadTraditionalTest(
         }));
     }
     
+    // Re-throw the error so the UI can handle it (e.g., stop the loading spinner)
     throw error;
   }
 }

@@ -203,12 +203,17 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
             setUploading(false);
             setProgress(0);
             setSelectedFile(null);
+            onOpenChange(false);
         }
     }
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => {
-          if (!uploading) onOpenChange(isOpen);
+          if (!uploading) {
+            setSelectedFile(null);
+            setProgress(0);
+            onOpenChange(isOpen);
+          }
         }}>
             <DialogContent>
                 <DialogHeader>
@@ -307,7 +312,11 @@ export default function SkillTestsPage() {
   }
 
   const filteredPosts = useMemo(() => {
-    return posts.filter(post => showInternships ? post.type === 'Internship' : post.type === 'Job');
+    return posts.filter(post => {
+      const hasSkillTestStage = post.pipeline?.some(p => p.stage === 'skill_test' && p.type);
+      if (!hasSkillTestStage) return false;
+      return showInternships ? post.type === 'Internship' : post.type === 'Job';
+    });
   }, [posts, showInternships]);
   
   const formatDate = (timestamp: Timestamp | Date | undefined) => {
