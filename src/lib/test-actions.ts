@@ -1,8 +1,7 @@
 
 'use client';
 
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth } from './firebase';
 import { errorEmitter } from './error-emitter';
 import { FirestorePermissionError } from './errors';
 
@@ -12,7 +11,7 @@ import { FirestorePermissionError } from './errors';
  * @param postId The ID of the job/internship post.
  * @param employerId The ID of the employer.
  * @param file The test file to upload.
- * @param onProgress Callback to report upload progress.
+ * @param onProgress Callback to report upload progress (note: fetch does not support progress).
  */
 export async function uploadTraditionalTest(
   postId: string,
@@ -41,40 +40,33 @@ export async function uploadTraditionalTest(
   // Get the Firebase ID token for the current user.
   const idToken = await user.getIdToken();
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/upload', true);
+  try {
+    onProgress(50); // Simulate progress since fetch doesn't support it
+    const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${idToken}`,
+        },
+        body: formData,
+    });
 
-    // Set the Authorization header with the Bearer token.
-    xhr.setRequestHeader('Authorization', `Bearer ${idToken}`);
+    onProgress(100);
 
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const progress = (event.loaded / event.total) * 100;
-        onProgress(progress);
-      }
-    };
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText));
-      } else {
-        const errorResponse = JSON.parse(xhr.responseText);
-        // This could be a permission error from our API route
-        if(errorResponse.error?.includes('permission')) {
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        if (response.status === 403 || response.status === 401) {
              errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: '/traditionalTests',
                 operation: 'create',
             }));
         }
-        reject(new Error(errorResponse.error || 'Upload failed'));
-      }
-    };
+        throw new Error(errorResponse.error || `Upload failed with status: ${response.status}`);
+    }
 
-    xhr.onerror = () => {
-      reject(new Error('Network error during file upload.'));
-    };
+    return await response.json();
 
-    xhr.send(formData);
-  });
+  } catch (error: any) {
+    console.error('File upload error:', error);
+    throw error;
+  }
 }
