@@ -1,24 +1,26 @@
 
 'use client';
 
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import { errorEmitter } from './error-emitter';
 import { FirestorePermissionError } from './errors';
-import { uploadFileWithProgress } from './storage-actions';
+import { uploadFile } from './storage-actions';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 /**
  * Handles the complete process of uploading a traditional test.
- * This function now sends the file to a server-side API route for processing.
+ * This function now uploads the file directly to Firebase Storage from the client
+ * and then creates a corresponding document in Firestore.
  * @param postId The ID of the job/internship post.
  * @param employerId The ID of the employer.
  * @param file The test file to upload.
- * @param onProgress Callback to report upload progress.
+ * @param onProgress Callback to report upload progress (will be implemented if needed).
  */
 export async function uploadTraditionalTest(
   postId: string,
   employerId: string,
   file: File,
-  onProgress: (progress: number) => void
+  onProgress: (progress: number) => void // Kept for future use, but not implemented in this simplified version
 ): Promise<{ id: string; testFileUrl: string }> {
   if (!file) {
     throw new Error('No file provided for upload.');
@@ -28,53 +30,41 @@ export async function uploadTraditionalTest(
   }
   
   const user = auth.currentUser;
-  if (!user) {
-    throw new Error('No authenticated user found. Please log in again.');
+  if (!user || user.uid !== employerId) {
+    throw new Error('You are not authorized to perform this action.');
   }
 
-  let idToken;
-  try {
-    // Force refresh the token to ensure it's not expired
-    idToken = await user.getIdToken(true);
-  } catch (error) {
-    console.error("Error getting authentication token:", error);
-    throw new Error("Could not authenticate your session. Please try logging in again.");
-  }
-
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('postId', postId);
-  formData.append('employerId', employerId);
-  formData.append('fileName', file.name);
+  // Define the path for the file in Firebase Storage
+  const filePath = `traditional-tests/${employerId}/${postId}/${file.name}`;
 
   try {
-    const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${idToken}`,
-        },
-        body: formData,
-    });
+    // Step 1: Upload the file directly to Firebase Storage
+    const testFileUrl = await uploadFile(file, filePath);
+
+    // Step 2: If upload is successful, create a document in Firestore
+    const testData = {
+      postId,
+      employerId,
+      testFileUrl,
+      createdAt: serverTimestamp(),
+    };
     
+    const docRef = await addDoc(collection(db, 'traditionalTests'), testData);
 
-    if (!response.ok) {
-        const errorResponse = await response.json().catch(() => ({ error: 'An unknown error occurred during upload.' }));
-        // Specifically emit a permission error for the dev overlay
-        if (response.status === 403 || response.status === 401) {
-             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: '/traditionalTests or /storage',
-                operation: 'create',
-            }));
-        }
-        // Throw the specific error message from the server
-        throw new Error(errorResponse.error || `Upload failed with status: ${response.status}`);
-    }
-
-    return await response.json();
+    return { id: docRef.id, testFileUrl };
 
   } catch (error: any) {
-    console.error('File upload error:', error);
-    throw error; // Re-throw the error to be caught by the calling component
+    console.error('Traditional Test upload process failed:', error);
+    
+    // Check if the error is a Firestore permission error during doc creation
+    if (error.name === 'FirebaseError' && error.code?.includes('permission-denied')) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: '/traditionalTests',
+            operation: 'create',
+        }));
+    }
+    
+    // Re-throw the original error from storage or firestore to be displayed
+    throw error;
   }
 }
