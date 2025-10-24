@@ -342,25 +342,30 @@ export default function SkillTestsPage() {
   const PageContent = (
      <div className="container mx-auto py-8 px-4">
       <Card>
-        <CardHeader className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="text-2xl flex items-center gap-2"><TestTube2 className="w-6 h-6" /> Skill Tests</CardTitle>
-              <CardDescription>Create and manage skill assessments for your job and internship postings.</CardDescription>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
-                <Briefcase className={!showInternships ? 'text-primary' : ''}/>
-                <span>Jobs</span>
-              </Label>
-              <Switch 
-                id="post-type-toggle"
-                checked={showInternships}
-                onCheckedChange={setShowInternships}
-              />
-              <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
-                <GraduationCap className={showInternships ? 'text-primary' : ''}/>
-                <span>Internships</span>
-              </Label>
+        <CardHeader>
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+              <div className="flex items-center gap-3">
+                  <TestTube2 className="w-6 h-6"/>
+                  <div>
+                      <CardTitle>Skill Tests</CardTitle>
+                      <CardDescription>Create and manage skill assessments for your job and internship postings.</CardDescription>
+                  </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                  <Briefcase className={!showInternships ? 'text-primary' : 'text-muted-foreground'}/>
+                  <span className={!showInternships ? 'text-primary font-semibold' : 'text-muted-foreground'}>Jobs</span>
+                </Label>
+                <Switch 
+                  id="post-type-toggle"
+                  checked={showInternships}
+                  onCheckedChange={setShowInternships}
+                />
+                <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                  <GraduationCap className={showInternships ? 'text-primary' : 'text-muted-foreground'}/>
+                   <span className={showInternships ? 'text-primary font-semibold' : 'text-muted-foreground'}>Internships</span>
+                </Label>
+              </div>
             </div>
         </CardHeader>
         <CardContent>
@@ -370,9 +375,9 @@ export default function SkillTestsPage() {
                 </div>
             ) : filteredPosts.length === 0 ? (
                  <div className="text-center py-12 text-muted-foreground">
-                    <p>You haven't created any {showInternships ? 'internships' : 'job'} postings yet.</p>
+                    <p>You haven't created any {showInternships ? 'internships' : 'job'} postings with skill tests yet.</p>
                      <Button variant="link" asChild>
-                        <Link href="/employer/jobs">Go to My Postings</Link>
+                        <Link href="/employer/jobs">Go to My Postings to configure a pipeline</Link>
                      </Button>
                 </div>
             ) : (
@@ -404,12 +409,12 @@ export default function SkillTestsPage() {
                                         <TableCell className="text-right space-x-2">
                                             <Button variant="outline" size="sm" onClick={() => handleViewSubmissionsClick(post)}>
                                                 <Eye className="mr-2 h-3 w-3"/>
-                                                View Submissions
+                                                Submissions
                                             </Button>
                                             {testInfo.type === 'ai' && (
                                                 <Button size="sm" disabled>
                                                     <CheckCircle className="mr-2 h-3 w-3"/>
-                                                    AI Test Enabled
+                                                    AI Enabled
                                                 </Button>
                                             )}
                                             {testInfo.type === 'traditional' && (
@@ -455,3 +460,5 @@ export default function SkillTestsPage() {
 
   return <EmployerLayout>{PageContent}</EmployerLayout>
 }
+
+    
