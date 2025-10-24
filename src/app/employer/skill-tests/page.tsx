@@ -198,7 +198,17 @@ const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post
             toast({ title: "Test uploaded successfully!" });
             onUploadComplete();
         } catch (error: any) {
-            toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+             let description = "Please try again.";
+             if (error instanceof FirestorePermissionError) {
+                 description = `Permission denied. Please check your storage rules for path: ${error.context.path}.`;
+             } else if (error.message) {
+                 description = error.message;
+             }
+             toast({
+                 title: "Upload Failed",
+                 description: description,
+                 variant: "destructive",
+             });
         } finally {
             setUploading(false);
             setProgress(0);

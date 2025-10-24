@@ -57,16 +57,21 @@ export function uploadFileWithProgress(
                 clearTimeoutIfSet(); // Clear timeout on error
                 console.error("Firebase Storage Upload Error:", error);
                 
+                let permissionError;
                 if (error.code === 'storage/unauthorized' || error.code === 'storage/object-not-found' || error.code === 'storage/unknown') {
-                     const permissionError = new FirestorePermissionError({
+                     permissionError = new FirestorePermissionError({
                         path: filePath,
                         operation: 'write',
                     });
-                    errorEmitter.emit('permission-error', permissionError);
-                    reject(permissionError);
+                    // Intentionally NOT emitting here, as we will throw it and let the caller handle it.
                 } else {
-                    reject(new Error("File upload failed. Please check your network and storage rules."));
+                    permissionError = new FirestorePermissionError({
+                        path: filePath,
+                        operation: 'write'
+                    });
                 }
+                // Reject with the specific permission error so the UI can catch it.
+                reject(permissionError);
             },
             async () => {
                 clearTimeoutIfSet(); // Clear timeout on success
@@ -75,9 +80,30 @@ export function uploadFileWithProgress(
                     resolve(downloadURL);
                 } catch (error) {
                     console.error("Failed to get download URL", error);
-                    reject(error);
+                    reject(new Error("Upload succeeded, but failed to get download URL."));
                 }
             }
         );
     });
+}
+
+// Simple uploader without progress for other uses if needed
+export async function uploadFile(file: File, filePath: string): Promise<string> {
+    const storageRef = ref(storage, filePath);
+    try {
+        await uploadBytesResumable(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        return downloadURL;
+    } catch (error: any) {
+        console.error("Firebase Storage Upload Error (simple):", error);
+        if (error.code === 'storage/unauthorized') {
+            const permissionError = new FirestorePermissionError({
+                path: filePath,
+                operation: 'write',
+            });
+             errorEmitter.emit('permission-error', permissionError);
+             throw permissionError;
+        }
+        throw new Error("File upload failed.");
+    }
 }
