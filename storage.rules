@@ -2,18 +2,33 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-
-    // --- Rules for Test Files (Uploaded by Employers) ---
-    // Example path: /tradTest/EMPLOYER_ID_123/my-test.pdf
-    match /tradTest/{employerId}/{allPaths=**} {
-
-      // ALLOW WRITE: A user can write a test file if they are:
-      // 1. Logged in.
-      // 2. Their user ID matches the {employerId} in the path.
+    // Rules for Traditional Skill Tests uploaded by employers
+    // Path: /tradTest/some-employer-id/test-file.pdf
+    match /tradTest/{employerId}/{fileName} {
+      // ALLOW WRITE if:
+      // 1. The user is authenticated (request.auth is not null).
+      // 2. The user's UID matches the {employerId} in the path.
+      // This ensures an employer can only write to their own folder.
       allow write: if request.auth != null && request.auth.uid == employerId;
 
-      // ALLOW READ: Any authenticated user can read test files (e.g., candidates downloading them).
+      // ALLOW READ for any authenticated user.
+      // This is necessary so that candidates can download the test files.
       allow read: if request.auth != null;
+    }
+
+    // Rules for Test Submissions uploaded by candidates
+    // Path: /test-submissions/some-post-id/some-candidate-id/submission.zip
+    match /test-submissions/{postId}/{candidateId}/{fileName} {
+        // ALLOW WRITE if:
+        // 1. The user is authenticated.
+        // 2. Their UID matches the {candidateId} in the path.
+        allow write: if request.auth != null && request.auth.uid == candidateId;
+
+        // ALLOW READ only to the employer who posted the job/internship.
+        // This requires a function to look up the employerId from the post.
+        // For now, we will restrict read to the candidate who uploaded it.
+        // A more complex rule would check against the Firestore 'applications' or 'jobs' collection.
+        allow read: if request.auth != null && request.auth.uid == candidateId;
     }
   }
 }

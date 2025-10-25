@@ -1,3 +1,4 @@
+
 'use client';
 
 import { getDownloadURL, ref, uploadBytesResumable, UploadTaskSnapshot } from 'firebase/storage';
@@ -31,14 +32,19 @@ export function uploadFile(
                 // Handle unsuccessful uploads
                 console.error("Firebase Storage Upload Error:", error.code, error.message);
                 
-                const permissionError = new FirestorePermissionError({
-                    path: filePath,
-                    operation: 'write',
-                });
+                let permissionError: FirestorePermissionError;
                  
                 if (error.code === 'storage/unauthorized') {
+                     permissionError = new FirestorePermissionError({
+                        path: filePath,
+                        operation: 'write',
+                    });
                      permissionError.message = `Permission denied. Please ensure your storage rules allow writing to this path: ${filePath}`;
                 } else {
+                    permissionError = new FirestorePermissionError({
+                        path: filePath,
+                        operation: 'write',
+                    });
                     permissionError.message = `Storage Error: ${error.code}. Please check your storage rules and network connection.`;
                 }
                 
