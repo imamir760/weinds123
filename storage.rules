@@ -1,38 +1,40 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
 
     // --- Rules for Test Files (Uploaded by Employers) ---
-    // Example path: /tradTest/EMPLOYER_ID_123/POST_ID_456/carpenter_test.pdf
+    // Example path: /tradTest/EMPLOYER_ID/POST_ID/test.pdf
     match /tradTest/{employerId}/{postId}/{allPaths=**} {
-
+      
       // ALLOW WRITE: A user can write a test file if they are:
       // 1. Logged in.
       // 2. Their user ID matches the {employerId} in the path.
-      allow write: if request.auth != null && request.auth.uid == employerId;
-
+      // 3. Their user ID exists in the "employers" collection in Firestore.
+      allow write: if request.auth != null && 
+                      request.auth.uid == employerId &&
+                      firestore.exists(/databases/(default)/documents/employers/$(employerId));
+                      
       // ALLOW READ: Any authenticated user can read test files (e.g., candidates downloading them).
       allow read: if request.auth != null;
     }
-
+    
     // --- Rules for Answer Submissions (Uploaded by Candidates) ---
-    // Example path: /testSubmissions/POST_ID_456/CANDIDATE_ID_789/submission.pdf
-    match /testSubmissions/{postId}/{candidateId}/{fileName} {
-
+    // Example path: /test-submissions/POST_ID/CANDIDATE_ID/submission.pdf
+    match /test-submissions/{postId}/{candidateId}/{allPaths=**} {
+    
       // ALLOW WRITE: A user can upload an answer if they are:
       // 1. Logged in
       // 2. Their user ID matches the {candidateId} in the path
-      allow write: if request.auth != null && request.auth.uid == candidateId;
-                      
-      // ALLOW READ:
-      // 1. The candidate who submitted it can read their own file.
-      // 2. The employer who created the job post can read the file.
+      // 3. Their user ID exists in the "candidates" collection
+      allow write: if request.auth != null && request.auth.uid == candidateId &&
+                      firestore.exists(/databases/(default)/documents/candidates/$(candidateId));
+
+      // ALLOW READ: The candidate who submitted it OR the employer who owns the post can read it.
       allow read: if request.auth != null &&
-                   (request.auth.uid == candidateId || 
-                    (exists(/databases/(default)/documents/jobs/$(postId)) && get(/databases/(default)/documents/jobs/$(postId)).data.employerId == request.auth.uid) ||
-                    (exists(/databases/(default)/documents/internships/$(postId)) && get(/databases/(default)/documents/internships/$(postId)).data.employerId == request.auth.uid));
+                   (request.auth.uid == candidateId ||
+                    (firestore.exists(/databases/(default)/documents/jobs/$(postId)) && firestore.get(/databases/(default)/documents/jobs/$(postId)).data.employerId == request.auth.uid) ||
+                    (firestore.exists(/databases/(default)/documents/internships/$(postId)) && firestore.get(/databases/(default)/documents/internships/$(postId)).data.employerId == request.auth.uid));
     }
   }
 }
