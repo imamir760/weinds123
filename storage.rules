@@ -1,42 +1,18 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
+
     // --- Rules for Test Files (Uploaded by Employers) ---
     // Example path: /tradTest/EMPLOYER_ID_123/POST_ID_456/test.pdf
-    match /tradTest/{employerId}/{postId}/{fileName} {
-      // ALLOW WRITE: An employer can upload a test if they are logged in
-      // and their user ID matches the {employerId} in the path.
+    match /tradTest/{employerId}/{postId}/{allPaths=**} {
+
+      // ALLOW WRITE: An authenticated user can write a test file if their UID matches the employerId in the path.
       allow write: if request.auth != null && request.auth.uid == employerId;
 
-      // ALLOW READ: Any authenticated user can read test files.
-      // This allows candidates to download them.
+      // ALLOW READ: Any authenticated user can read the test files. This is necessary
+      // for candidates to be able to download the test instructions.
       allow read: if request.auth != null;
-    }
-
-    // --- Rules for Answer Submissions (Uploaded by Candidates) ---
-    // Example path: /test-submissions/POST_ID_456/CANDIDATE_ID_789/submission.pdf
-    match /test-submissions/{postId}/{candidateId}/{fileName} {
-      // ALLOW WRITE: A candidate can upload a submission if they are logged in
-      // and their user ID matches the {candidateId} in the path.
-      allow write: if request.auth != null && request.auth.uid == candidateId;
-                      
-      // ALLOW READ: The candidate who submitted can read their own file.
-      // The employer who owns the job post can also read the submission.
-      // The rules check both 'jobs' and 'internships' collections for the post.
-      allow read: if request.auth != null && (
-        request.auth.uid == candidateId ||
-        (
-          firestore.exists(/databases/(default)/documents/jobs/$(postId)) &&
-          firestore.get(/databases/(default)/documents/jobs/$(postId)).data.employerId == request.auth.uid
-        ) ||
-        (
-          firestore.exists(/databases/(default)/documents/internships/$(postId)) &&
-          firestore.get(/databases/(default)/documents/internships/$(postId)).data.employerId == request.auth.uid
-        )
-      );
     }
   }
 }
