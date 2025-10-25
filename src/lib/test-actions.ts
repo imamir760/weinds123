@@ -35,11 +35,12 @@ export async function uploadTraditionalTest(
     });
   }
 
-  // Simplified and corrected storage path
-  const filePath = `tradTest/${employerId}/${file.name}`;
+  // Use a structured path: /tradTest/EMPLOYER_ID/POST_ID/FILENAME
+  const filePath = `tradTest/${employerId}/${postId}/${file.name}`;
 
   try {
     // 1. Upload the file and get its URL, with progress reporting
+    // The uploadFile function from storage-actions will handle progress.
     const testFileUrl = await uploadFile(file, filePath);
     onProgress(100); // Mark as complete
 
