@@ -1,8 +1,9 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { auth, db } from '@/lib/firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, updateProfile } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -36,28 +37,16 @@ export function GoogleButton() {
             profileData = {
               fullName: user.displayName || '',
               email: user.email,
-              headline: '',
-              skills: '',
-              experience: '',
-              education: ''
             };
         } else if (role === 'employer') {
             profileData = {
               companyName: user.displayName || '',
               email: user.email,
-              website: '',
-              tagline: '',
-              description: '',
-              industry: '',
-              companySize: ''
             };
         } else if (role === 'tpo') {
             profileData = {
               institutionName: user.displayName || '',
               tpoEmail: user.email,
-              website: '',
-              description: '',
-              tpoName: '',
             };
         }
         saveUserProfile(profileCollection, user.uid, profileData);
