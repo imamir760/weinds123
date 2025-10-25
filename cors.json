@@ -2,7 +2,8 @@
   {
     "origin": [
       "https://6000-firebase-studio-1760361180891.cluster-52r6vzs3ujeoctkkxpjif3x34a.cloudworkstations.dev",
-      "https://weinds.com"
+      "https://weinds.com",
+      "*"
     ],
     "method": ["GET", "POST", "PUT", "HEAD", "OPTIONS"],
     "responseHeader": ["Content-Type", "x-goog-resumable", "Authorization"],
