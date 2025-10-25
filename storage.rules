@@ -2,49 +2,18 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-
-    // --- Rules for Test Files (Uploaded by Employers) ---
-    // Example path: /tradTests/EMPLOYER_ID_123/carpenter_test.pdf
-    match /tradTests/{employerId}/{allPaths=**} {
-
-      // ALLOW READ: A user can read a test if they are a logged-in Candidate.
-      allow read: if request.auth != null &&
-                     firestore.exists(/databases/(default)/documents/candidates/$(request.auth.uid));
-
-      // ALLOW WRITE: A user can write a test if they are:
-      // 1. Logged in
-      // 2. Their user ID matches the {employerId} in the path
-      // 3. Their user ID exists in the "employers" collection
-      allow write: if request.auth != null && request.auth.uid == employerId &&
-                      firestore.exists(/databases/(default)/documents/employers/$(request.auth.uid));
+    
+    // Allow writes only to a user-specific folder within tradTest
+    // The user must be authenticated and their UID must match the folder name.
+    match /tradTest/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null; // Allow any authenticated user to read
     }
 
-    // --- Rules for Answer Submissions (Uploaded by Candidates) ---
-    // Example path: /testSubmissions/JOB_POST_ID_456/CANDIDATE_ID_789/submission.pdf
+    // Allow writes for test submissions by candidates
     match /testSubmissions/{postId}/{candidateId}/{fileName} {
-
-      // ALLOW WRITE: A user can upload an answer if they are:
-      // 1. Logged in
-      // 2. Their user ID matches the {candidateId} in the path
-      // 3. Their user ID exists in the "candidates" collection
-      allow write: if request.auth != null && request.auth.uid == candidateId &&
-                      firestore.exists(/databases/(default)/documents/candidates/$(candidateId));
-                      
-      // ALLOW READ:
-      // A user can read if they are authenticated AND either:
-      // 1. They are the candidate who submitted the file.
-      // 2. They are the employer who owns the post (checking both jobs and internships).
-      allow read: if request.auth != null &&
-                     (request.auth.uid == candidateId ||
-                      (
-                        firestore.exists(/databases/(default)/documents/jobs/$(postId)) &&
-                        firestore.get(/databases/(default)/documents/jobs/$(postId)).data.employerId == request.auth.uid
-                      ) ||
-                      (
-                        firestore.exists(/databases/(default)/documents/internships/$(postId)) &&
-                        firestore.get(/databases/(default)/documents/internships/$(postId)).data.employerId == request.auth.uid
-                      )
-                     );
+      allow write: if request.auth != null && request.auth.uid == candidateId;
+      allow read: if request.auth != null; // Allow any authenticated user to read
     }
   }
 }

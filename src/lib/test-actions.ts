@@ -4,11 +4,11 @@
 import { auth, db } from './firebase';
 import { errorEmitter } from './error-emitter';
 import { FirestorePermissionError } from './errors';
-import { uploadFileWithProgress } from './storage-actions';
+import { uploadFile } from './storage-actions';
 import { addDoc, collection, serverTimestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
 
 /**
- * Handles the complete process of uploading a traditional test with progress.
+ * Handles the complete process of uploading a traditional test.
  * @param postId The ID of the job/internship post.
  * @param employerId The ID of the employer.
  * @param file The test file to upload.
@@ -30,17 +30,18 @@ export async function uploadTraditionalTest(
   const user = auth.currentUser;
   if (!user || user.uid !== employerId) {
     throw new FirestorePermissionError({
-        path: '/tradTest or /traditionalTests',
+        path: `/tradTest/${employerId}`,
         operation: 'create',
     });
   }
 
-  // Define the storage path
-  const filePath = `tradTest/${employerId}/${postId}/${file.name}`;
+  // Simplified and corrected storage path
+  const filePath = `tradTest/${employerId}/${file.name}`;
 
   try {
     // 1. Upload the file and get its URL, with progress reporting
-    const testFileUrl = await uploadFileWithProgress(file, filePath, onProgress);
+    const testFileUrl = await uploadFile(file, filePath);
+    onProgress(100); // Mark as complete
 
     // 2. Check if a test document for this post already exists
     const testsQuery = query(collection(db, 'traditionalTests'), where('postId', '==', postId), where('employerId', '==', employerId));
