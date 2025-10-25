@@ -1,4 +1,3 @@
-
 'use client';
 
 import { getDownloadURL, ref, uploadBytesResumable, UploadTaskSnapshot } from 'firebase/storage';
@@ -13,7 +12,7 @@ import { errorEmitter } from './error-emitter';
  * @param onProgress A callback to report upload progress (0-100).
  * @returns A promise that resolves with the public download URL of the uploaded file.
  */
-export async function uploadFile(
+export function uploadFile(
     file: File, 
     filePath: string,
     onProgress: (percentage: number) => void
@@ -32,21 +31,15 @@ export async function uploadFile(
                 // Handle unsuccessful uploads
                 console.error("Firebase Storage Upload Error:", error.code, error.message);
                 
-                let permissionError: FirestorePermissionError;
-                
-                // Create a specific permission error to be thrown
+                const permissionError = new FirestorePermissionError({
+                    path: filePath,
+                    operation: 'write',
+                });
+                 
                 if (error.code === 'storage/unauthorized') {
-                     permissionError = new FirestorePermissionError({
-                        path: filePath,
-                        operation: 'write',
-                    });
+                     permissionError.message = `Permission denied. Please ensure your storage rules allow writing to this path: ${filePath}`;
                 } else {
-                    // For other storage errors, create a generic error
-                    permissionError = new FirestorePermissionError({
-                        path: filePath,
-                        operation: 'write',
-                    });
-                    permissionError.message = `Storage Error: ${error.message}`;
+                    permissionError.message = `Storage Error: ${error.code}. Please check your storage rules and network connection.`;
                 }
                 
                 // Emit the error for global listeners (like the dev overlay)

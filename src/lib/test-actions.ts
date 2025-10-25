@@ -35,7 +35,7 @@ export async function uploadTraditionalTest(
     });
   }
 
-  // Use a simpler, more robust path structure.
+  // Simplified path for easier debugging and rule matching.
   const filePath = `tradTest/${employerId}/${file.name}`;
 
   try {

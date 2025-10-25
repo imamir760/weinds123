@@ -4,17 +4,13 @@ service firebase.storage {
   match /b/{bucket}/o {
 
     // --- Rules for Test Files (Uploaded by Employers) ---
-    // This rule is simplified and more secure.
-    // Example path: /tradTest/EMPLOYER_ID_123/carpenter_test.pdf
+    // Example path: /tradTest/EMPLOYER_ID_123/my-test.pdf
     match /tradTest/{employerId}/{allPaths=**} {
 
       // ALLOW WRITE: A user can write a test file if they are:
       // 1. Logged in.
       // 2. Their user ID matches the {employerId} in the path.
-      // 3. Their user ID exists in the "employers" collection in Firestore.
-      allow write: if request.auth != null &&
-                      request.auth.uid == employerId &&
-                      firestore.exists(/databases/(default)/documents/employers/$(employerId));
+      allow write: if request.auth != null && request.auth.uid == employerId;
 
       // ALLOW READ: Any authenticated user can read test files (e.g., candidates downloading them).
       allow read: if request.auth != null;
