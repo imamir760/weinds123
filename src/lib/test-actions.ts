@@ -35,20 +35,15 @@ export async function uploadTraditionalTest(
     });
   }
 
-  // Use a structured path: /tradTest/EMPLOYER_ID/POST_ID/FILENAME
-  const filePath = `tradTest/${employerId}/${postId}/${file.name}`;
+  // Use a simpler, more robust path structure.
+  const filePath = `tradTest/${employerId}/${file.name}`;
 
   try {
-    // The uploadFile function in storage-actions should handle progress reporting,
-    // but we are passing onProgress for future flexibility if that changes.
-    // For now, let's assume `uploadFile` doesn't report progress and we'll simulate it.
+    // The uploadFile function in storage-actions is now responsible for progress.
+    const testFileUrl = await uploadFile(file, filePath, onProgress);
     
-    // Simulate some progress for better UX
-    onProgress(10);
-
-    const testFileUrl = await uploadFile(file, filePath);
-    
-    onProgress(100); // Mark as complete
+    // Finalize progress at 100
+    onProgress(100);
 
     const testsQuery = query(collection(db, 'traditionalTests'), where('postId', '==', postId), where('employerId', '==', employerId));
     const querySnapshot = await getDocs(testsQuery);
@@ -74,6 +69,7 @@ export async function uploadTraditionalTest(
 
   } catch (error: any) {
     console.error('Traditional Test upload process failed:', error);
+    // Re-throw the error so the UI can catch it.
     throw error;
   }
 }
