@@ -39,24 +39,27 @@ export async function uploadTraditionalTest(
   const filePath = `tradTest/${employerId}/${postId}/${file.name}`;
 
   try {
-    // 1. Upload the file and get its URL, with progress reporting
-    // The uploadFile function from storage-actions will handle progress.
+    // The uploadFile function in storage-actions should handle progress reporting,
+    // but we are passing onProgress for future flexibility if that changes.
+    // For now, let's assume `uploadFile` doesn't report progress and we'll simulate it.
+    
+    // Simulate some progress for better UX
+    onProgress(10);
+
     const testFileUrl = await uploadFile(file, filePath);
+    
     onProgress(100); // Mark as complete
 
-    // 2. Check if a test document for this post already exists
     const testsQuery = query(collection(db, 'traditionalTests'), where('postId', '==', postId), where('employerId', '==', employerId));
     const querySnapshot = await getDocs(testsQuery);
 
     let docId;
 
     if (!querySnapshot.empty) {
-        // Update existing document
         const docRef = querySnapshot.docs[0].ref;
         await updateDoc(docRef, { testFileUrl: testFileUrl, updatedAt: serverTimestamp() });
         docId = docRef.id;
     } else {
-        // Create new document
         const testData = {
           postId,
           employerId,
@@ -71,7 +74,6 @@ export async function uploadTraditionalTest(
 
   } catch (error: any) {
     console.error('Traditional Test upload process failed:', error);
-    // Re-throw the original error so the UI can catch its specific type
     throw error;
   }
 }
