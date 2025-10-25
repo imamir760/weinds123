@@ -2,18 +2,16 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Allow writes only to a user-specific folder within tradTest
-    // The user must be authenticated and their UID must match the folder name.
+    // --- Rules for Test Files (Uploaded by Employers) ---
+    // Path: /tradTest/EMPLOYER_USER_ID/POST_ID/test.pdf
     match /tradTest/{userId}/{allPaths=**} {
+      // ALLOW WRITE: A user can write to their own folder if they are authenticated
+      // and their UID matches the {userId} in the path.
       allow write: if request.auth != null && request.auth.uid == userId;
-      allow read: if request.auth != null; // Allow any authenticated user to read
-    }
 
-    // Allow writes for test submissions by candidates
-    match /testSubmissions/{postId}/{candidateId}/{fileName} {
-      allow write: if request.auth != null && request.auth.uid == candidateId;
-      allow read: if request.auth != null; // Allow any authenticated user to read
+      // ALLOW READ: Any authenticated user can read test files.
+      // This is generally safe if the test files themselves don't contain sensitive info.
+      allow read: if request.auth != null;
     }
   }
 }
