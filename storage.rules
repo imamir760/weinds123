@@ -2,16 +2,33 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // --- Rules for Test Files (Uploaded by Employers) ---
-    // Path: /tradTest/EMPLOYER_USER_ID/POST_ID/test.pdf
-    match /tradTest/{userId}/{allPaths=**} {
-      // ALLOW WRITE: A user can write to their own folder if they are authenticated
-      // and their UID matches the {userId} in the path.
-      allow write: if request.auth != null && request.auth.uid == userId;
-
-      // ALLOW READ: Any authenticated user can read test files.
-      // This is generally safe if the test files themselves don't contain sensitive info.
+    // Rules for traditional test file uploads by employers
+    // Example path: tradTest/employer-uid-123/test-file.pdf
+    match /tradTest/{employerId}/{allPaths=**} {
+      // Allow an employer to write (upload, update, delete) to their own folder.
+      allow write: if request.auth != null && request.auth.uid == employerId;
+      
+      // Allow authenticated users to read test files.
+      // This is a basic rule; you might want to restrict this further
+      // to only candidates who have been invited to the test.
       allow read: if request.auth != null;
+    }
+
+    // Rules for test submissions by candidates
+    // Example path: testSubmissions/post-id-456/candidate-uid-789/submission.pdf
+    match /testSubmissions/{postId}/{candidateId}/{allPaths=**} {
+      // Allow a candidate to write (upload) their own submission.
+      allow write: if request.auth != null && request.auth.uid == candidateId;
+
+      // Allow the candidate who submitted it OR the employer who owns the post to read.
+      // This assumes you have collections 'jobs' and 'internships' with an 'employerId' field.
+      allow read: if request.auth != null && (
+        request.auth.uid == candidateId ||
+        (exists(/databases/(default)/documents/jobs/$(postId)) && 
+         get(/databases/(default)/documents/jobs/$(postId)).data.employerId == request.auth.uid) ||
+        (exists(/databases/(default)/documents/internships/$(postId)) &&
+         get(/databases/(default)/documents/internships/$(postId)).data.employerId == request.auth.uid)
+      );
     }
   }
 }
