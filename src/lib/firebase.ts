@@ -13,7 +13,7 @@ const firebaseConfig: FirebaseOptions = {
   storageBucket: "studio-2514331212-b0f7f.appspot.com",
   messagingSenderId: "877736539149",
   appId: "1:877736539149:web:1fc0d5406a63615b7ad144",
-  measurementId: "G-XXXXXXXXXX"
+  measurementId: ""
 };
 
 let app: FirebaseApp | null = null;
