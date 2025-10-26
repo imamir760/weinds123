@@ -52,31 +52,33 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [matching, setMatching] = useState(false);
   const [filter, setFilter] = useState<'Applied' | 'Shortlisted' | 'Skill Test' | 'Rejected'>('Applied');
+  const [postType, setPostType] = useState<'job' | 'internship' | null>(null);
 
   const fetchPostAndApplicants = useCallback(async (currentUser: FirebaseUser) => {
     setLoading(true);
 
     try {
         let postSnap;
-        let postType: 'job' | 'internship' | null = null;
+        let determinedPostType: 'job' | 'internship' | null = null;
         const jobRef = doc(db, 'jobs', postId);
         postSnap = await getDoc(jobRef);
         if (postSnap.exists()) {
-            postType = 'job';
+            determinedPostType = 'job';
         } else {
             const internshipRef = doc(db, 'internships', postId);
             postSnap = await getDoc(internshipRef);
-            if (postSnap.exists()) postType = 'internship';
+            if (postSnap.exists()) determinedPostType = 'internship';
         }
 
-        if (!postSnap.exists() || !postType) {
+        if (!postSnap.exists() || !determinedPostType) {
             setPostDetails(null);
             setIsOwner(false);
             setLoading(false);
             return;
         }
 
-        const postData = { id: postSnap.id, ...postSnap.data(), type: postType } as PostDetails;
+        setPostType(determinedPostType);
+        const postData = { id: postSnap.id, ...postSnap.data(), type: determinedPostType } as PostDetails;
         setPostDetails(postData);
 
         const owner = currentUser.uid === postData.employerId;
@@ -163,8 +165,8 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
+        setUser(currentUser);
         fetchPostAndApplicants(currentUser);
       } else {
         setIsOwner(false);
@@ -265,7 +267,7 @@ export default function ViewApplicantsPage({ params }: { params: { id: string } 
                                   <AvatarFallback>{applicant.avatar}</AvatarFallback>
                               </Avatar>
                               <div className="flex-1">
-                                  <Link href={`/employer/jobs/${postDetails?.id}/candidates/${applicant.id}`}>
+                                  <Link href={`/employer/${postType}s/${postDetails?.id}/candidates/${applicant.id}`}>
                                     <CardTitle className="text-base hover:underline">{applicant.candidateName}</CardTitle>
                                   </Link>
                                   <CardDescription className="text-xs">{applicant.candidateHeadline}</CardDescription>
