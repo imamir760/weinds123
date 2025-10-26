@@ -49,7 +49,7 @@ export default function ApplicationsPage() {
   const [showInternships, setShowInternships] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && db) {
       setLoading(true);
       const appsRef = collection(db, 'applications');
       
