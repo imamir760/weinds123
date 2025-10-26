@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -10,7 +10,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown } from 'lucide-react';
+import { Briefcase, Loader2, GraduationCap, TestTube2, Eye, CheckCircle, Upload, FileDown, FileIcon, X } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, User } from '@/components/auth/auth-provider';
 import { db } from '@/lib/firebase';
@@ -173,39 +173,58 @@ const ViewSubmissionsDialog = ({
     )
 }
 
-const UploadTestDialog = ({ post, open, onOpenChange }: { post: Post | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
+const UploadTestDialog = ({ post, open, onOpenChange, onUploadComplete }: { post: Post | null, open: boolean, onOpenChange: (open: boolean) => void, onUploadComplete: () => void }) => {
     const { user } = useAuth();
     const { toast } = useToast();
-    const [file, setFile] = useState<File | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setFile(e.target.files[0]);
+    
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setSelectedFile(event.target.files[0]);
         }
-    }
+    };
 
     const handleUpload = async () => {
-        if (!file || !post || !user) {
+        if (!selectedFile || !post || !user) {
             toast({ title: "Please select a file.", variant: "destructive" });
             return;
         }
         setUploading(true);
         setProgress(0);
         try {
-            await uploadTraditionalTest(post.id, user.uid, file, setProgress);
+            await uploadTraditionalTest(post.id, user.uid, selectedFile, setProgress);
             toast({ title: "Test uploaded successfully!" });
-            onOpenChange(false);
+            onUploadComplete();
         } catch (error: any) {
-            toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+             let description = "Please try again.";
+             if (error instanceof FirestorePermissionError) {
+                 description = `Permission denied. Please check your storage rules for path: ${error.context.path}.`;
+             } else if (error.message) {
+                 description = error.message;
+             }
+             toast({
+                 title: "Upload Failed",
+                 description: description,
+                 variant: "destructive",
+             });
         } finally {
             setUploading(false);
+            setProgress(0);
+            setSelectedFile(null);
+            onOpenChange(false);
         }
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(isOpen) => {
+          if (!uploading) {
+            setSelectedFile(null);
+            setProgress(0);
+            onOpenChange(isOpen);
+          }
+        }}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Upload Traditional Test</DialogTitle>
@@ -214,14 +233,27 @@ const UploadTestDialog = ({ post, open, onOpenChange }: { post: Post | null, ope
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                    <Input type="file" onChange={handleFileChange} disabled={uploading}/>
-                    {uploading && <Progress value={progress} className="w-full" />}
+                    {!selectedFile && <Input type="file" onChange={handleFileChange} disabled={uploading}/>}
+
+                    {selectedFile && (
+                        <div className="flex items-center justify-between p-2 border rounded-md">
+                            <div className='flex items-center gap-2'>
+                                <FileIcon className="w-5 h-5 text-muted-foreground"/>
+                                <span className="text-sm">{selectedFile.name}</span>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setSelectedFile(null)} disabled={uploading}>
+                                <X className="w-4 h-4"/>
+                            </Button>
+                        </div>
+                    )}
+                    
+                    {uploading && <Progress value={progress} className="w-full h-2" />}
                 </div>
                  <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>Cancel</Button>
-                    <Button onClick={handleUpload} disabled={!file || uploading}>
+                    <Button onClick={handleUpload} disabled={uploading || !selectedFile}>
                         {uploading ? <Loader2 className="mr-2 animate-spin"/> : <Upload className="mr-2"/>}
-                        Upload
+                        {uploading ? `Uploading... ${Math.round(progress)}%` : 'Upload'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -242,48 +274,41 @@ export default function SkillTestsPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const [traditionalTests, setTraditionalTests] = useState<TraditionalTest[]>([]);
+  
+  const fetchPosts = async (currentUser: User) => {
+    setLoading(true);
+    try {
+        const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", currentUser.uid));
+        const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", currentUser.uid));
+        const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', currentUser.uid));
+
+        const [jobsSnapshot, internshipsSnapshot, testsSnapshot] = await Promise.all([
+            getDocs(jobsQuery),
+            getDocs(internshipsQuery),
+            getDocs(testsQuery)
+        ]);
+
+        const jobsData = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
+        const internshipsData = internshipsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post));
+        const testsData = testsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest));
+
+        setPosts([...jobsData, ...internshipsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
+        setTraditionalTests(testsData);
+
+    } catch (e) {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs, internships, or traditionalTests', operation: 'list'}));
+    } finally {
+        setLoading(false);
+    }
+  }
+
 
   useEffect(() => {
-    if (!user) {
+    if (user) {
+      fetchPosts(user);
+    } else {
         setLoading(false);
-        return;
     }
-    setLoading(true);
-
-    const jobsQuery = query(collection(db, "jobs"), where("employerId", "==", user.uid));
-    const internshipsQuery = query(collection(db, "internships"), where("employerId", "==", user.uid));
-    const testsQuery = query(collection(db, 'traditionalTests'), where('employerId', '==', user.uid));
-
-    const unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
-        const jobsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Job' } as Post));
-        setPosts(prev => [...prev.filter(p => p.type !== 'Job'), ...jobsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
-        setLoading(false);
-    }, e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'jobs', operation: 'list', requestResourceData: { employerId: user.uid } }));
-        setLoading(false);
-    });
-    
-    const unsubInternships = onSnapshot(internshipsQuery, (snapshot) => {
-        const internshipsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'Internship' } as Post));
-        setPosts(prev => [...prev.filter(p => p.type !== 'Internship'), ...internshipsData].sort((a,b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
-        setLoading(false);
-    }, e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'internships', operation: 'list', requestResourceData: { employerId: user.uid } }));
-        setLoading(false);
-    });
-
-    const unsubTests = onSnapshot(testsQuery, (snapshot) => {
-        const testsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as TraditionalTest));
-        setTraditionalTests(testsData);
-    }, e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'traditionalTests', operation: 'list', requestResourceData: { employerId: user.uid}}));
-    });
-
-    return () => {
-        unsubJobs();
-        unsubInternships();
-        unsubTests();
-    };
   }, [user]);
 
   const handleViewSubmissionsClick = (post: Post) => {
@@ -297,7 +322,11 @@ export default function SkillTestsPage() {
   }
 
   const filteredPosts = useMemo(() => {
-    return posts.filter(post => showInternships ? post.type === 'Internship' : post.type === 'Job');
+    return posts.filter(post => {
+      const hasSkillTestStage = post.pipeline?.some(p => p.stage === 'skill_test' && p.type);
+      if (!hasSkillTestStage) return false;
+      return showInternships ? post.type === 'Internship' : post.type === 'Job';
+    });
   }, [posts, showInternships]);
   
   const formatDate = (timestamp: Timestamp | Date | undefined) => {
@@ -340,27 +369,32 @@ export default function SkillTestsPage() {
   }
 
   const PageContent = (
-     <div className="container mx-auto py-8 px-4">
+     <div className="p-4 md:p-6">
       <Card>
-        <CardHeader className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="text-2xl flex items-center gap-2"><TestTube2 className="w-6 h-6" /> Skill Tests</CardTitle>
-              <CardDescription>Create and manage skill assessments for your job and internship postings.</CardDescription>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
-                <Briefcase className={!showInternships ? 'text-primary' : ''}/>
-                <span>Jobs</span>
-              </Label>
-              <Switch 
-                id="post-type-toggle"
-                checked={showInternships}
-                onCheckedChange={setShowInternships}
-              />
-              <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
-                <GraduationCap className={showInternships ? 'text-primary' : ''}/>
-                <span>Internships</span>
-              </Label>
+        <CardHeader>
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+              <div className="flex items-center gap-3">
+                  <TestTube2 className="w-6 h-6"/>
+                  <div>
+                      <CardTitle>Skill Tests</CardTitle>
+                      <CardDescription>Create and manage skill assessments for your job and internship postings.</CardDescription>
+                  </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                  <Briefcase className={!showInternships ? 'text-primary' : 'text-muted-foreground'}/>
+                  <span className={!showInternships ? 'text-primary font-semibold' : 'text-muted-foreground'}>Jobs</span>
+                </Label>
+                <Switch 
+                  id="post-type-toggle"
+                  checked={showInternships}
+                  onCheckedChange={setShowInternships}
+                />
+                <Label htmlFor="post-type-toggle" className="flex items-center gap-2 cursor-pointer">
+                  <GraduationCap className={showInternships ? 'text-primary' : 'text-muted-foreground'}/>
+                   <span className={showInternships ? 'text-primary font-semibold' : 'text-muted-foreground'}>Internships</span>
+                </Label>
+              </div>
             </div>
         </CardHeader>
         <CardContent>
@@ -370,9 +404,9 @@ export default function SkillTestsPage() {
                 </div>
             ) : filteredPosts.length === 0 ? (
                  <div className="text-center py-12 text-muted-foreground">
-                    <p>You haven't created any {showInternships ? 'internships' : 'job'} postings yet.</p>
+                    <p>You haven't created any {showInternships ? 'internships' : 'job'} postings with skill tests yet.</p>
                      <Button variant="link" asChild>
-                        <Link href="/employer/jobs">Go to My Postings</Link>
+                        <Link href="/employer/jobs">Go to My Postings to configure a pipeline</Link>
                      </Button>
                 </div>
             ) : (
@@ -404,12 +438,12 @@ export default function SkillTestsPage() {
                                         <TableCell className="text-right space-x-2">
                                             <Button variant="outline" size="sm" onClick={() => handleViewSubmissionsClick(post)}>
                                                 <Eye className="mr-2 h-3 w-3"/>
-                                                View Submissions
+                                                Submissions
                                             </Button>
                                             {testInfo.type === 'ai' && (
                                                 <Button size="sm" disabled>
                                                     <CheckCircle className="mr-2 h-3 w-3"/>
-                                                    AI Test Enabled
+                                                    AI Enabled
                                                 </Button>
                                             )}
                                             {testInfo.type === 'traditional' && (
@@ -449,6 +483,9 @@ export default function SkillTestsPage() {
         open={isUploadOpen}
         onOpenChange={setIsUploadOpen}
         post={selectedPost}
+        onUploadComplete={() => {
+            if(user) fetchPosts(user);
+        }}
       />
     </div>
   );

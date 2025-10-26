@@ -1,0 +1,14 @@
+[
+  {
+    "origin": [
+      "https://6000-firebase-studio-1760361180891.cluster-52r6vzs3ujeoctkkxpjif3x34a.cloudworkstations.dev",
+      "https://weinds.com",
+      "*",
+      "https://studio--studio-2514331212-b0f7f.us-central1.hosted.app",
+      "https://weinds123--studio-2514331212-b0f7f.asia-east1.hosted.app"
+    ],
+    "method": ["GET", "POST", "PUT", "HEAD", "OPTIONS"],
+    "responseHeader": ["Content-Type", "x-goog-resumable", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]

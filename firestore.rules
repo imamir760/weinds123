@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+<<<<<<< HEAD
     // Users can read their own profile
     match /candidates/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -64,6 +65,68 @@ service cloud.firestore {
         allow read;
         // Employers can query for their own tests
         allow list: if request.auth != null && request.query.where.to_list()[0].value == request.auth.uid;
+=======
+
+    // Helper function to check if a user has a specific role
+    function isRole(role) {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+    
+    // User profile collections
+    match /candidates/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+    match /employers/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+    match /institutes/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Publicly readable content
+    match /jobs/{jobId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && request.resource.data.employerId == request.auth.uid;
+      allow list: if request.auth != null;
+    }
+    match /internships/{internshipId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && request.resource.data.employerId == request.auth.uid;
+      allow list: if request.auth != null;
+    }
+
+    // Application specific rules
+    match /applications/{applicationId} {
+        allow create: if request.auth != null && request.resource.data.candidateId == request.auth.uid;
+        allow read, update: if request.auth != null && (
+            (isRole('candidate') && get(/databases/$(database)/documents/applications/$(applicationId)).data.candidateId == request.auth.uid) ||
+            (isRole('employer') && get(/databases/$(database)/documents/applications/$(applicationId)).data.employerId == request.auth.uid)
+        );
+        allow list: if request.auth != null;
+    }
+
+    // Skill Test Submissions
+    match /skillTestSubmissions/{submissionId} {
+        allow read, create, update: if request.auth != null && request.resource.data.candidateId == request.auth.uid;
+        allow read, list: if request.auth != null && request.query.get("employerId") == request.auth.uid;
+    }
+    
+    // Skill Test Reports
+    match /skillTestReports/{reportId} {
+       allow read, create: if request.auth != null; // Simplified for now
+       allow list: if request.auth != null;
+    }
+
+    // Traditional Test files
+    match /traditionalTests/{testId} {
+      allow create: if request.auth != null && request.resource.data.employerId == request.auth.uid;
+      allow read: if request.auth != null;
+      allow list: if request.auth != null;
+>>>>>>> origin/main
     }
   }
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -48,28 +49,16 @@ export function SignupForm({
           profileData = {
             fullName: name,
             email: user.email,
-            headline: '',
-            skills: '',
-            experience: '',
-            education: ''
           };
       } else if (role === 'employer') {
           profileData = {
             companyName: name,
             email: user.email,
-            website: '',
-            tagline: '',
-            description: '',
-            industry: '',
-            companySize: ''
           };
       } else if (role === 'tpo') {
           profileData = {
             institutionName: name,
             tpoEmail: user.email,
-            website: '',
-            description: '',
-            tpoName: '',
           };
       }
       

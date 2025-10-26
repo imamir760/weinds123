@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next build && next start -p ${PORT:-8080} -H 0.0.0.0",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.14.0",
@@ -44,6 +45,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.1.7",
     "firebase": "^10.12.3",
+    "firebase-admin": "^12.2.0",
     "framer-motion": "^11.3.19",
     "genkit": "^1.14.0",
     "lucide-react": "^0.475.0",
