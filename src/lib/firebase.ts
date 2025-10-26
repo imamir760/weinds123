@@ -1,3 +1,4 @@
+
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import type { FirebaseOptions } from 'firebase/app';
@@ -11,7 +12,7 @@ const firebaseConfig: FirebaseOptions = {
   projectId: "studio-2514331212-b0f7f",
   storageBucket: "studio-2514331212-b0f7f.appspot.com",
   messagingSenderId: "877736539149",
-  appId: "1:877736539149:web:5c95543d9235df5b7ad144",
+  appId: "1:877736539149:web:1fc0d5406a63615b7ad144",
   measurementId: "G-XXXXXXXXXX"
 };
 
