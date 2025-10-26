@@ -27,6 +27,8 @@ import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 type EmployerLayoutContextType = {
   setIsPostJobOpen: (isOpen: boolean) => void;
 };
